@@ -68,14 +68,20 @@ jobs:
           git clone --no-checkout "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" pr-tree
           git -C pr-tree -c http.extraHeader="Authorization: token ${GITHUB_TOKEN}" fetch origin "${{ github.event.pull_request.head.sha }}"
           git -C pr-tree checkout --force "${{ github.event.pull_request.head.sha }}"
-          chmod -R a-w pr-tree || true
+          chmod -R go-w pr-tree || true
       - name: Gate PR from merge-base checker
         working-directory: checker
-        run: npm run ci:asd-ste100 -- --mode pr
+        run: |
+          if ! node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['ci:asd-ste100'] ? 0 : 1)"; then
+            echo "merge-base has no ci:asd-ste100; first-land bootstrap skip"
+            exit 0
+          fi
+          npm run ci:asd-ste100 -- --mode pr
       - name: Remove secret mounts
         if: always()
         run: |
           unset FORGEJO_TOKEN ASD_STE100_VOCABULARY ASD_STE100_GITHUB_ACTIONS
+          chmod -R u+w pr-tree checker 2>/dev/null || true
           rm -rf "${{ runner.temp }}/t2-trusted"
 
   trusted-main:
@@ -102,6 +108,7 @@ jobs:
         if: always()
         run: |
           unset FORGEJO_TOKEN PACKAGE_TOKEN ASD_STE100_VOCABULARY ASD_STE100_GITHUB_ACTIONS
+          chmod -R u+w pr-tree checker 2>/dev/null || true
           rm -rf "${{ runner.temp }}/t2-trusted"
 
   trusted-release:
@@ -143,4 +150,5 @@ jobs:
         if: always()
         run: |
           unset FORGEJO_TOKEN PACKAGE_TOKEN RELEASE_TOKEN ASD_STE100_VOCABULARY ASD_STE100_GITHUB_ACTIONS
+          chmod -R u+w pr-tree checker 2>/dev/null || true
           rm -rf "${{ runner.temp }}/t2-trusted"
