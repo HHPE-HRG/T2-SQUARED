@@ -32,13 +32,15 @@ jobs:
   advisory:
     name: asd-ste100 / advisory
     runs-on: hhpe-ci
-    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'fixture')
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     timeout-minutes: 20
     steps:
       - name: Checkout pull-request head for advisory extraction
-        uses: https://code.forgejo.org/actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          git init
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraHeader="Authorization: token ${GITHUB_TOKEN}" fetch --depth 1 origin "${GITHUB_SHA}"
+          git checkout --force FETCH_HEAD
       - name: Advisory fixture command without credentials
         run: npm run ci:asd-ste100 -- --mode fixture
 
@@ -57,17 +59,16 @@ jobs:
           rm -rf "${{ runner.temp }}/t2-trusted"
           mkdir -p "${{ runner.temp }}/t2-trusted"
       - name: Checkout protected merge-base checker
-        uses: https://code.forgejo.org/actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: checker
+        run: |
+          git clone --no-checkout "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" checker
+          git -C checker -c http.extraHeader="Authorization: token ${GITHUB_TOKEN}" fetch origin "${{ github.event.pull_request.base.sha }}"
+          git -C checker checkout --force "${{ github.event.pull_request.base.sha }}"
       - name: Mount pull-request tree read-only as data
-        uses: https://code.forgejo.org/actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-          path: pr-tree
+        run: |
+          git clone --no-checkout "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" pr-tree
+          git -C pr-tree -c http.extraHeader="Authorization: token ${GITHUB_TOKEN}" fetch origin "${{ github.event.pull_request.head.sha }}"
+          git -C pr-tree checkout --force "${{ github.event.pull_request.head.sha }}"
+          chmod -R a-w pr-tree || true
       - name: Gate PR from merge-base checker
         working-directory: checker
         run: npm run ci:asd-ste100 -- --mode pr
@@ -90,9 +91,11 @@ jobs:
           rm -rf "${{ runner.temp }}/t2-trusted"
           mkdir -p "${{ runner.temp }}/t2-trusted"
       - name: Checkout protected main
-        uses: https://code.forgejo.org/actions/checkout@v4
-        with:
-          fetch-depth: 0
+        run: |
+          git init
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraHeader="Authorization: token ${GITHUB_TOKEN}" fetch origin main
+          git checkout --force FETCH_HEAD
       - name: Full-corpus baseline
         run: npm run ci:asd-ste100 -- --mode main
       - name: Remove secret mounts
@@ -114,10 +117,11 @@ jobs:
           rm -rf "${{ runner.temp }}/t2-trusted"
           mkdir -p "${{ runner.temp }}/t2-trusted"
       - name: Checkout attested main candidate
-        uses: https://code.forgejo.org/actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
+        run: |
+          git init
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraHeader="Authorization: token ${GITHUB_TOKEN}" fetch origin main
+          git checkout --force FETCH_HEAD
       - name: Release eligibility
         run: npm run ci:asd-ste100 -- --mode release
       - name: Publish digest-addressed generic package
