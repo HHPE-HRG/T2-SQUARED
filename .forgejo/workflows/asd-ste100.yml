@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout pull-request head for advisory extraction
-        uses: actions/checkout@v4
+        uses: https://code.forgejo.org/actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Advisory fixture command without credentials
@@ -57,13 +57,13 @@ jobs:
           rm -rf "${{ runner.temp }}/t2-trusted"
           mkdir -p "${{ runner.temp }}/t2-trusted"
       - name: Checkout protected merge-base checker
-        uses: actions/checkout@v4
+        uses: https://code.forgejo.org/actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.base.sha }}
           path: checker
       - name: Mount pull-request tree read-only as data
-        uses: actions/checkout@v4
+        uses: https://code.forgejo.org/actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -90,7 +90,7 @@ jobs:
           rm -rf "${{ runner.temp }}/t2-trusted"
           mkdir -p "${{ runner.temp }}/t2-trusted"
       - name: Checkout protected main
-        uses: actions/checkout@v4
+        uses: https://code.forgejo.org/actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Full-corpus baseline
@@ -114,7 +114,7 @@ jobs:
           rm -rf "${{ runner.temp }}/t2-trusted"
           mkdir -p "${{ runner.temp }}/t2-trusted"
       - name: Checkout attested main candidate
-        uses: actions/checkout@v4
+        uses: https://code.forgejo.org/actions/checkout@v4
         with:
           fetch-depth: 0
           ref: main
