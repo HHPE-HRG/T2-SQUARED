@@ -421,7 +421,11 @@ export function createDefaultDeps(cwd = process.cwd(), mode: CliMode = "fixture"
       return git(scanRoot, ["merge-base", base, "HEAD"]);
     }
     try {
-      return git(scanRoot, ["merge-base", "origin/main", "HEAD"]);
+      return execFileSync("git", ["merge-base", "origin/main", "HEAD"], {
+        cwd: scanRoot,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      }).trim();
     } catch {
       return gitHead();
     }
