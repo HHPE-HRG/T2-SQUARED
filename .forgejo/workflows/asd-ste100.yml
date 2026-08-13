@@ -22,7 +22,7 @@ on:
         type: string
 
 concurrency:
-  group: asd-ste100-${{ github.event.pull_request.number || github.sha }}
+  group: asd-ste100-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
