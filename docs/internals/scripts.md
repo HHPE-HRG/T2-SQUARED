@@ -60,6 +60,7 @@ authenticated.
   options, so workspace type checking runs separately.
 - `vp run typecheck`: Strict TypeScript checks for all packages.
 - `vp run test`: Runs workspace tests.
+- `npm run ci:asd-ste100`: T2 mechanical rule-subset checker. Default is fixture self-test. See [asd-ste100-enforcement.md](./asd-ste100-enforcement.md).
 - `vp run lint:mobile`: Mobile native static analysis (`scripts/mobile-native-static-check.ts`).
 - `node apps/server/scripts/t3-sqlite-state.ts <query|exec> --base-dir <path> ...`: Inspects or seeds
   an isolated T3 SQLite database; writes create a private backup first.

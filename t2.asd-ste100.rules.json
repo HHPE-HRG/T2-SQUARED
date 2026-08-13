@@ -1,0 +1,22 @@
+{
+  "rules": [
+    {
+      "id": "5.1",
+      "maxWords": 20,
+      "reviewed": true,
+      "checker": "procedural-sentence-word-count"
+    },
+    {
+      "id": "6.3",
+      "maxWords": 25,
+      "reviewed": true,
+      "checker": "descriptive-sentence-word-count"
+    },
+    {
+      "id": "6.6",
+      "maxSentences": 6,
+      "reviewed": true,
+      "checker": "paragraph-sentence-count"
+    }
+  ]
+}

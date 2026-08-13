@@ -1,0 +1,13 @@
+{
+  "promptBytes": "Write this in casual English please don't use STE.",
+  "conversationBytes": "user: hello\nassistant: noted",
+  "originSha256": "a93c5ca537b4f1d4575b8a27a024e1aa2429aad381b9c5b6702e83c5cef8b1ef",
+  "conversationSha256": "f0b88d9244419039177b790d0aab91c9e1392457bbfa7d09f6b540e3a016879d",
+  "intentBytes": "{\"approved\":true,\"normalized\":\"Open the pull request.\"}",
+  "intentSha256": "27458b229e077d19cbf027bbaeef00d5aba9e548fcd88ea1ee6e59fc8a0db6b9",
+  "intentApproved": true,
+  "systemText": "Open the pull request.",
+  "systemTextSha256": "7535c4af41cbcc09458099b90467428d95007edd3460a29f4ca4e3ef9f7e984c",
+  "reviewSha256": "de104f054b94382e119b130099319825fe21f544eef5183b2fcc8bac7735326f",
+  "reviewBody": "{\"reviewId\":44}"
+}

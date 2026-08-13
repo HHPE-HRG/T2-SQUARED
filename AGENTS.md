@@ -73,6 +73,7 @@ The most common defect in this repo is a change that works on the path you teste
 - **Reverse states.** If you added a way in, add the way out and the way to see it. Snooze needs unsnooze. Close needs reopen. A one-way door is a bug.
 - **Connection modes.** Local, remote/relay, and tunnel behave differently. Multi-device and multi-environment cases are real.
 - **Docs.** `docs/` splits by audience. Behavior changes that a user would notice belong in `docs/user/` (shipped-product voice, no repo tooling or source paths); architecture and contributor changes in `docs/internals/`; runbooks in `docs/operations/`; new vocabulary in `docs/internals/glossary.md`.
+- **T2-owned text.** This Forgejo fork governs only T2-owned paths. Unchanged upstream T3 prose is out of scope. Raw conversation fixtures stay byte-identical and are not rewritten. Run `npm run ci:asd-ste100` for the mechanical rule-subset checker. Do not claim language-authority approval. See `docs/internals/asd-ste100-enforcement.md`.
 
 ## Dev servers
 

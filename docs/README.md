@@ -35,9 +35,11 @@ policy in [CONTRIBUTING.md](../CONTRIBUTING.md); agent rules in [AGENTS.md](../A
 - [Environment auth](./internals/environment-auth.md)
 - [T3 Connect](./internals/t3-connect.md)
 - [CI gates](./internals/ci.md)
+- [T2 ASD-STE100 mechanical rule-subset](./internals/asd-ste100-enforcement.md)
 
 ### Runbooks
 
+- [T2 Forgejo enforcement host](./operations/asd-ste100-forgejo.md)
 - [Release](./operations/release.md)
 - [Observability](./operations/observability.md)
 - [Relay observability](./operations/relay-observability.md)

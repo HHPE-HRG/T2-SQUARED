@@ -1,0 +1,142 @@
+name: asd-ste100
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Aggregate mode for a manual run
+        required: true
+        default: fixture
+        type: choice
+        options:
+          - fixture
+          - main
+          - release
+      tag:
+        description: Protected t2-v* tag. Leave empty to create no tag.
+        required: false
+        type: string
+
+concurrency:
+  group: asd-ste100-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PATH: /home/oldmac-vm/.local/node-v24/bin:/usr/local/bin:/usr/bin:/bin
+
+jobs:
+  advisory:
+    name: asd-ste100 / advisory
+    runs-on: hhpe-ci
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'fixture')
+    timeout-minutes: 20
+    steps:
+      - name: Checkout pull-request head for advisory extraction
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Advisory fixture command without credentials
+        run: npm run ci:asd-ste100 -- --mode fixture
+
+  trusted-pr:
+    name: asd-ste100 / trusted-pr
+    runs-on: t2-trusted
+    if: github.repository == 'maxholden/T2-SQUARED' && github.event_name == 'pull_request'
+    timeout-minutes: 30
+    env:
+      ASD_STE100_GITHUB_ACTIONS: disabled
+      ASD_STE100_PR_TREE: ${{ github.workspace }}/pr-tree
+      ASD_STE100_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - name: Prepare ephemeral empty workspace
+        run: |
+          rm -rf "${{ runner.temp }}/t2-trusted"
+          mkdir -p "${{ runner.temp }}/t2-trusted"
+      - name: Checkout protected merge-base checker
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: checker
+      - name: Mount pull-request tree read-only as data
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr-tree
+      - name: Gate PR from merge-base checker
+        working-directory: checker
+        run: npm run ci:asd-ste100 -- --mode pr
+      - name: Remove secret mounts
+        if: always()
+        run: |
+          unset FORGEJO_TOKEN ASD_STE100_VOCABULARY ASD_STE100_GITHUB_ACTIONS
+          rm -rf "${{ runner.temp }}/t2-trusted"
+
+  trusted-main:
+    name: asd-ste100 / trusted-main
+    runs-on: t2-trusted
+    if: github.repository == 'maxholden/T2-SQUARED' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 40
+    env:
+      ASD_STE100_GITHUB_ACTIONS: disabled
+    steps:
+      - name: Prepare ephemeral empty workspace
+        run: |
+          rm -rf "${{ runner.temp }}/t2-trusted"
+          mkdir -p "${{ runner.temp }}/t2-trusted"
+      - name: Checkout protected main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Full-corpus baseline
+        run: npm run ci:asd-ste100 -- --mode main
+      - name: Remove secret mounts
+        if: always()
+        run: |
+          unset FORGEJO_TOKEN PACKAGE_TOKEN ASD_STE100_VOCABULARY ASD_STE100_GITHUB_ACTIONS
+          rm -rf "${{ runner.temp }}/t2-trusted"
+
+  trusted-release:
+    name: asd-ste100 / trusted-release
+    runs-on: t2-trusted
+    if: github.repository == 'maxholden/T2-SQUARED' && github.event_name == 'workflow_dispatch' && inputs.mode == 'release'
+    timeout-minutes: 40
+    env:
+      ASD_STE100_GITHUB_ACTIONS: disabled
+    steps:
+      - name: Prepare ephemeral empty workspace
+        run: |
+          rm -rf "${{ runner.temp }}/t2-trusted"
+          mkdir -p "${{ runner.temp }}/t2-trusted"
+      - name: Checkout attested main candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Release eligibility
+        run: npm run ci:asd-ste100 -- --mode release
+      - name: Publish digest-addressed generic package
+        run: |
+          digest_file=$(ls .cache/asd-ste100/*.json | head -n 1)
+          test -n "$digest_file"
+          name=$(basename "$digest_file")
+          # Fail when the same digest name already holds different bytes.
+          curl -fsS -X PUT \
+            -H "Authorization: token ${PACKAGE_TOKEN}" \
+            --upload-file "$digest_file" \
+            "${GITHUB_SERVER_URL}/api/packages/${GITHUB_REPOSITORY_OWNER}/generic/asd-ste100-attestation/${name}/${name}"
+      - name: Create protected t2-v* tag only
+        if: startsWith(inputs.tag, 't2-v')
+        run: |
+          git tag "${{ inputs.tag }}"
+          git push origin "refs/tags/${{ inputs.tag }}"
+      - name: Remove secret mounts
+        if: always()
+        run: |
+          unset FORGEJO_TOKEN PACKAGE_TOKEN RELEASE_TOKEN ASD_STE100_VOCABULARY ASD_STE100_GITHUB_ACTIONS
+          rm -rf "${{ runner.temp }}/t2-trusted"

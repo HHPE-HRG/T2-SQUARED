@@ -42,6 +42,7 @@ export default defineConfig({
       "apps/web/src/lib/vendor/qrcodegen.ts",
       "apps/mobile/uniwind-types.d.ts",
       "*.icon/**",
+      "scripts/asd-ste100/test/fixtures/**",
     ],
     sortPackageJson: {},
     overrides: [

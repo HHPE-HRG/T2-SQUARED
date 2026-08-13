@@ -1,0 +1,22 @@
+{
+  "ownedGlobs": [
+    "scripts/asd-ste100/**",
+    "t2.asd-ste100.json",
+    "t2.asd-ste100.*.json",
+    "t2.upstream.json",
+    ".forgejo/workflows/asd-ste100.yml",
+    "docs/internals/asd-ste100-enforcement.md",
+    "docs/operations/asd-ste100-forgejo.md"
+  ],
+  "rawGlobs": ["scripts/asd-ste100/test/fixtures/raw/**"],
+  "machineGlobs": [],
+  "fixtureGlobs": ["scripts/asd-ste100/test/fixtures/**"],
+  "privilegedGlobs": [
+    "t2.asd-ste100.json",
+    "t2.asd-ste100.*.json",
+    "t2.upstream.json",
+    "scripts/asd-ste100/**",
+    ".forgejo/workflows/**"
+  ],
+  "externalEvidenceGlobs": ["scripts/asd-ste100/test/fixtures/evidence/**"]
+}

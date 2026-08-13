@@ -1,0 +1,7 @@
+{
+  "checkerSha": null,
+  "status": "bootstrap-pending",
+  "reviewerPrincipal": null,
+  "fixtureResult": null,
+  "protectionActivation": "after-workflow-dispatch-validation"
+}
