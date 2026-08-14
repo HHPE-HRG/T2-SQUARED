@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -296,6 +296,62 @@ describe("scanGitDiffLeak", () => {
     assert.equal(diff.includes("\xff\xd8"), false);
     for (const needle of SYNTHETIC_DICTIONARY_NEEDLES) {
       assert.equal(diff.includes(needle), false);
+    }
+  });
+
+  it("flags an untracked leak file in gitCwd and does not write records.json", async () => {
+    const repo = initTempGit();
+    const outputDir = path.join(repo, "records");
+    mkdirSync(outputDir);
+    const needle = SYNTHETIC_DICTIONARY_NEEDLES[0]!;
+    writeFileSync(path.join(repo, "untracked-leak.txt"), `${needle}\n`);
+
+    const waves = partitionWaves(syntheticManifest(20), DEFAULT_CHUNK_PAGES);
+    const agent = (job: WaveJob): MappingAgentChunk =>
+      chunkForJob(job, [
+        mappingRow({
+          id: "6.3",
+          class: "deterministic",
+          sourcePages: [job.startPage],
+          proposedCheckerId: "procedural-sentence-word-count",
+        }),
+      ]);
+
+    await assert.rejects(
+      () => runWaves(waves, agent, { outputDir, gitCwd: repo, maxAttempts: 1 }),
+      /dictionary|official|leak/i,
+    );
+    assert.equal(existsSync(path.join(outputDir, "records.json")), false);
+  });
+
+  it("never writes records.json when git-diff leak scan fails", async () => {
+    const repo = initTempGit();
+    const outputDir = path.join(repo, "records");
+    mkdirSync(outputDir);
+    const needle = SYNTHETIC_DICTIONARY_NEEDLES[0]!;
+    writeFileSync(path.join(repo, "staged-leak.txt"), `${needle}\n`);
+    execFileSync("git", ["add", "staged-leak.txt"], { cwd: repo, stdio: "pipe" });
+    chmodSync(outputDir, 0o555);
+
+    const waves = partitionWaves(syntheticManifest(20), DEFAULT_CHUNK_PAGES);
+    const agent = (job: WaveJob): MappingAgentChunk =>
+      chunkForJob(job, [
+        mappingRow({
+          id: "6.3",
+          class: "deterministic",
+          sourcePages: [job.startPage],
+          proposedCheckerId: "procedural-sentence-word-count",
+        }),
+      ]);
+
+    try {
+      await assert.rejects(
+        () => runWaves(waves, agent, { outputDir, gitCwd: repo, maxAttempts: 1 }),
+        /dictionary|official|leak/i,
+      );
+      assert.equal(existsSync(path.join(outputDir, "records.json")), false);
+    } finally {
+      chmodSync(outputDir, 0o755);
     }
   });
 });

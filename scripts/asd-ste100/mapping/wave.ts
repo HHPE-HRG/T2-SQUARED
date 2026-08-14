@@ -1,5 +1,4 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 
 import {
@@ -178,7 +177,12 @@ function readGitDiff(cwd: string): string {
       return typeof err.stdout === "string" ? err.stdout : "";
     }
   };
-  return `${run(["diff", "HEAD"])}\n${run(["diff", "--cached"])}`;
+  const untracked = run(["ls-files", "--others", "--exclude-standard"]);
+  const parts = [run(["diff", "HEAD"]), run(["diff", "--cached"])];
+  for (const rel of untracked.split("\n").filter(Boolean)) {
+    parts.push(run(["diff", "--no-index", "--", "/dev/null", path.join(cwd, rel)]));
+  }
+  return parts.join("\n");
 }
 
 async function runWaveWithRetry(
@@ -221,14 +225,13 @@ export async function runWaves(
   }
 
   const records = mergeMappings(chunks);
-  const recordsPath = writeMappingRecords(records, options.outputDir);
-  const written = existsSync(recordsPath) ? readFileSync(recordsPath, "utf8") : "";
+  const payload = `${JSON.stringify(records, null, 2)}\n`;
   const gitCwd = options.gitCwd;
-  const workspace = gitCwd === undefined ? written : `${written}\n${readGitDiff(gitCwd)}`;
+  const workspace = gitCwd === undefined ? payload : `${payload}\n${readGitDiff(gitCwd)}`;
   const diffScan = scanGitDiffLeak(workspace, SYNTHETIC_DICTIONARY_NEEDLES);
   if (!diffScan.ok) {
-    rmSync(recordsPath, { force: true });
     throw new Error(diffScan.reason);
   }
+  const recordsPath = writeMappingRecords(records, options.outputDir);
   return { records, recordsPath, attemptsByWave };
 }
