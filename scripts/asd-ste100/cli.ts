@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -15,10 +16,23 @@ import { checkClaims } from "./claim.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
 import { extractMarkdown, extractTypeScript } from "./extract.ts";
 import { collectScopeRecords, loadOwnershipManifest } from "./ownership.ts";
+import {
+  approvedWordSet,
+  checkMembershipAndIdentification,
+  knownNounsFromTerms,
+} from "./membership.ts";
 import { checkMechanicalRules } from "./rules.ts";
 import type { Finding } from "./rules.ts";
 import { evaluateIntentApplicability } from "./trace.ts";
-import { validateProfile, validateTechnicalTerms, VocabularyMissingError } from "./vocabulary.ts";
+import {
+  parseApprovedWordsFromOfficialBytes,
+  validateProfile,
+  validateTechnicalTerms,
+  VocabularyChecksumMismatchError,
+  VocabularyEmptyError,
+  VocabularyMissingError,
+  VocabularyOpaqueError,
+} from "./vocabulary.ts";
 import type { AsdProfile, TechnicalTerm } from "./vocabulary.ts";
 
 export const EXIT = {
@@ -136,6 +150,47 @@ function connected(mode: CliMode): boolean {
   return mode === "pr" || mode === "main" || mode === "release";
 }
 
+function sha256Bytes(contents: Buffer): string {
+  return createHash("sha256").update(contents).digest("hex");
+}
+
+function isVocabularyGateError(error: unknown): boolean {
+  return (
+    error instanceof VocabularyMissingError ||
+    error instanceof VocabularyChecksumMismatchError ||
+    error instanceof VocabularyOpaqueError ||
+    error instanceof VocabularyEmptyError ||
+    (error instanceof Error &&
+      (error.name === "VocabularyMissingError" ||
+        error.name === "VocabularyChecksumMismatchError" ||
+        error.name === "VocabularyOpaqueError" ||
+        error.name === "VocabularyEmptyError"))
+  );
+}
+
+function evaluateG3(mode: CliMode, deps: CliDeps, profile: AsdProfile): GateResult {
+  if (!connected(mode)) {
+    return { id: "G3", ok: true, reason: "" };
+  }
+  try {
+    const bytes = deps.officialVocabularyBytes();
+    if (sha256Bytes(bytes) !== profile.vocabularySha256) {
+      return { id: "G3", ok: false, reason: new VocabularyChecksumMismatchError().message };
+    }
+    parseApprovedWordsFromOfficialBytes(bytes);
+    return { id: "G3", ok: true, reason: "" };
+  } catch (error) {
+    if (isVocabularyGateError(error)) {
+      return {
+        id: "G3",
+        ok: false,
+        reason: error instanceof Error ? error.message : "private vocabulary file is missing",
+      };
+    }
+    throw error;
+  }
+}
+
 function failRun(
   partial: Omit<CliRunResult, "ok" | "exitCode" | "outputs"> & { outputs?: Array<CliOutput> },
 ): CliRunResult {
@@ -177,19 +232,21 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
 
   if (connected(mode)) {
     try {
-      const profile = loadJson<AsdProfile>(deps.cwd, "t2.asd-ste100.json");
-      validateProfile(profile);
+      const connectedProfile = loadJson<AsdProfile>(deps.cwd, "t2.asd-ste100.json");
+      validateProfile(connectedProfile);
       deps.officialVocabularyBytes();
     } catch (error) {
       if (
         error instanceof VocabularyMissingError ||
         (error instanceof Error && error.name === "VocabularyMissingError")
       ) {
+        const reason =
+          error instanceof Error ? error.message : "private vocabulary file is missing";
         return failRun({
-          reason: error instanceof Error ? error.message : "private vocabulary file is missing",
+          reason,
           exitCategory: "prerequisite",
           mode,
-          gates: [],
+          gates: [{ id: "G3", ok: false, reason }],
           scannedPaths,
           aggregate: emptyAggregate,
         });
@@ -198,6 +255,7 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
     }
   }
 
+  const profile = loadJson<AsdProfile>(deps.cwd, "t2.asd-ste100.json");
   const gates: Array<GateResult> = [];
   gates.push({ id: "G1", ok: true, reason: "" });
 
@@ -208,7 +266,7 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
     reason: g2ok ? "" : "T2-owned changed text has unresolved rule findings",
   });
 
-  gates.push({ id: "G3", ok: true, reason: "" });
+  gates.push(evaluateG3(mode, deps, profile));
 
   if (deps.governedSystemTextWithoutTrace) {
     gates.push({
@@ -252,7 +310,6 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
 
   const g7 = gates.find((gate) => gate.id === "G7");
   const ok = g7?.ok === true;
-  const profile = loadJson<AsdProfile>(deps.cwd, "t2.asd-ste100.json");
   const attestation = buildAttestation({
     sourceSha: refs.headSha,
     upstreamSha: loadJson<{ acceptedBaseSha: string }>(deps.cwd, "t2.upstream.json")
@@ -369,11 +426,29 @@ function extractOwned(filePath: string, source: string) {
   return [];
 }
 
+export function loadScanLexicon(
+  cwd: string,
+  officialBytes: Buffer | null,
+): {
+  approvedWords: Set<string>;
+  technicalTerms: Array<TechnicalTerm>;
+} {
+  const termsFile = loadJson<{ terms: Array<TechnicalTerm> }>(cwd, "t2.asd-ste100.terms.json");
+  validateTechnicalTerms(termsFile.terms);
+  const officialWords =
+    officialBytes === null ? [] : parseApprovedWordsFromOfficialBytes(officialBytes);
+  return {
+    approvedWords: approvedWordSet(officialWords),
+    technicalTerms: termsFile.terms,
+  };
+}
+
 export function scanGovernedFindings(input: {
   cwd: string;
   mode: "pr" | "corpus";
   baseSha: string;
   headSha: string;
+  officialBytes?: Buffer | null;
 }): { paths: Array<string>; findings: Array<Finding> } {
   const manifest = loadOwnershipManifest(path.join(input.cwd, "t2.asd-ste100.ownership.json"));
   const records = collectScopeRecords({
@@ -383,6 +458,8 @@ export function scanGovernedFindings(input: {
     headSha: input.headSha,
     manifest,
   });
+  const lexicon = loadScanLexicon(input.cwd, input.officialBytes ?? null);
+  const knownNouns = knownNounsFromTerms(lexicon.technicalTerms);
   const findings: Array<Finding> = [];
   const paths: Array<string> = [];
   for (const record of records) {
@@ -404,6 +481,15 @@ export function scanGovernedFindings(input: {
           kind: "descriptive",
         }),
         ...checkClaims(extracted),
+        ...checkMembershipAndIdentification({
+          path: extracted.path,
+          line: extracted.line,
+          column: extracted.column,
+          text: extracted.text,
+          approvedWords: lexicon.approvedWords,
+          technicalTerms: lexicon.technicalTerms,
+          knownNouns,
+        }),
       );
     }
   }
@@ -430,15 +516,27 @@ export function createDefaultDeps(cwd = process.cwd(), mode: CliMode = "fixture"
       return gitHead();
     }
   };
-  const scanned =
-    mode === "fixture"
-      ? { paths: [] as Array<string>, findings: [] as Array<Finding> }
-      : scanGovernedFindings({
-          cwd: scanRoot,
-          mode: mode === "pr" ? "pr" : "corpus",
-          baseSha: gitMergeBase(),
-          headSha: gitHead(),
-        });
+  const officialPath = process.env.ASD_STE100_VOCABULARY;
+  let officialBytes: Buffer | null = null;
+  if (officialPath !== undefined && existsSync(officialPath)) {
+    officialBytes = readFileSync(officialPath);
+  }
+  let scanned = { paths: [] as Array<string>, findings: [] as Array<Finding> };
+  if (mode !== "fixture") {
+    try {
+      scanned = scanGovernedFindings({
+        cwd: scanRoot,
+        mode: mode === "pr" ? "pr" : "corpus",
+        baseSha: gitMergeBase(),
+        headSha: gitHead(),
+        officialBytes,
+      });
+    } catch (error) {
+      if (!isVocabularyGateError(error)) {
+        throw error;
+      }
+    }
+  }
   return {
     cwd: root,
     now: () => new Date().toISOString(),

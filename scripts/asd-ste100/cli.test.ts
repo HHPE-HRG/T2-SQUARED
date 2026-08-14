@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { VocabularyMissingError } from "./vocabulary.ts";
-import { EXIT, parseMode, resolvePrGitRefs, runCli } from "./cli.ts";
+import { EXIT, loadScanLexicon, parseMode, resolvePrGitRefs, runCli } from "./cli.ts";
 import type { CliDeps } from "./cli.ts";
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -31,6 +33,40 @@ const deps = (overrides: Partial<CliDeps> = {}): CliDeps => ({
   writeOutput: () => undefined,
   ...overrides,
 });
+
+function sha256(contents: string | Buffer): string {
+  return createHash("sha256").update(contents).digest("hex");
+}
+
+function connectedCwd(vocabularySha256: string): string {
+  const dir = mkdtempSync(path.join(tmpdir(), "asd-g3-"));
+  writeFileSync(
+    path.join(dir, "t2.asd-ste100.json"),
+    `${JSON.stringify({
+      issue: "9",
+      vocabularySha256,
+      claim: "ASD-STE100 mechanical rule-subset result",
+      rules: [{ id: "1.1", reviewed: true, checker: "vocabulary-membership" }],
+    })}\n`,
+  );
+  writeFileSync(
+    path.join(dir, "t2.upstream.json"),
+    `${JSON.stringify({ acceptedBaseSha: "basesha" })}\n`,
+  );
+  writeFileSync(
+    path.join(dir, "t2.asd-ste100.terms.json"),
+    `${JSON.stringify({
+      terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+    })}\n`,
+  );
+  return dir;
+}
+
+function gate(result: { gates: Array<{ id: string; ok: boolean; reason: string }> }, id: string) {
+  const found = result.gates.find((entry) => entry.id === id);
+  assert.ok(found, `missing gate ${id}`);
+  return found;
+}
 
 describe("package scripts", () => {
   it("keeps root and scripts-workspace ci:asd-ste100 on the same cli.ts", () => {
@@ -86,6 +122,81 @@ describe("runCli", () => {
     );
     assert.equal(result.exitCategory, "prerequisite");
     assert.equal(result.exitCode, EXIT.prerequisite);
+    assert.equal(gate(result, "G3").ok, false);
+    assert.match(gate(result, "G3").reason, /missing/i);
+  });
+
+  it("passes fixture mode without the official vocabulary file", () => {
+    const result = runCli(
+      ["--mode", "fixture"],
+      deps({
+        officialVocabularyBytes: () => {
+          throw new VocabularyMissingError();
+        },
+      }),
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.exitCode, EXIT.ok);
+    assert.equal(gate(result, "G3").ok, true);
+  });
+
+  it("fails G3 in connected modes on checksum mismatch before using vocabulary bytes", () => {
+    const official = Buffer.from(JSON.stringify({ words: ["synthlemmaaaa"] }));
+    const result = runCli(
+      ["--mode", "pr"],
+      deps({
+        cwd: connectedCwd("a".repeat(64)),
+        officialVocabularyBytes: () => official,
+      }),
+    );
+    assert.equal(result.ok, false);
+    assert.equal(gate(result, "G3").ok, false);
+    assert.match(gate(result, "G3").reason, /checksum/i);
+    assert.equal(gate(result, "G3").reason.includes("synthlemmaaaa"), false);
+    assert.equal(JSON.stringify(result.aggregate).includes("synthlemmaaaa"), false);
+  });
+
+  it("fails G3 in connected modes when official bytes are opaque", () => {
+    const official = Buffer.from("%PDF-1.4\nsecret-vocab-token");
+    const result = runCli(
+      ["--mode", "main"],
+      deps({
+        cwd: connectedCwd(sha256(official)),
+        officialVocabularyBytes: () => official,
+      }),
+    );
+    assert.equal(result.ok, false);
+    assert.equal(gate(result, "G3").ok, false);
+    assert.match(gate(result, "G3").reason, /opaque/i);
+    assert.equal(gate(result, "G3").reason.includes("secret-vocab-token"), false);
+    assert.equal(JSON.stringify(result.aggregate).includes("secret-vocab-token"), false);
+  });
+
+  it("fails G3 in connected modes when the derived words array is empty", () => {
+    const official = Buffer.from(JSON.stringify({ words: [] }));
+    const result = runCli(
+      ["--mode", "release"],
+      deps({
+        cwd: connectedCwd(sha256(official)),
+        officialVocabularyBytes: () => official,
+      }),
+    );
+    assert.equal(result.ok, false);
+    assert.equal(gate(result, "G3").ok, false);
+    assert.match(gate(result, "G3").reason, /empty/i);
+  });
+
+  it("passes G3 in connected modes when the pin matches a derived words JSON list", () => {
+    const official = Buffer.from(`${JSON.stringify({ words: ["synthlemmaaaa"] })}\n`);
+    const result = runCli(
+      ["--mode", "pr"],
+      deps({
+        cwd: connectedCwd(sha256(official)),
+        officialVocabularyBytes: () => official,
+      }),
+    );
+    assert.equal(gate(result, "G3").ok, true);
+    assert.equal(result.ok, true);
   });
 
   it("fails release mode without a current successful main baseline", () => {
@@ -207,5 +318,30 @@ describe("runCli", () => {
       deps({ officialVocabularyBytes: () => Buffer.from("secret-vocab-token") }),
     );
     assert.equal(JSON.stringify(result.aggregate).includes("secret-vocab-token"), false);
+  });
+});
+
+describe("loadScanLexicon", () => {
+  it("uses official words and reviewed terms only, not synthetic fixture words", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "asd-lexicon-"));
+    writeFileSync(
+      path.join(dir, "t2.asd-ste100.terms.json"),
+      `${JSON.stringify({
+        terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+      })}\n`,
+    );
+    const syntheticDir = path.join(dir, "scripts/asd-ste100/test/fixtures/vocab");
+    mkdirSync(syntheticDir, { recursive: true });
+    writeFileSync(
+      path.join(syntheticDir, "synthetic.json"),
+      JSON.stringify({ words: ["attestation", "runner", "override"] }),
+    );
+    const lexicon = loadScanLexicon(dir, Buffer.from(JSON.stringify({ words: ["synthlemmaaaa"] })));
+    assert.equal(lexicon.approvedWords.has("synthlemmaaaa"), true);
+    assert.equal(lexicon.approvedWords.has("attestation"), false);
+    assert.equal(
+      lexicon.technicalTerms.some((term) => term.term === "Forgejo"),
+      true,
+    );
   });
 });
