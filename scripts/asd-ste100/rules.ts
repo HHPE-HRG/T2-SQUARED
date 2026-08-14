@@ -76,5 +76,36 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       message: "semicolon is not permitted in governed prose.",
     });
   }
+  if (
+    /\b(?:is|are|was|were|be|been|being)\s+(?:\w+ed|written|done|made|given|taken)\b/i.test(
+      input.text,
+    )
+  ) {
+    findings.push({
+      path: input.path,
+      line: input.line,
+      column: input.column,
+      ruleId: "T2-HEURISTIC-passive",
+      message: "passive construction is a candidate for rewrite.",
+    });
+  }
+  if (/\b(?:colour|centre|organise|organisation|defence|licence)\b/i.test(input.text)) {
+    findings.push({
+      path: input.path,
+      line: input.line,
+      column: input.column,
+      ruleId: "T2-HEURISTIC-spelling",
+      message: "non-American spelling is not permitted in governed prose.",
+    });
+  }
+  if (/\bthe\s+\w+ing\s+of\b/i.test(input.text)) {
+    findings.push({
+      path: input.path,
+      line: input.line,
+      column: input.column,
+      ruleId: "T2-HEURISTIC-verb-form",
+      message: "this verb form is not permitted as a noun.",
+    });
+  }
   return findings;
 }

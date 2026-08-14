@@ -52,6 +52,90 @@ describe("checkMechanicalRules", () => {
       true,
     );
   });
+
+  it("reports a passive-voice candidate", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "The file is written by the runner.",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-passive"),
+      true,
+    );
+    assert.equal(
+      findings.some((finding) => finding.ruleId.startsWith("ASD-STE100-")),
+      false,
+    );
+  });
+
+  it("reports non-American spelling", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "The colour of the centre is wrong.",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-spelling"),
+      true,
+    );
+    assert.equal(
+      findings.some((finding) => finding.ruleId.startsWith("ASD-STE100-")),
+      false,
+    );
+  });
+
+  it("reports a disallowed -ing verb form used as a noun", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "The running of the job is slow.",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-verb-form"),
+      true,
+    );
+    assert.equal(
+      findings.some((finding) => finding.ruleId.startsWith("ASD-STE100-")),
+      false,
+    );
+  });
+
+  it("does not report T2-HEURISTIC-passive on active voice", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "The runner writes the file.",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-passive"),
+      false,
+    );
+  });
+
+  it("does not report T2-HEURISTIC-spelling on American spelling", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "The color of the center is wrong.",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-spelling"),
+      false,
+    );
+  });
+
+  it("does not report T2-HEURISTIC-verb-form when -ing is not used as a noun", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "The runner is running the job.",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-verb-form"),
+      false,
+    );
+  });
 });
 
 describe("checkClaims", () => {
