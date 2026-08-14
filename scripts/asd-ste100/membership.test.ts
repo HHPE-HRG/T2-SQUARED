@@ -1,13 +1,25 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 
+import { scanForVocabularyLeak } from "./attestation.ts";
+import { formatDiagnostic } from "./diagnostics.ts";
 import {
   checkArticleBeforeNoun,
   checkMembershipAndIdentification,
   checkVocabularyMembership,
   knownNounsFromTerms,
+  unapprovedTokenMessage,
 } from "./membership.ts";
-import type { TechnicalTerm } from "./vocabulary.ts";
+import {
+  deriveRunnerLexiconJson,
+  loadVocabulary,
+  parseApprovedWordsFromOfficialBytes,
+  type TechnicalTerm,
+} from "./vocabulary.ts";
 
 const loc = { path: "docs/note.md", line: 1, column: 1 };
 const terms: Array<TechnicalTerm> = [
@@ -26,8 +38,8 @@ describe("checkVocabularyMembership", () => {
     });
     const hit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
     assert.ok(hit);
-    assert.match(hit.message, /xyzzy/i);
-    assert.doesNotMatch(hit.message, /approved alternative|dictionary/i);
+    assert.equal(hit.message, unapprovedTokenMessage("xyzzy"));
+    assertLeakSafeMembershipDiagnostic(hit.message, ["install", "runner", "attestation"]);
   });
 
   it("accepts a reviewed T2 technical name that is absent from the approved list", () => {
@@ -84,9 +96,103 @@ describe("checkMembershipAndIdentification", () => {
       findings.some((finding) => finding.ruleId === "ASD-STE100-4.5"),
       true,
     );
+    for (const finding of findings) {
+      assert.doesNotMatch(finding.message, LEAK_UNSAFE);
+    }
+    const membershipHit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
+    assert.ok(membershipHit);
+    assertLeakSafeMembershipDiagnostic(membershipHit.message, ["install", "attestation"]);
+  });
+});
+
+const LEAK_UNSAFE = /did you mean|dictionary|approved alternative|lemma list|for example/i;
+
+function sha256(contents: string | Buffer): string {
+  return createHash("sha256").update(contents).digest("hex");
+}
+
+function assertLeakSafeMembershipDiagnostic(
+  text: string,
+  approvedWords: ReadonlyArray<string>,
+): void {
+  assert.doesNotMatch(text, LEAK_UNSAFE);
+  for (const word of approvedWords) {
     assert.equal(
-      findings.every((finding) => !/approved alternative|dictionary/i.test(finding.message)),
-      true,
+      text.toLowerCase().includes(word.toLowerCase()),
+      false,
+      `diagnostic leaked approved token ${word}`,
     );
+  }
+}
+
+describe("unapprovedTokenMessage", () => {
+  it("locks the Rule 1.1 message without alternatives, dictionary rows, or examples", () => {
+    const message = unapprovedTokenMessage("xyzzy");
+    assert.equal(message, 'word "xyzzy" is not in the approved set.');
+    assertLeakSafeMembershipDiagnostic(message, ["install", "runner", "attestation"]);
+  });
+});
+
+describe("trusted-runner lexicon proof", () => {
+  it("derives tmpdir words JSON, pins checksum, fails an unapproved token, and passes leak scan", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "asd-trusted-runner-"));
+    const extract = "synthlemmaaaa synthlemmabbb synthlemmaccc";
+    const extractPath = path.join(dir, "private-extract.txt");
+    writeFileSync(extractPath, extract);
+    const wordsPath = deriveRunnerLexiconJson({
+      coverage: {
+        class: "private_lexicon",
+        startPage: 21,
+        endPage: 40,
+        lemmaCount: 3,
+        privateExtractDigest: sha256(extract),
+      },
+      extractPath,
+    });
+    assert.equal(wordsPath.includes(`${path.sep}mapping${path.sep}records${path.sep}`), false);
+    const official = readFileSync(wordsPath);
+    const pin = sha256(official);
+    const loaded = loadVocabulary({
+      profile: {
+        issue: "9",
+        vocabularySha256: pin,
+        claim: "ASD-STE100 mechanical rule-subset result",
+      },
+      officialPath: wordsPath,
+    });
+    assert.equal(loaded.officialPresent, true);
+    const approvedWords = parseApprovedWordsFromOfficialBytes(official);
+    assert.deepEqual(approvedWords, ["synthlemmaaaa", "synthlemmabbb", "synthlemmaccc"]);
+    const findings = checkVocabularyMembership({
+      path: "docs/note.md",
+      line: 1,
+      column: 1,
+      text: "zzzyx",
+      approvedWords: new Set(approvedWords),
+      technicalTerms: [],
+    });
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0]?.ruleId, "ASD-STE100-1.1");
+    assert.equal(findings[0]?.message, unapprovedTokenMessage("zzzyx"));
+    const rendered = formatDiagnostic(findings[0]!);
+    assertLeakSafeMembershipDiagnostic(rendered, approvedWords);
+    const leak = scanForVocabularyLeak({
+      texts: [rendered, JSON.stringify(findings)],
+      officialBytes: official,
+    });
+    assert.equal(leak.ok, true);
+    assert.equal(leak.reason, "");
+  });
+
+  it("still allows membership with no official word list, as fixture mode does", () => {
+    const findings = checkVocabularyMembership({
+      path: "docs/note.md",
+      line: 1,
+      column: 1,
+      text: "Forgejo",
+      approvedWords: new Set(),
+      technicalTerms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+    });
+    assert.equal(findings.length, 0);
   });
 });

@@ -29,6 +29,10 @@ function technicalNames(terms: ReadonlyArray<TechnicalTerm>): Set<string> {
   return new Set(terms.map((term) => term.term.toLowerCase()));
 }
 
+export function unapprovedTokenMessage(token: string): string {
+  return `word "${token}" is not in the approved set.`;
+}
+
 export function checkVocabularyMembership(input: MembershipInput): Array<Finding> {
   const allowed = new Set(
     [...input.approvedWords, ...technicalNames(input.technicalTerms)].map((word) =>
@@ -46,7 +50,7 @@ export function checkVocabularyMembership(input: MembershipInput): Array<Finding
       line: input.line,
       column: input.column,
       ruleId: "ASD-STE100-1.1",
-      message: `word "${token}" is not in the approved set.`,
+      message: unapprovedTokenMessage(token),
     });
   }
   return findings;
@@ -85,9 +89,8 @@ export function approvedWordSet(words: ReadonlyArray<string>): Set<string> {
   return new Set(words.map((word) => word.toLowerCase()));
 }
 
-export function checkMembershipAndIdentification(input: MembershipInput & ArticleInput): Array<Finding> {
-  return [
-    ...checkVocabularyMembership(input),
-    ...checkArticleBeforeNoun(input),
-  ];
+export function checkMembershipAndIdentification(
+  input: MembershipInput & ArticleInput,
+): Array<Finding> {
+  return [...checkVocabularyMembership(input), ...checkArticleBeforeNoun(input)];
 }
