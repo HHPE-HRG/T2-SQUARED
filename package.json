@@ -45,7 +45,7 @@
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/dist-electron packages/*/dist .vite-plus apps/*/.vite-plus packages/*/.vite-plus",
     "sync:repos": "node scripts/sync-reference-repos.ts",
     "ci:asd-ste100": "node --experimental-strip-types scripts/asd-ste100/cli.ts",
-    "test:asd-ste100": "node --experimental-strip-types --test scripts/asd-ste100/*.test.ts"
+    "test:asd-ste100": "node --experimental-strip-types --test scripts/asd-ste100/*.test.ts scripts/asd-ste100/**/*.test.ts"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-jsx": "7.28.6",
