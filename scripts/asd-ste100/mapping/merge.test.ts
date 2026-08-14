@@ -50,6 +50,20 @@ describe("mergeMappings", () => {
     assert.equal(merged[3]?.class, "fail_closed_uncheckable");
   });
 
+  it("orders double-digit dotted ids after single-digit ids (10.1 after 2.1)", () => {
+    const merged = mergeMappings([
+      agent(1, 20, [
+        row({ id: "10.1", class: "deterministic", sourcePages: [10] }),
+        row({ id: "2.1", class: "private_lexicon", sourcePages: [2] }),
+        row({ id: "10.2", class: "fail_closed_uncheckable", sourcePages: [11] }),
+      ]),
+    ]);
+    assert.deepEqual(
+      merged.map((entry) => entry.id),
+      ["2.1", "10.1", "10.2"],
+    );
+  });
+
   it("fails when overlapping ranges disagree on checker class", () => {
     const first = agent(1, 20, [row({ id: "5.1", class: "deterministic", sourcePages: [18, 19] })]);
     const second = agent(15, 34, [

@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, rmSync } from "node:fs";
+import path from "node:path";
+
 import {
   DEFAULT_CHUNK_PAGES,
   MAX_CHUNK_PAGES,
@@ -7,6 +11,17 @@ import {
   type ManifestPage,
   type PageChunk,
 } from "./chunk.ts";
+import {
+  SYNTHETIC_DICTIONARY_NEEDLES,
+  mergeMappings,
+  scanMappingLeak,
+  writeMappingRecords,
+  type MappingAgentChunk,
+  type MappingLeakScan,
+  type MappingRow,
+} from "./merge.ts";
+
+export { SYNTHETIC_DICTIONARY_NEEDLES };
 
 export const HEURISTIC_CARD_PATH = "AGENT_HEURISTIC.md";
 
@@ -93,4 +108,127 @@ export function buildWaveJob(chunk: PageChunk, heuristicCardPath: string): WaveJ
     pages: [...chunk.pages],
     heuristicCardPath,
   };
+}
+
+export type MappingAgent = (job: WaveJob) => MappingAgentChunk | Promise<MappingAgentChunk>;
+
+export interface RunWavesOptions {
+  outputDir: string;
+  heuristicCardPath?: string;
+  maxAttempts?: number;
+  gitCwd?: string;
+}
+
+export interface RunWavesResult {
+  records: Array<MappingRow>;
+  recordsPath: string;
+  attemptsByWave: Array<number>;
+}
+
+const JPEG_SOI = "\xff\xd8";
+const JPEG_SOI_HEX = /ff\s*d8\s*ff/i;
+const JPEG_BASE64 = /\/9j\//;
+const JPEG_BINARY_FILES = /Binary files .*\.jpe?g/i;
+
+export function scanGitDiffLeak(
+  diffText: string,
+  officialNeedles: ReadonlyArray<string> = SYNTHETIC_DICTIONARY_NEEDLES,
+): MappingLeakScan {
+  if (
+    diffText.includes(JPEG_SOI) ||
+    JPEG_SOI_HEX.test(diffText) ||
+    JPEG_BASE64.test(diffText) ||
+    JPEG_BINARY_FILES.test(diffText)
+  ) {
+    return { ok: false, reason: "jpg byte leak" };
+  }
+  for (const needle of officialNeedles) {
+    if (needle.length > 0 && diffText.includes(needle)) {
+      return { ok: false, reason: "official dictionary word leak" };
+    }
+  }
+  return { ok: true, reason: "" };
+}
+
+function assertChunkMatchesJob(chunk: MappingAgentChunk, job: WaveJob): void {
+  if (chunk.startPage !== job.startPage || chunk.endPage !== job.endPage) {
+    throw new Error(
+      `agent returned range ${chunk.startPage}-${chunk.endPage}, expected ${job.startPage}-${job.endPage}`,
+    );
+  }
+  for (const row of chunk.rows) {
+    for (const page of row.sourcePages) {
+      if (page < job.startPage || page > job.endPage) {
+        throw new Error(`source page ${page} outside wave range ${job.startPage}-${job.endPage}`);
+      }
+    }
+  }
+}
+
+function readGitDiff(cwd: string): string {
+  const run = (args: Array<string>): string => {
+    try {
+      return execFileSync("git", args, {
+        cwd,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (error) {
+      const err = error as { stdout?: string };
+      return typeof err.stdout === "string" ? err.stdout : "";
+    }
+  };
+  return `${run(["diff", "HEAD"])}\n${run(["diff", "--cached"])}`;
+}
+
+async function runWaveWithRetry(
+  job: WaveJob,
+  agent: MappingAgent,
+  maxAttempts: number,
+): Promise<{ chunk: MappingAgentChunk; attempts: number }> {
+  let lastError: Error | undefined;
+  for (let attempts = 1; attempts <= maxAttempts; attempts += 1) {
+    try {
+      const chunk = await agent(job);
+      assertChunkMatchesJob(chunk, job);
+      const leak = scanMappingLeak(chunk.rows);
+      if (!leak.ok) {
+        throw new Error(leak.reason);
+      }
+      return { chunk, attempts };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+  throw lastError ?? new Error(`wave ${job.startPage}-${job.endPage} failed`);
+}
+
+export async function runWaves(
+  waves: ReadonlyArray<PageChunk>,
+  agent: MappingAgent,
+  options: RunWavesOptions,
+): Promise<RunWavesResult> {
+  const heuristicCardPath = options.heuristicCardPath ?? HEURISTIC_CARD_PATH;
+  const maxAttempts = options.maxAttempts ?? 2;
+  const chunks: Array<MappingAgentChunk> = [];
+  const attemptsByWave: Array<number> = [];
+
+  for (const wave of waves) {
+    const job = buildWaveJob(wave, heuristicCardPath);
+    const { chunk, attempts } = await runWaveWithRetry(job, agent, maxAttempts);
+    chunks.push(chunk);
+    attemptsByWave.push(attempts);
+  }
+
+  const records = mergeMappings(chunks);
+  const recordsPath = writeMappingRecords(records, options.outputDir);
+  const written = existsSync(recordsPath) ? readFileSync(recordsPath, "utf8") : "";
+  const gitCwd = options.gitCwd;
+  const workspace = gitCwd === undefined ? written : `${written}\n${readGitDiff(gitCwd)}`;
+  const diffScan = scanGitDiffLeak(workspace, SYNTHETIC_DICTIONARY_NEEDLES);
+  if (!diffScan.ok) {
+    rmSync(recordsPath, { force: true });
+    throw new Error(diffScan.reason);
+  }
+  return { records, recordsPath, attemptsByWave };
 }

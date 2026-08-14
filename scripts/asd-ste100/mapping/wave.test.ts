@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -9,7 +12,17 @@ import {
   MIN_CHUNK_PAGES,
   type ManifestPage,
 } from "./chunk.ts";
-import { HEURISTIC_CARD_PATH, buildCoverageLedger, buildWaveJob, partitionWaves } from "./wave.ts";
+import { scanMappingLeak, type MappingAgentChunk, type MappingRow } from "./merge.ts";
+import {
+  HEURISTIC_CARD_PATH,
+  SYNTHETIC_DICTIONARY_NEEDLES,
+  buildCoverageLedger,
+  buildWaveJob,
+  partitionWaves,
+  runWaves,
+  scanGitDiffLeak,
+  type WaveJob,
+} from "./wave.ts";
 
 const mappingDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -114,5 +127,175 @@ describe("buildWaveJob", () => {
     assert.equal(encoded.includes('"startPage":1,'), false);
     assert.equal(encoded.includes("page-001"), false);
     assert.equal(encoded.includes("page-421"), false);
+  });
+});
+
+function mappingRow(partial: Partial<MappingRow> & Pick<MappingRow, "id" | "class">): MappingRow {
+  return {
+    sourcePages: partial.sourcePages ?? [1],
+    proposedCheckerId: partial.proposedCheckerId ?? `checker-${partial.id}`,
+    reviewed: false,
+    reviewerId: null,
+    reviewNotes: null,
+    ...partial,
+  };
+}
+
+function chunkForJob(job: WaveJob, rows: Array<MappingRow>): MappingAgentChunk {
+  return { startPage: job.startPage, endPage: job.endPage, rows };
+}
+
+function initTempGit(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), "asd-ste100-wave-"));
+  execFileSync("git", ["init"], { cwd: dir, stdio: "pipe" });
+  writeFileSync(path.join(dir, "README"), "synthetic-wave-workspace\n");
+  execFileSync("git", ["add", "README"], { cwd: dir, stdio: "pipe" });
+  execFileSync(
+    "git",
+    ["-c", "user.email=wave@test", "-c", "user.name=wave", "commit", "-m", "init"],
+    { cwd: dir, stdio: "pipe" },
+  );
+  return dir;
+}
+
+function gitOutput(cwd: string, args: Array<string>): string {
+  try {
+    return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  } catch (error) {
+    const err = error as { stdout?: string };
+    return typeof err.stdout === "string" ? err.stdout : "";
+  }
+}
+
+function gitDiffIncludingUntracked(cwd: string): string {
+  const untracked = gitOutput(cwd, ["ls-files", "--others", "--exclude-standard"]);
+  const parts = [gitOutput(cwd, ["diff"]), gitOutput(cwd, ["diff", "--cached"])];
+  for (const rel of untracked.split("\n").filter(Boolean)) {
+    parts.push(gitOutput(cwd, ["diff", "--no-index", "--", "/dev/null", path.join(cwd, rel)]));
+  }
+  return parts.join("\n");
+}
+
+describe("runWaves", () => {
+  it("retries a failed wave only on its page range and merges sibling ids without duplicates", async () => {
+    const waves = partitionWaves(syntheticManifest(40), DEFAULT_CHUNK_PAGES);
+    const calls: Array<{ startPage: number; endPage: number }> = [];
+    let secondWaveAttempts = 0;
+    const agent = (job: WaveJob): MappingAgentChunk => {
+      calls.push({ startPage: job.startPage, endPage: job.endPage });
+      if (job.startPage === 21) {
+        secondWaveAttempts += 1;
+        if (secondWaveAttempts === 1) {
+          throw new Error("transient vision failure");
+        }
+        return chunkForJob(job, [
+          mappingRow({ id: "5.1", class: "deterministic", sourcePages: [21] }),
+          mappingRow({ id: "9.2", class: "fail_closed_uncheckable", sourcePages: [22] }),
+        ]);
+      }
+      return chunkForJob(job, [
+        mappingRow({ id: "5.1", class: "deterministic", sourcePages: [1] }),
+        mappingRow({ id: "2.1", class: "private_lexicon", sourcePages: [2] }),
+      ]);
+    };
+
+    const dir = mkdtempSync(path.join(tmpdir(), "asd-ste100-wave-out-"));
+    const result = await runWaves(waves, agent, { outputDir: dir, maxAttempts: 2 });
+
+    assert.equal(calls.filter((call) => call.startPage === 1).length, 1);
+    assert.equal(calls.filter((call) => call.startPage === 21).length, 2);
+    assert.ok(calls.every((call) => call.endPage - call.startPage + 1 === 20));
+    assert.deepEqual(
+      calls.filter((call) => call.startPage === 21),
+      [
+        { startPage: 21, endPage: 40 },
+        { startPage: 21, endPage: 40 },
+      ],
+    );
+    assert.equal(
+      calls.some((call) => call.startPage === 1 && call.endPage !== 20),
+      false,
+    );
+    const ids = result.records.map((entry) => entry.id);
+    assert.deepEqual(ids, [...new Set(ids)]);
+    assert.deepEqual(ids, ["2.1", "5.1", "9.2"]);
+    const shared = result.records.find((entry) => entry.id === "5.1");
+    assert.deepEqual(shared?.sourcePages, [1, 21]);
+    assert.equal(result.attemptsByWave[1], 2);
+    assert.equal(result.attemptsByWave[0], 1);
+  });
+
+  it("does not write records when a wave payload contains a synthetic leak", async () => {
+    const waves = partitionWaves(syntheticManifest(20), DEFAULT_CHUNK_PAGES);
+    const needle = SYNTHETIC_DICTIONARY_NEEDLES[0]!;
+    const agent = (job: WaveJob): MappingAgentChunk =>
+      chunkForJob(job, [
+        mappingRow({
+          id: "8.1",
+          class: "private_lexicon",
+          sourcePages: [job.startPage],
+          proposedCheckerId: needle,
+        }),
+      ]);
+
+    const dir = mkdtempSync(path.join(tmpdir(), "asd-ste100-wave-leak-"));
+    await assert.rejects(() => runWaves(waves, agent, { outputDir: dir, maxAttempts: 2 }), /leak/i);
+    assert.equal(existsSync(path.join(dir, "records.json")), false);
+    assert.deepEqual(readdirSync(dir), []);
+  });
+});
+
+describe("scanGitDiffLeak", () => {
+  it("flags JPG bytes and synthetic official dictionary needles in a git diff", () => {
+    const needle = SYNTHETIC_DICTIONARY_NEEDLES[0]!;
+    const jpgDiff = `diff --git a/x.jpg b/x.jpg\nindex 111..222\nBinary files /dev/null and b/x.jpg differ\n${Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString("binary")}`;
+    const jpgScan = scanGitDiffLeak(jpgDiff, SYNTHETIC_DICTIONARY_NEEDLES);
+    assert.equal(jpgScan.ok, false);
+    assert.match(jpgScan.reason, /jpg|jpeg/i);
+
+    const wordDiff = `diff --git a/records.json b/records.json\n+  "proposedCheckerId": "${needle}"\n`;
+    const wordScan = scanGitDiffLeak(wordDiff, SYNTHETIC_DICTIONARY_NEEDLES);
+    assert.equal(wordScan.ok, false);
+    assert.match(wordScan.reason, /dictionary|official|leak/i);
+  });
+
+  it("keeps git diff free of JPG bytes and official needles after a clean wave write", async () => {
+    const repo = initTempGit();
+    const outputDir = path.join(repo, "records");
+    mkdirSync(outputDir);
+    const waves = partitionWaves(syntheticManifest(20), DEFAULT_CHUNK_PAGES);
+    const agent = (job: WaveJob): MappingAgentChunk =>
+      chunkForJob(job, [
+        mappingRow({
+          id: "6.3",
+          class: "deterministic",
+          sourcePages: [job.startPage],
+          proposedCheckerId: "procedural-sentence-word-count",
+        }),
+      ]);
+
+    await runWaves(waves, agent, { outputDir, gitCwd: repo, maxAttempts: 1 });
+    execFileSync("git", ["add", "-A"], { cwd: repo, stdio: "pipe" });
+    const diff = gitDiffIncludingUntracked(repo);
+    const scan = scanGitDiffLeak(diff, SYNTHETIC_DICTIONARY_NEEDLES);
+    assert.equal(scan.ok, true);
+    assert.equal(
+      scanMappingLeak([
+        {
+          id: "6.3",
+          class: "deterministic",
+          sourcePages: [1],
+          proposedCheckerId: "procedural-sentence-word-count",
+          reviewed: false,
+          reviewerId: null,
+          reviewNotes: null,
+        },
+      ]).ok,
+      true,
+    );
+    assert.equal(diff.includes("\xff\xd8"), false);
+    for (const needle of SYNTHETIC_DICTIONARY_NEEDLES) {
+      assert.equal(diff.includes(needle), false);
+    }
   });
 });

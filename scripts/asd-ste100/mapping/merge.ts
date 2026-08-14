@@ -30,6 +30,13 @@ export interface MappingLeakScan {
   reason: string;
 }
 
+/** Synthetic Issue 9 stand-ins. Never copy official dictionary words into git. */
+export const SYNTHETIC_DICTIONARY_NEEDLES = ["SYNTHOFFICIALLEMMAZZZX"] as const;
+
+const JPEG_SOI = "\xff\xd8";
+const JPEG_SOI_HEX = /ff\s*d8\s*ff/i;
+const JPEG_BASE64 = /\/9j\//;
+
 const DICTIONARY_SHAPED = /\b[A-Za-z][A-Za-z'-]*\s+(?:\((?:n|v|adj|adv)\)|(?:n|v|adj|adv)\.)/;
 const EXAMPLE_LIKE_QUOTE = /["“][^"”]{8,}[.!?]["”]/;
 const EXAMPLE_LABEL = /\bexamples?\s*:/i;
@@ -66,6 +73,14 @@ function collectStrings(value: unknown): Array<string> {
 export function scanMappingLeak(rows: ReadonlyArray<MappingRow>): MappingLeakScan {
   for (const row of rows) {
     for (const text of collectStrings(row)) {
+      if (text.includes(JPEG_SOI) || JPEG_SOI_HEX.test(text) || JPEG_BASE64.test(text)) {
+        return { ok: false, reason: "jpg byte leak" };
+      }
+      for (const needle of SYNTHETIC_DICTIONARY_NEEDLES) {
+        if (text.includes(needle)) {
+          return { ok: false, reason: "official dictionary word leak" };
+        }
+      }
       if (DICTIONARY_SHAPED.test(text)) {
         return { ok: false, reason: "dictionary-shaped token leak" };
       }
@@ -75,6 +90,10 @@ export function scanMappingLeak(rows: ReadonlyArray<MappingRow>): MappingLeakSca
     }
   }
   return { ok: true, reason: "" };
+}
+
+export function compareDottedIds(left: string, right: string): number {
+  return left.localeCompare(right, "en", { numeric: true });
 }
 
 export function mergeMappings(agents: ReadonlyArray<MappingAgentChunk>): Array<MappingRow> {
@@ -107,7 +126,7 @@ export function mergeMappings(agents: ReadonlyArray<MappingAgentChunk>): Array<M
     }
   }
 
-  return [...byId.values()].sort((left, right) => left.id.localeCompare(right.id, "en"));
+  return [...byId.values()].sort((left, right) => compareDottedIds(left.id, right.id));
 }
 
 export function writeMappingRecords(rows: ReadonlyArray<MappingRow>, outputDir: string): string {
