@@ -4,6 +4,16 @@
   "claim": "ASD-STE100 mechanical rule-subset result",
   "rules": [
     {
+      "id": "1.1",
+      "reviewed": true,
+      "checker": "vocabulary-membership"
+    },
+    {
+      "id": "4.5",
+      "reviewed": true,
+      "checker": "article-before-noun"
+    },
+    {
       "id": "5.1",
       "maxWords": 20,
       "reviewed": true,

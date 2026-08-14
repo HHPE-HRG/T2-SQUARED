@@ -2,6 +2,7 @@
   "terms": [
     { "term": "Forgejo", "kind": "noun", "reviewed": true },
     { "term": "attestation", "kind": "noun", "reviewed": true },
-    { "term": "override", "kind": "noun", "reviewed": true }
+    { "term": "override", "kind": "noun", "reviewed": true },
+    { "term": "runner", "kind": "noun", "reviewed": true }
   ]
 }
