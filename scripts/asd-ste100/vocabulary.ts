@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 
 export interface AsdRuleMapping {
   id: string;
@@ -47,6 +48,42 @@ export class ProfileValidationError extends Error {
   }
 }
 
+export class VocabularyOpaqueError extends Error {
+  override readonly name = "VocabularyOpaqueError";
+  constructor() {
+    super("official vocabulary is opaque and cannot be parsed as a words JSON list");
+  }
+}
+
+export class VocabularyEmptyError extends Error {
+  override readonly name = "VocabularyEmptyError";
+  constructor() {
+    super("official vocabulary words array is empty");
+  }
+}
+
+export class VocabularyExtractDigestMismatchError extends Error {
+  override readonly name = "VocabularyExtractDigestMismatchError";
+  constructor() {
+    super("private extract digest does not match coverage");
+  }
+}
+
+export class VocabularyLemmaCountMismatchError extends Error {
+  override readonly name = "VocabularyLemmaCountMismatchError";
+  constructor() {
+    super("private extract lemma count does not match coverage");
+  }
+}
+
+export interface PrivateLexiconCoverageRecord {
+  class: "private_lexicon";
+  startPage: number;
+  endPage: number;
+  lemmaCount: number;
+  privateExtractDigest: string;
+}
+
 function sha256Bytes(contents: Buffer): string {
   return createHash("sha256").update(contents).digest("hex");
 }
@@ -78,6 +115,47 @@ export function loadVocabulary(input: {
     officialPresent: true,
     syntheticWords,
   };
+}
+
+export function parseApprovedWordsFromOfficialBytes(bytes: Buffer): Array<string> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bytes.toString("utf8"));
+  } catch {
+    throw new VocabularyOpaqueError();
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new VocabularyOpaqueError();
+  }
+  const words = (parsed as { words?: unknown }).words;
+  if (!Array.isArray(words) || words.some((word) => typeof word !== "string")) {
+    throw new VocabularyOpaqueError();
+  }
+  if (words.length === 0) {
+    throw new VocabularyEmptyError();
+  }
+  return words;
+}
+
+export function deriveRunnerLexiconJson(input: {
+  coverage: PrivateLexiconCoverageRecord;
+  extractPath: string;
+}): string {
+  const extract = readFileSync(input.extractPath);
+  if (sha256Bytes(extract) !== input.coverage.privateExtractDigest) {
+    throw new VocabularyExtractDigestMismatchError();
+  }
+  const words = extract
+    .toString("utf8")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
+  if (words.length !== input.coverage.lemmaCount) {
+    throw new VocabularyLemmaCountMismatchError();
+  }
+  const wordsPath = path.join(path.dirname(input.extractPath), "words.json");
+  writeFileSync(wordsPath, `${JSON.stringify({ words })}\n`, "utf8");
+  return wordsPath;
 }
 
 export function validateTechnicalTerms(terms: ReadonlyArray<TechnicalTerm>): void {
