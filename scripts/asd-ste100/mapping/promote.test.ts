@@ -129,6 +129,63 @@ describe("attachMappingRule / promoteMappingToProfile", () => {
     );
   });
 
+  it("cannot attach an unreviewed row to t2.asd-ste100.rules.json as reviewed: true", () => {
+    const rulesPath = path.join(repoRoot, "t2.asd-ste100.rules.json");
+    const rulesFile = JSON.parse(readFileSync(rulesPath, "utf8")) as {
+      rules: NonNullable<AsdProfile["rules"]>;
+    };
+    const profile = liveProfileCopy();
+    assert.equal(profile.rules?.length, rulesFile.rules.length);
+    assert.deepEqual(
+      (profile.rules ?? []).map((rule) => rule.id),
+      rulesFile.rules.map((rule) => rule.id),
+    );
+    assert.equal(
+      rulesFile.rules.every((rule) => rule.reviewed === true),
+      true,
+    );
+
+    const unreviewed = mappingRow({
+      id: "8.4",
+      class: "deterministic",
+      sourcePages: [40],
+      proposedCheckerId: "synthetic-rules-json-checker",
+      reviewed: false,
+      reviewerId: null,
+    });
+
+    assert.throws(() => attachMappingRule(profile, unreviewed), /unreviewed/i);
+
+    const forcedReviewed: MappingRow = { ...unreviewed, reviewed: true, reviewerId: null };
+    assert.throws(
+      () => attachMappingRule(profile, forcedReviewed),
+      /reviewerId|unreviewed|distinct/i,
+    );
+    assert.equal(
+      JSON.parse(readFileSync(rulesPath, "utf8")).rules.some(
+        (rule: { id: string; reviewed: boolean }) => rule.id === "8.4" && rule.reviewed === true,
+      ),
+      false,
+    );
+
+    const uncheckableReviewed = mappingRow({
+      id: "9.2",
+      class: "fail_closed_uncheckable",
+      sourcePages: [21],
+      proposedCheckerId: "fail-closed-uncheckable",
+      reviewed: true,
+      reviewerId: "reviewer-b",
+    });
+    assert.throws(
+      () => attachMappingRule(profile, uncheckableReviewed),
+      /deterministic|live profile/i,
+    );
+    assert.equal(
+      rulesFile.rules.some((rule) => rule.id === "9.2" && rule.reviewed === true),
+      false,
+    );
+  });
+
   it("keeps the coverage ledger complete after a promote skip", () => {
     const manifest = syntheticManifest(40);
     const waves = partitionWaves(manifest, DEFAULT_CHUNK_PAGES);
