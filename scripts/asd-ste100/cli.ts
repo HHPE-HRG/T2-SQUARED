@@ -21,6 +21,7 @@ import {
   checkMembershipAndIdentification,
   knownNounsFromTerms,
 } from "./membership.ts";
+import { ASD_RULE_PREFIX } from "./registry.ts";
 import { checkMechanicalRules } from "./rules.ts";
 import type { Finding } from "./rules.ts";
 import { evaluateIntentApplicability } from "./trace.ts";
@@ -150,6 +151,10 @@ function connected(mode: CliMode): boolean {
   return mode === "pr" || mode === "main" || mode === "release";
 }
 
+function countsTowardG2(finding: Finding): boolean {
+  return finding.ruleId.startsWith(ASD_RULE_PREFIX) || finding.ruleId === "T10";
+}
+
 function sha256Bytes(contents: Buffer): string {
   return createHash("sha256").update(contents).digest("hex");
 }
@@ -259,7 +264,7 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
   const gates: Array<GateResult> = [];
   gates.push({ id: "G1", ok: true, reason: "" });
 
-  const g2ok = deps.findings.length === 0;
+  const g2ok = !deps.findings.some(countsTowardG2);
   gates.push({
     id: "G2",
     ok: g2ok,

@@ -246,6 +246,49 @@ describe("runCli", () => {
     );
   });
 
+  it("keeps T2-HEURISTIC findings visible without failing G2", () => {
+    const result = runCli(
+      ["--mode", "fixture"],
+      deps({
+        findings: [
+          {
+            path: "docs/note.md",
+            line: 1,
+            column: 1,
+            ruleId: "T2-HEURISTIC-contraction",
+            message: "contraction is not used in STE.",
+          },
+        ],
+      }),
+    );
+    assert.equal(gate(result, "G2").ok, true);
+    assert.equal(result.ok, true);
+    const printed = result.aggregate.findings as Array<string>;
+    assert.equal(
+      printed.some((line) => line.includes("T2-HEURISTIC-contraction")),
+      true,
+    );
+  });
+
+  it("fails G2 on T10 claim findings", () => {
+    const result = runCli(
+      ["--mode", "fixture"],
+      deps({
+        findings: [
+          {
+            path: "docs/note.md",
+            line: 1,
+            column: 1,
+            ruleId: "T10",
+            message: "prohibited ASD approval or certification claim.",
+          },
+        ],
+      }),
+    );
+    assert.equal(gate(result, "G2").ok, false);
+    assert.equal(result.ok, false);
+  });
+
   it("does not let a not-applicable intent result hide another gate failure", () => {
     const result = runCli(
       ["--mode", "pr"],
