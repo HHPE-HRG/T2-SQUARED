@@ -341,4 +341,29 @@ describe("live mapping records", () => {
       true,
     );
   });
+
+  it("assigns every official page in unreviewed mapping rows without claiming review", () => {
+    const officialPath = path.join(mappingDir, "records/official-unreviewed.json");
+    const payload = JSON.parse(readFileSync(officialPath, "utf8")) as {
+      coverageKind: string;
+      issue9PagesMapped: boolean;
+      rows: Array<MappingRow>;
+    };
+    assert.equal(payload.coverageKind, "official-wave-unreviewed");
+    assert.equal(payload.issue9PagesMapped, true);
+    assert.equal(
+      payload.rows.every((row) => row.reviewed === false),
+      true,
+    );
+    assert.equal(
+      payload.rows.every((row) => row.reviewerId === null && row.reviewNotes === null),
+      true,
+    );
+    const pages = new Set(payload.rows.flatMap((row) => row.sourcePages));
+    assert.equal(pages.size, 430);
+    for (let page = 1; page <= 430; page += 1) {
+      assert.equal(pages.has(page), true, `missing page ${page}`);
+    }
+    assert.equal(scanMappingLeak(payload.rows).ok, true);
+  });
 });
