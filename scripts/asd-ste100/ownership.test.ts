@@ -252,6 +252,7 @@ describe("repo ownership admission exclusions", () => {
       "pnpm-lock.yaml",
       "package-lock.json",
       "apps/web/package-lock.json",
+      "logo.png",
       "assets/logo.png",
       "docs/diagram.jpg",
       "native/tool.bin",
