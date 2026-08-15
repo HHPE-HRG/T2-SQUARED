@@ -7,7 +7,15 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { VocabularyMissingError } from "./vocabulary.ts";
-import { EXIT, loadScanLexicon, parseMode, resolvePrGitRefs, runCli } from "./cli.ts";
+import {
+  EXIT,
+  createDefaultDeps,
+  loadScanLexicon,
+  parseMode,
+  resolvePrGitRefs,
+  runCli,
+  runFixtureSelfTest,
+} from "./cli.ts";
 import type { CliDeps } from "./cli.ts";
 
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -29,6 +37,9 @@ const deps = (overrides: Partial<CliDeps> = {}): CliDeps => ({
   changedPaths: ["docs/note.md"],
   corpusPaths: ["docs/note.md", "scripts/asd-ste100/cli.ts"],
   findings: [],
+  authorIds: [],
+  reviewerIds: [],
+  overrides: [],
   governedSystemTextWithoutTrace: false,
   writeOutput: () => undefined,
   ...overrides,
@@ -57,6 +68,17 @@ function connectedCwd(vocabularySha256: string): string {
     path.join(dir, "t2.asd-ste100.terms.json"),
     `${JSON.stringify({
       terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+    })}\n`,
+  );
+  writeFileSync(
+    path.join(dir, "t2.asd-ste100.ownership.json"),
+    `${JSON.stringify({
+      ownedGlobs: ["docs/**"],
+      rawGlobs: [],
+      machineGlobs: [],
+      fixtureGlobs: [],
+      privilegedGlobs: [],
+      externalEvidenceGlobs: [],
     })}\n`,
   );
   return dir;
@@ -386,5 +408,49 @@ describe("loadScanLexicon", () => {
       lexicon.technicalTerms.some((term) => term.term === "Forgejo"),
       true,
     );
+  });
+});
+
+describe("createDefaultDeps", () => {
+  it("fails closed when connected mode has no official vocabulary file", () => {
+    const previous = process.env.ASD_STE100_VOCABULARY;
+    delete process.env.ASD_STE100_VOCABULARY;
+    try {
+      assert.throws(
+        () => createDefaultDeps(repoRoot, "pr"),
+        (error: unknown) =>
+          error instanceof VocabularyMissingError ||
+          (error instanceof Error && error.name === "VocabularyMissingError"),
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.ASD_STE100_VOCABULARY;
+      } else {
+        process.env.ASD_STE100_VOCABULARY = previous;
+      }
+    }
+  });
+});
+
+describe("runFixtureSelfTest", () => {
+  it("requires mapping records for live reviewed rules", () => {
+    assert.doesNotThrow(() => runFixtureSelfTest(repoRoot));
+  });
+});
+
+describe("attestation fields", () => {
+  it("copies author and reviewer ids from the run", () => {
+    const result = runCli(
+      ["--mode", "fixture"],
+      deps({
+        authorIds: [11],
+        reviewerIds: [22],
+        overrides: [{ reviewId: 3 }],
+      }),
+    );
+    assert.deepEqual(result.attestation?.authorIds, [11]);
+    assert.deepEqual(result.attestation?.reviewerIds, [22]);
+    assert.deepEqual(result.attestation?.overrides, [{ reviewId: 3 }]);
+    assert.notEqual(result.attestation?.ownershipSha256, result.attestation?.vocabularySha256);
   });
 });

@@ -5,8 +5,12 @@ import path from "node:path";
 export interface AsdRuleMapping {
   id: string;
   maxWords?: number;
+  maxSentences?: number;
   reviewed: boolean;
   checker?: string;
+  authorId?: string | null;
+  reviewerId?: string | null;
+  sourcePages?: Array<number>;
 }
 
 export interface AsdProfile {

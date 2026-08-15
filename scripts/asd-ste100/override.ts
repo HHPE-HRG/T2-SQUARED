@@ -1,4 +1,4 @@
-import { findReviewer } from "./forgejo.ts";
+import { findIdentity, findReviewer } from "./forgejo.ts";
 import type { ForgejoPull, ForgejoReview, ReviewerRoster } from "./forgejo.ts";
 
 export interface ValidationResult {
@@ -80,9 +80,16 @@ export function validateReview(input: {
   if (input.review.userId === input.pull.authorId) {
     return fail("author self-review is not permitted");
   }
+  const author = findIdentity(input.roster, input.pull.authorId);
+  if (author === undefined) {
+    return fail("author principal cannot resolve");
+  }
   const reviewer = findReviewer(input.roster, input.review.userId);
   if (reviewer === undefined) {
     return fail("reviewer is not in the authorized roster");
+  }
+  if (author.principal === reviewer.principal) {
+    return fail("author principal must differ from reviewer principal");
   }
   if (reviewer.ci) {
     return fail("CI identity cannot count as rule-subset review");

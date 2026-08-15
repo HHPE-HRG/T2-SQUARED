@@ -15,6 +15,7 @@ export interface MappingRow {
   sourcePages: Array<number>;
   proposedCheckerId: string;
   reviewed: boolean;
+  authorId?: string | null;
   reviewerId: string | null;
   reviewNotes: string | null;
 }
@@ -48,6 +49,7 @@ function emptyReview(row: MappingRow): MappingRow {
     sourcePages: [...row.sourcePages].sort((left, right) => left - right),
     proposedCheckerId: row.proposedCheckerId,
     reviewed: false,
+    authorId: row.authorId ?? null,
     reviewerId: null,
     reviewNotes: null,
   };
@@ -113,6 +115,15 @@ export function mergeMappings(agents: ReadonlyArray<MappingAgentChunk>): Array<M
       if (existing === undefined) {
         byId.set(next.id, next);
       } else {
+        if (
+          existing.reviewed &&
+          next.reviewed &&
+          existing.reviewerId !== null &&
+          next.reviewerId !== null &&
+          existing.reviewerId !== next.reviewerId
+        ) {
+          throw new Error(`reviewerId conflict for ${next.id}`);
+        }
         const pages = new Set([...existing.sourcePages, ...next.sourcePages]);
         byId.set(next.id, {
           ...existing,

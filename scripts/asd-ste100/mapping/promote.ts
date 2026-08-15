@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { validateProfile, type AsdProfile, type AsdRuleMapping } from "../vocabulary.ts";
@@ -63,6 +63,7 @@ export function markMappingReviewed(row: MappingRow, review: MappingReview): Map
   return {
     ...row,
     reviewed: true,
+    authorId: review.authorId,
     reviewerId: review.reviewerId,
     reviewNotes: review.reviewNotes,
   };
@@ -82,6 +83,9 @@ function mappingRowToLiveRule(row: MappingRow): AsdRuleMapping {
     id: row.id,
     reviewed: true,
     checker: row.proposedCheckerId,
+    authorId: row.authorId ?? null,
+    reviewerId: row.reviewerId,
+    sourcePages: [...row.sourcePages],
   };
 }
 
@@ -153,6 +157,7 @@ export function scanCoverageLeak(record: unknown): MappingLeakScan {
     sourcePages: [1],
     proposedCheckerId: blob,
     reviewed: false,
+    authorId: null,
     reviewerId: null,
     reviewNotes: null,
   };
@@ -170,4 +175,35 @@ export function writePrivateLexiconCoverage(
   const target = path.join(outputDir, "coverage.json");
   writeFileSync(target, `${JSON.stringify(coverage, null, 2)}\n`, "utf8");
   return target;
+}
+
+export const LIVE_MAPPING_RECORDS_PATH = "scripts/asd-ste100/mapping/records/records.json";
+
+export function loadLiveMappingRecords(root: string): Array<MappingRow> {
+  const filePath = path.join(root, LIVE_MAPPING_RECORDS_PATH);
+  if (!existsSync(filePath)) {
+    return [];
+  }
+  const parsed = JSON.parse(readFileSync(filePath, "utf8")) as {
+    rows?: Array<MappingRow>;
+  };
+  return parsed.rows ?? [];
+}
+
+export function assertReviewedRulesHaveMappingRecords(
+  rules: ReadonlyArray<AsdRuleMapping>,
+  records: ReadonlyArray<MappingRow>,
+): void {
+  for (const rule of rules) {
+    if (!rule.reviewed) {
+      continue;
+    }
+    const row = records.find((entry) => entry.id === rule.id);
+    if (row === undefined) {
+      throw new Error(`reviewed ASD rule mapping has no mapping record: ${rule.id}`);
+    }
+    if (row.reviewerId === null || row.reviewerId.length === 0) {
+      throw new Error(`reviewed:true requires a distinct reviewerId: ${rule.id}`);
+    }
+  }
 }

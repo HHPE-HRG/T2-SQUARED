@@ -354,4 +354,22 @@ describe("scanGitDiffLeak", () => {
       chmodSync(outputDir, 0o755);
     }
   });
+
+  it("fails closed when git diff cannot run in the wave cwd", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "asd-ste100-nongit-"));
+    const waves = partitionWaves(syntheticManifest(20), DEFAULT_CHUNK_PAGES);
+    const agent = (job: WaveJob): MappingAgentChunk =>
+      chunkForJob(job, [
+        mappingRow({
+          id: "6.3",
+          class: "deterministic",
+          sourcePages: [job.startPage],
+          proposedCheckerId: "procedural-sentence-word-count",
+        }),
+      ]);
+    await assert.rejects(
+      () => runWaves(waves, agent, { outputDir: dir, gitCwd: dir, maxAttempts: 1 }),
+      /git diff failed/i,
+    );
+  });
 });

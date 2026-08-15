@@ -18,6 +18,14 @@ describe("inferMechanicalKind", () => {
     );
   });
 
+  it("keeps a dashed descriptive clause descriptive", () => {
+    assert.equal(inferMechanicalKind("- The runner is long."), "descriptive");
+  });
+
+  it("classifies Then plus an instruction verb as procedural", () => {
+    assert.equal(inferMechanicalKind("Then install the runner."), "procedural");
+  });
+
   it("classifies a clear imperative opener as procedural", () => {
     assert.equal(
       inferMechanicalKind(

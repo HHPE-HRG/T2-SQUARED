@@ -84,9 +84,6 @@ export function classifyPath(filePath: string, manifest: OwnershipManifest): Sco
     reason: "",
     className: "unclassified" as TextClass,
   };
-  if (matchesAny(normalized, manifest.privilegedGlobs)) {
-    return { ...base, className: "privileged", reason: "privileged control path" };
-  }
   if (matchesAny(normalized, manifest.rawGlobs)) {
     return {
       ...base,
@@ -119,6 +116,9 @@ export function classifyPath(filePath: string, manifest: OwnershipManifest): Sco
       includeInCorpusFindings: false,
       reason: "machine literal exclusion",
     };
+  }
+  if (matchesAny(normalized, manifest.privilegedGlobs)) {
+    return { ...base, className: "privileged", reason: "privileged control path" };
   }
   if (matchesAny(normalized, manifest.ownedGlobs)) {
     return { ...base, className: "owned", reason: "owned glob" };

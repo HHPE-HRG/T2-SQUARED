@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "remediationLabel": "asd-ste100-remediation-w1",
+  "wave": 1,
+  "parentCampaignPlan": "docs/plans/2026-08-13-001-feat-asd-ste100-enforcement-plan.md",
+  "parentCampaignTopic": "asd-ste100-enforcement",
+  "severityScope": ["must", "should"],
+  "outOfScope": [
+    "Official 430-page Issue 9 mapping waves",
+    "Live Forgejo secret provisioning proofs",
+    "T2 work-registry implementation",
+    "CAN campaign work",
+    "Edits to the parent campaign plan body"
+  ],
+  "units": [
+    {
+      "id": "U1",
+      "remediationId": "RM1",
+      "pickList": 1,
+      "severity": "must",
+      "title": "Restore reachable scripts/asd-ste100 tree at HEAD",
+      "dependsOn": []
+    },
+    {
+      "id": "U2",
+      "remediationId": "RM2",
+      "pickList": 2,
+      "severity": "must",
+      "title": "Fail closed on vocabulary-gate errors",
+      "dependsOn": ["U1"]
+    },
+    {
+      "id": "U3",
+      "remediationId": "RM3",
+      "pickList": 3,
+      "severity": "must",
+      "title": "Load profile from checker; scan file bytes from PR head",
+      "dependsOn": ["U1"]
+    },
+    {
+      "id": "U4",
+      "remediationId": "RM4",
+      "pickList": 4,
+      "severity": "must",
+      "title": "Classify fixtures and evidence before privileged globs",
+      "dependsOn": ["U1"]
+    },
+    {
+      "id": "U5",
+      "remediationId": "RM5",
+      "pickList": 5,
+      "severity": "must",
+      "title": "Dispatch live scan from rules[].checker and admit uncheckable rows",
+      "dependsOn": ["U1", "U2", "U3"]
+    },
+    {
+      "id": "U6",
+      "remediationId": "RM6",
+      "pickList": 6,
+      "severity": "must",
+      "title": "Require mapping records for live reviewed rules",
+      "dependsOn": ["U1", "U7"]
+    },
+    {
+      "id": "U7",
+      "remediationId": "RM7",
+      "pickList": 7,
+      "severity": "should",
+      "title": "Persist KTD28 provenance on live mappings",
+      "dependsOn": ["U1"]
+    },
+    {
+      "id": "U8",
+      "remediationId": "RM8",
+      "pickList": 8,
+      "severity": "should",
+      "title": "Narrow rule 5.1 kind to list item and imperative",
+      "dependsOn": ["U1"]
+    },
+    {
+      "id": "U9",
+      "remediationId": "RM9",
+      "pickList": 9,
+      "severity": "should",
+      "title": "Per-token leak scan and fail-closed empty git diff",
+      "dependsOn": ["U1"]
+    },
+    {
+      "id": "U10",
+      "remediationId": "RM10",
+      "pickList": 10,
+      "severity": "should",
+      "title": "Compare principals and fill attestation fields",
+      "dependsOn": ["U1"]
+    },
+    {
+      "id": "U11",
+      "remediationId": "RM11",
+      "pickList": 11,
+      "severity": "should",
+      "title": "Mount vocabulary, map secrets, fetch PR base and head",
+      "dependsOn": ["U1", "U2", "U3"]
+    }
+  ]
+}

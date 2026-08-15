@@ -94,6 +94,15 @@ describe("scanForVocabularyLeak", () => {
     assert.equal(result.ok, false);
     assert.match(result.reason, /unavailable|leak/i);
   });
+
+  it("fails when output contains one official lemma", () => {
+    const result = scanForVocabularyLeak({
+      texts: ["the camshaft token leaked"],
+      officialBytes: "camshaft is approved for this list",
+    });
+    assert.equal(result.ok, false);
+    assert.match(result.reason, /leak/i);
+  });
 });
 
 describe("buildAttestation", () => {
@@ -101,5 +110,10 @@ describe("buildAttestation", () => {
     const attestation = base();
     assert.equal(attestation.kind, "rule-subset attestation");
     assert.equal(attestation.claim, "ASD-STE100 mechanical rule-subset result");
+  });
+
+  it("keeps ownership digest distinct from the vocabulary digest", () => {
+    const attestation = base();
+    assert.notEqual(attestation.ownershipSha256, attestation.vocabularySha256);
   });
 });

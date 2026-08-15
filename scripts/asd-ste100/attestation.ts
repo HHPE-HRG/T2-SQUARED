@@ -96,9 +96,25 @@ export function scanForVocabularyLeak(input: {
   if (needle.length === 0) {
     return { ok: false, reason: "leak scan unavailable" };
   }
+  const lemmas = [
+    ...new Set(needle.toLowerCase().match(/[a-z][a-z'-]{5,}/g) ?? []),
+  ];
+  if (lemmas.length === 0) {
+    if (input.texts.some((text) => text.includes(needle))) {
+      return { ok: false, reason: "vocabulary leak in result output" };
+    }
+    return { ok: true, reason: "" };
+  }
   for (const text of input.texts) {
+    const lower = text.toLowerCase();
     if (text.includes(needle)) {
       return { ok: false, reason: "vocabulary leak in result output" };
+    }
+    for (const lemma of lemmas) {
+      const pattern = new RegExp(`(?:^|[^a-z])${lemma}(?:[^a-z]|$)`, "i");
+      if (pattern.test(lower)) {
+        return { ok: false, reason: "vocabulary leak in result output" };
+      }
     }
   }
   return { ok: true, reason: "" };

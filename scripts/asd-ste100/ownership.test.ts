@@ -73,12 +73,21 @@ describe("classifyPath", () => {
   it("classifies a provider error fixture as external evidence that requires redaction", () => {
     const manifest = emptyManifest();
     manifest.externalEvidenceGlobs.push("scripts/asd-ste100/test/fixtures/evidence/**");
+    manifest.privilegedGlobs.push("scripts/asd-ste100/**");
     const result = classifyPath(
       "scripts/asd-ste100/test/fixtures/evidence/provider-error.txt",
       manifest,
     );
     assert.equal(result.className, "external-evidence");
     assert.equal(result.requiresRedaction, true);
+  });
+
+  it("classifies suite fixtures before privileged globs", () => {
+    const manifest = emptyManifest();
+    manifest.fixtureGlobs.push("scripts/asd-ste100/test/fixtures/**");
+    manifest.privilegedGlobs.push("scripts/asd-ste100/**");
+    const result = classifyPath("scripts/asd-ste100/test/fixtures/raw/x.txt", manifest);
+    assert.equal(result.className, "fixture");
   });
 });
 
@@ -247,6 +256,24 @@ describe("repo ownership admission exclusions", () => {
     assert.equal(nested.includeInCorpusFindings, false);
   });
 
+  it("classifies asd-ste100 fixtures before privileged script globs", () => {
+    const fixture = classifyPath("scripts/asd-ste100/test/fixtures/raw/prompt.txt", manifest);
+    assert.equal(fixture.className, "raw");
+    const evidence = classifyPath(
+      "scripts/asd-ste100/test/fixtures/evidence/provider-error.txt",
+      manifest,
+    );
+    assert.equal(evidence.className, "external-evidence");
+  });
+
+  it("owns remediation-wave documents", () => {
+    const plan = classifyPath(
+      "docs/plans/2026-08-14-001-fix-asd-ste100-remediation-wave-1-plan.md",
+      manifest,
+    );
+    assert.equal(plan.className, "owned");
+  });
+
   it("classifies lockfiles, images, and binaries as machine text", () => {
     const paths = [
       "pnpm-lock.yaml",
@@ -272,6 +299,16 @@ describe("repo ownership admission exclusions", () => {
       "t2.asd-ste100.terms.json",
       JSON.stringify({
         terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+      }),
+    );
+    write(
+      root,
+      "t2.asd-ste100.json",
+      JSON.stringify({
+        issue: "9",
+        vocabularySha256: "0".repeat(64),
+        claim: "ASD-STE100 mechanical rule-subset result",
+        rules: [{ id: "1.1", reviewed: true, checker: "vocabulary-membership" }],
       }),
     );
     write(root, "transcripts/session.md", nonSteSentence);

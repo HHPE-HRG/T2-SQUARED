@@ -173,8 +173,12 @@ function readGitDiff(cwd: string): string {
         stdio: ["ignore", "pipe", "pipe"],
       });
     } catch (error) {
-      const err = error as { stdout?: string };
-      return typeof err.stdout === "string" ? err.stdout : "";
+      const err = error as { stdout?: string; message?: string };
+      const stdout = typeof err.stdout === "string" ? err.stdout : "";
+      if (stdout.trim() !== "") {
+        return stdout;
+      }
+      throw new Error("git diff failed");
     }
   };
   const untracked = run(["ls-files", "--others", "--exclude-standard"]);

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "asd-ste100-remediation-wave.schema.json",
+  "title": "ASD-STE100 remediation wave",
+  "description": "Machine-readable index for an isolated remediation wave attached to the ASD-STE100 enforcement campaign. Does not amend the parent campaign plan body. Must not contain Issue 9 dictionary rows or examples.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "remediationLabel",
+    "wave",
+    "parentCampaignPlan",
+    "severityScope",
+    "units"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "remediationLabel": {
+      "type": "string",
+      "pattern": "^asd-ste100-remediation-w[0-9]+$"
+    },
+    "wave": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "parentCampaignPlan": {
+      "type": "string",
+      "description": "Repo-relative path of the parent campaign plan. This wave must not edit that file."
+    },
+    "parentCampaignTopic": {
+      "type": "string"
+    },
+    "severityScope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["must", "should"]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "outOfScope": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "units": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/unit" }
+    }
+  },
+  "$defs": {
+    "unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "remediationId",
+        "pickList",
+        "severity",
+        "title",
+        "dependsOn"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^U[0-9]+$"
+        },
+        "remediationId": {
+          "type": "string",
+          "pattern": "^RM[0-9]+$"
+        },
+        "pickList": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["must", "should"]
+        },
+        "title": { "type": "string" },
+        "dependsOn": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^U[0-9]+$"
+          }
+        }
+      }
+    }
+  }
+}

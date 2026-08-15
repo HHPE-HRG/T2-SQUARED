@@ -1,0 +1,56 @@
+{
+  "coverageKind": "live-pin",
+  "issue9PagesMapped": false,
+  "rows": [
+    {
+      "id": "1.1",
+      "class": "deterministic",
+      "sourcePages": [],
+      "proposedCheckerId": "vocabulary-membership",
+      "reviewed": true,
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "reviewNotes": "coverage-only live-pin until official mapping waves"
+    },
+    {
+      "id": "4.5",
+      "class": "deterministic",
+      "sourcePages": [],
+      "proposedCheckerId": "article-before-noun",
+      "reviewed": true,
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "reviewNotes": "coverage-only live-pin until official mapping waves"
+    },
+    {
+      "id": "5.1",
+      "class": "deterministic",
+      "sourcePages": [],
+      "proposedCheckerId": "procedural-sentence-word-count",
+      "reviewed": true,
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "reviewNotes": "coverage-only live-pin until official mapping waves"
+    },
+    {
+      "id": "6.3",
+      "class": "deterministic",
+      "sourcePages": [],
+      "proposedCheckerId": "descriptive-sentence-word-count",
+      "reviewed": true,
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "reviewNotes": "coverage-only live-pin until official mapping waves"
+    },
+    {
+      "id": "6.6",
+      "class": "deterministic",
+      "sourcePages": [],
+      "proposedCheckerId": "paragraph-sentence-count",
+      "reviewed": true,
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "reviewNotes": "coverage-only live-pin until official mapping waves"
+    }
+  ]
+}

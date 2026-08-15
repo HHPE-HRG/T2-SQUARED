@@ -12,6 +12,7 @@ const content = "sentence that fails a rule";
 const contentSha = sha(content);
 
 const roster: ReviewerRoster = {
+  identities: [{ userId: 1, principal: "author-1", kind: "human", ci: false }],
   reviewers: [
     { userId: 2, principal: "human-a", kind: "human", ci: false },
     { userId: 3, principal: "agent-b", kind: "agent", ci: false },
@@ -149,14 +150,14 @@ describe("validateReview", () => {
     assert.match(result.reason, /head/i);
   });
 
-  it("fails a dismissed approval", () => {
-    const result = validateReview({
-      pull: pull(),
-      review: review({ state: "DISMISSED" }),
-      roster,
-    });
+  it("fails when author and reviewer share a principal", () => {
+    const shared: ReviewerRoster = {
+      identities: [{ userId: 1, principal: "human-a", kind: "human", ci: false }],
+      reviewers: roster.reviewers,
+    };
+    const result = validateReview({ pull: pull(), review: review(), roster: shared });
     assert.equal(result.ok, false);
-    assert.match(result.reason, /dismissed|stale/i);
+    assert.match(result.reason, /principal/i);
   });
 });
 
@@ -306,6 +307,7 @@ describe("validateOverride", () => {
 
   it("fails a reviewer added only in the PR-head roster for a roster change", () => {
     const headOnly: ReviewerRoster = {
+      identities: roster.identities,
       reviewers: [...roster.reviewers, { userId: 8, principal: "new", kind: "human", ci: false }],
     };
     const result = validateOverride({

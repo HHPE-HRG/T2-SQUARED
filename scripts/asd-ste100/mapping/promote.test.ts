@@ -11,7 +11,9 @@ import { DEFAULT_CHUNK_PAGES, type ManifestPage } from "./chunk.ts";
 import { scanMappingLeak, type MappingRow } from "./merge.ts";
 import {
   attachMappingRule,
+  assertReviewedRulesHaveMappingRecords,
   coverageFromPrivateLexicon,
+  loadLiveMappingRecords,
   markMappingReviewed,
   promoteMappingToProfile,
   scanCoverageLeak,
@@ -88,6 +90,7 @@ describe("markMappingReviewed", () => {
     });
     assert.equal(reviewed.reviewed, true);
     assert.equal(reviewed.reviewerId, "reviewer-b");
+    assert.equal(reviewed.authorId, "mapper-a");
     assert.equal(row.reviewed, false);
   });
 });
@@ -255,5 +258,46 @@ describe("private_lexicon coverage", () => {
     writeFileSync(path.join(dir, "leaked.json"), `${JSON.stringify(leaked)}\n`);
     assert.throws(() => writePrivateLexiconCoverage(leaked, dir), /word.?list/i);
     assert.equal(readdirSync(dir).includes("coverage.json"), true);
+  });
+});
+
+describe("live mapping records", () => {
+  it("keeps reviewerId and sourcePages on a promoted live rule", () => {
+    const profile = liveProfileCopy();
+    const row = mappingRow({
+      id: "5.1",
+      class: "deterministic",
+      sourcePages: [12, 13],
+      proposedCheckerId: "procedural-sentence-word-count",
+      reviewed: true,
+      authorId: "mapper-a",
+      reviewerId: "reviewer-b",
+    });
+    const next = attachMappingRule(profile, row);
+    const live = (next.rules ?? []).find((rule) => rule.id === "5.1");
+    assert.equal(live?.reviewerId, "reviewer-b");
+    assert.deepEqual(live?.sourcePages, [12, 13]);
+    assert.equal(live?.authorId, "mapper-a");
+  });
+
+  it("fails reviewed live rules without a mapping record", () => {
+    assert.throws(
+      () =>
+        assertReviewedRulesHaveMappingRecords(
+          [{ id: "1.1", reviewed: true, checker: "vocabulary-membership" }],
+          [],
+        ),
+      /mapping record/i,
+    );
+  });
+
+  it("loads coverage-only live-pin records for every live reviewed rule", () => {
+    const profile = liveProfileCopy();
+    const records = loadLiveMappingRecords(repoRoot);
+    assertReviewedRulesHaveMappingRecords(profile.rules ?? [], records);
+    assert.equal(
+      records.every((row) => row.reviewerId !== null && row.reviewerId !== row.authorId),
+      true,
+    );
   });
 });

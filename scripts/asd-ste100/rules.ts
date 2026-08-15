@@ -39,16 +39,15 @@ const IMPERATIVE_VERBS = new Set([
   "wait",
 ]);
 
+function isImperativeRemainder(text: string): boolean {
+  const withoutList = text.trim().replace(LIST_PREFIX, "");
+  const withoutThen = withoutList.replace(/^(?:then\s+)/i, "");
+  const firstWord = withoutThen.match(/^[A-Za-z]+/)?.[0];
+  return firstWord !== undefined && IMPERATIVE_VERBS.has(firstWord.toLowerCase());
+}
+
 export function inferMechanicalKind(text: string): RuleInput["kind"] {
-  const trimmed = text.trim();
-  if (LIST_PREFIX.test(trimmed)) {
-    return "procedural";
-  }
-  const firstWord = trimmed.match(/^[A-Za-z]+/)?.[0];
-  if (firstWord !== undefined && IMPERATIVE_VERBS.has(firstWord.toLowerCase())) {
-    return "procedural";
-  }
-  return "descriptive";
+  return isImperativeRemainder(text) ? "procedural" : "descriptive";
 }
 
 function wordCount(text: string): number {

@@ -27,6 +27,8 @@ concurrency:
 
 env:
   PATH: /home/oldmac-vm/.local/node-v24/bin:/usr/local/bin:/usr/bin:/bin
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
 jobs:
   advisory:
@@ -53,6 +55,7 @@ jobs:
       ASD_STE100_GITHUB_ACTIONS: disabled
       ASD_STE100_PR_TREE: ${{ github.workspace }}/pr-tree
       ASD_STE100_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      ASD_STE100_VOCABULARY: ${{ secrets.ASD_STE100_VOCABULARY }}
     steps:
       - name: Prepare ephemeral empty workspace
         run: |
@@ -91,6 +94,7 @@ jobs:
     timeout-minutes: 40
     env:
       ASD_STE100_GITHUB_ACTIONS: disabled
+      ASD_STE100_VOCABULARY: ${{ secrets.ASD_STE100_VOCABULARY }}
     steps:
       - name: Prepare ephemeral empty workspace
         run: |
@@ -118,6 +122,7 @@ jobs:
     timeout-minutes: 40
     env:
       ASD_STE100_GITHUB_ACTIONS: disabled
+      ASD_STE100_VOCABULARY: ${{ secrets.ASD_STE100_VOCABULARY }}
     steps:
       - name: Prepare ephemeral empty workspace
         run: |

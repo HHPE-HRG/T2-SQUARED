@@ -3,30 +3,45 @@
     {
       "id": "1.1",
       "reviewed": true,
-      "checker": "vocabulary-membership"
+      "checker": "vocabulary-membership",
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "sourcePages": []
     },
     {
       "id": "4.5",
       "reviewed": true,
-      "checker": "article-before-noun"
+      "checker": "article-before-noun",
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "sourcePages": []
     },
     {
       "id": "5.1",
       "maxWords": 20,
       "reviewed": true,
-      "checker": "procedural-sentence-word-count"
+      "checker": "procedural-sentence-word-count",
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "sourcePages": []
     },
     {
       "id": "6.3",
       "maxWords": 25,
       "reviewed": true,
-      "checker": "descriptive-sentence-word-count"
+      "checker": "descriptive-sentence-word-count",
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "sourcePages": []
     },
     {
       "id": "6.6",
       "maxSentences": 6,
       "reviewed": true,
-      "checker": "paragraph-sentence-count"
+      "checker": "paragraph-sentence-count",
+      "authorId": "live-pin-author",
+      "reviewerId": "live-pin-reviewer",
+      "sourcePages": []
     }
   ]
 }

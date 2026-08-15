@@ -53,12 +53,17 @@ function officialBytes(words: ReadonlyArray<string> = SYNTH_WORDS): Buffer {
   return Buffer.from(`${JSON.stringify({ words })}\n`);
 }
 
-function profileJson(vocabularySha256: string): string {
+function profileJson(
+  vocabularySha256: string,
+  rules: Array<{ id: string; reviewed: boolean; checker: string }> = [
+    { id: "1.1", reviewed: true, checker: "vocabulary-membership" },
+  ],
+): string {
   return `${JSON.stringify({
     issue: "9",
     vocabularySha256,
     claim: "ASD-STE100 mechanical rule-subset result",
-    rules: [{ id: "1.1", reviewed: true, checker: "vocabulary-membership" }],
+    rules,
   })}\n`;
 }
 
@@ -83,6 +88,7 @@ function initScanRepo(input: {
   prose: string;
   terms?: Array<{ term: string; kind: "noun" | "verb"; reviewed: boolean }>;
   vocabularySha256?: string;
+  rules?: Array<{ id: string; reviewed: boolean; checker: string }>;
 }): { root: string; sha: string; bytes: Buffer } {
   const root = mkdtempSync(path.join(tmpdir(), "asd-scan-"));
   git(root, ["init", "-b", "main"]);
@@ -96,7 +102,7 @@ function initScanRepo(input: {
     "t2.asd-ste100.terms.json",
     termsJson(input.terms ?? [{ term: "Forgejo", kind: "noun", reviewed: true }]),
   );
-  write(root, "t2.asd-ste100.json", profileJson(input.vocabularySha256 ?? sha256(bytes)));
+  write(root, "t2.asd-ste100.json", profileJson(input.vocabularySha256 ?? sha256(bytes), input.rules));
   write(root, "docs/note.md", `${input.prose}\n`);
   git(root, ["add", "-A"]);
   git(root, ["commit", "-m", "scan fixture"]);
@@ -135,6 +141,10 @@ describe("scanGovernedFindings", () => {
     const { root, sha, bytes } = initScanRepo({
       prose: "Install runner.",
       terms: [{ term: "runner", kind: "noun", reviewed: true }],
+      rules: [
+        { id: "1.1", reviewed: true, checker: "vocabulary-membership" },
+        { id: "4.5", reviewed: true, checker: "article-before-noun" },
+      ],
     });
     const scanned = scan(root, sha, bytes);
     assert.equal(
@@ -168,6 +178,10 @@ describe("scanGovernedFindings", () => {
   it("emits ASD-STE100-5.1 for a long procedural sentence", () => {
     const { root, sha, bytes } = initScanRepo({
       prose: `- ${PROCEDURAL_21}`,
+      rules: [
+        { id: "1.1", reviewed: true, checker: "vocabulary-membership" },
+        { id: "5.1", reviewed: true, checker: "procedural-sentence-word-count" },
+      ],
     });
     const scanned = scan(root, sha, bytes);
     assert.equal(
@@ -186,6 +200,49 @@ describe("scanGovernedFindings", () => {
         "Provider adapters accept configuration and return a typed client for downstream callers across every supported driver kind and keep that client ready.",
     });
     const scanned = scan(root, sha, bytes);
+    assert.equal(
+      scanned.findings.some((finding) => finding.ruleId === "ASD-STE100-5.1"),
+      false,
+    );
+  });
+
+  it("does not emit 5.1 when the checker profile lists only 4.5", () => {
+    const { root, sha, bytes } = initScanRepo({
+      prose: `- ${PROCEDURAL_21}`,
+      rules: [{ id: "4.5", reviewed: true, checker: "article-before-noun" }],
+    });
+    const scanned = scan(root, sha, bytes);
+    assert.equal(
+      scanned.findings.some((finding) => finding.ruleId === "ASD-STE100-5.1"),
+      false,
+    );
+  });
+
+  it("loads rules from checker cwd and file bytes from the tree cwd", () => {
+    const tree = initScanRepo({
+      prose: `- ${PROCEDURAL_21}`,
+      rules: [
+        { id: "1.1", reviewed: true, checker: "vocabulary-membership" },
+        { id: "5.1", reviewed: true, checker: "procedural-sentence-word-count" },
+      ],
+    });
+    const checker = mkdtempSync(path.join(tmpdir(), "asd-checker-"));
+    write(checker, "t2.asd-ste100.ownership.json", ownershipJson());
+    write(
+      checker,
+      "t2.asd-ste100.terms.json",
+      termsJson([{ term: "Forgejo", kind: "noun", reviewed: true }]),
+    );
+    write(checker, "t2.asd-ste100.json", profileJson(sha256(tree.bytes)));
+    const scanned = scanGovernedFindings({
+      cwd: tree.root,
+      checkerCwd: checker,
+      treeCwd: tree.root,
+      mode: "corpus",
+      baseSha: tree.sha,
+      headSha: tree.sha,
+      officialBytes: tree.bytes,
+    });
     assert.equal(
       scanned.findings.some((finding) => finding.ruleId === "ASD-STE100-5.1"),
       false,

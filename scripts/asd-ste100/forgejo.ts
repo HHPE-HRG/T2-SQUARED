@@ -7,6 +7,7 @@ export interface ReviewerEntry {
 
 export interface ReviewerRoster {
   reviewers: Array<ReviewerEntry>;
+  identities?: Array<ReviewerEntry>;
 }
 
 export interface ForgejoCommit {
@@ -142,4 +143,9 @@ export function extractPullProse(pull: ForgejoPull): Array<PullProseRecord> {
 
 export function findReviewer(roster: ReviewerRoster, userId: number): ReviewerEntry | undefined {
   return roster.reviewers.find((entry) => entry.userId === userId);
+}
+
+export function findIdentity(roster: ReviewerRoster, userId: number): ReviewerEntry | undefined {
+  const identities = roster.identities ?? [];
+  return identities.find((entry) => entry.userId === userId) ?? findReviewer(roster, userId);
 }

@@ -181,7 +181,7 @@ Qualified backup is `20260813T155959Z-v15-qualified`.
 
 First 15 start failed on an unexpected SSH key.
 
-The key file was copied then removed.
+An operator copied the key file then removed it.
 
 Forgejo rewrote the file.
 
@@ -201,7 +201,7 @@ Do not share reviewer credentials.
 
 Reviewer PATs never enter CI.
 
-The trusted runner is limited to this repository.
+The trusted runner serves only this repository.
 
 Its systemd unit is `forgejo-runner-t2-trusted.service`.
 
@@ -237,6 +237,12 @@ It has no API token.
 The trusted job runs on `t2-trusted`.
 
 It loads checker code from the merge base.
+
+It loads pull-request bytes from the head tree.
+
+It maps `GITHUB_TOKEN` and `PACKAGE_TOKEN` from secrets.
+
+It mounts `ASD_STE100_VOCABULARY` from secrets on trusted jobs.
 
 The pull-request tree is data only.
 

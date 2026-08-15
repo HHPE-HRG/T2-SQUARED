@@ -12,17 +12,21 @@ import {
   scanForVocabularyLeak,
 } from "./attestation.ts";
 import type { RuleSubsetAttestation } from "./attestation.ts";
+import { admitFailClosedUncheckable } from "./admission.ts";
 import { checkClaims } from "./claim.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
 import { extractMarkdown, extractTypeScript } from "./extract.ts";
+import {
+  assertReviewedRulesHaveMappingRecords,
+  loadLiveMappingRecords,
+} from "./mapping/promote.ts";
 import { collectScopeRecords, loadOwnershipManifest } from "./ownership.ts";
 import {
   approvedWordSet,
-  checkMembershipAndIdentification,
   knownNounsFromTerms,
 } from "./membership.ts";
-import { ASD_RULE_PREFIX } from "./registry.ts";
-import { checkMechanicalRules, inferMechanicalKind } from "./rules.ts";
+import { ASD_RULE_PREFIX, enforcedChecker } from "./registry.ts";
+import { inferMechanicalKind } from "./rules.ts";
 import type { Finding } from "./rules.ts";
 import { evaluateIntentApplicability } from "./trace.ts";
 import {
@@ -75,6 +79,9 @@ export interface CliDeps {
   changedPaths: Array<string>;
   corpusPaths: Array<string>;
   findings: Array<Finding>;
+  authorIds: Array<number>;
+  reviewerIds: Array<number>;
+  overrides: Array<unknown>;
   governedSystemTextWithoutTrace: boolean;
   writeOutput: (filePath: string, body: string) => void;
 }
@@ -142,6 +149,7 @@ export function resolvePrGitRefs(input: {
 export function runFixtureSelfTest(root = process.cwd()): void {
   const profile = loadJson<AsdProfile>(root, "t2.asd-ste100.json");
   validateProfile(profile);
+  assertReviewedRulesHaveMappingRecords(profile.rules ?? [], loadLiveMappingRecords(root));
   const termsFile = loadJson<{ terms: Array<TechnicalTerm> }>(root, "t2.asd-ste100.terms.json");
   validateTechnicalTerms(termsFile.terms);
   loadOwnershipManifest(path.join(root, "t2.asd-ste100.ownership.json"));
@@ -319,15 +327,17 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
     sourceSha: refs.headSha,
     upstreamSha: loadJson<{ acceptedBaseSha: string }>(deps.cwd, "t2.upstream.json")
       .acceptedBaseSha,
-    ownershipSha256: profile.vocabularySha256,
+    ownershipSha256: sha256Bytes(
+      readFileSync(path.join(deps.cwd, "t2.asd-ste100.ownership.json")),
+    ),
     corpusSha256: digestCanonical(scannedPaths),
     vocabularySha256: profile.vocabularySha256,
     profileIssue: profile.issue,
     ruleCoverage: (profile.rules ?? []).map((rule) => rule.id),
-    authorIds: [],
-    reviewerIds: [],
+    authorIds: [...deps.authorIds],
+    reviewerIds: [...deps.reviewerIds],
     findings: deps.findings,
-    overrides: [],
+    overrides: [...deps.overrides],
     aggregateOk: ok,
     generatedAt: deps.now(),
   });
@@ -450,82 +460,94 @@ export function loadScanLexicon(
 
 export function scanGovernedFindings(input: {
   cwd: string;
+  checkerCwd?: string;
+  treeCwd?: string;
   mode: "pr" | "corpus";
   baseSha: string;
   headSha: string;
   officialBytes?: Buffer | null;
 }): { paths: Array<string>; findings: Array<Finding> } {
-  const manifest = loadOwnershipManifest(path.join(input.cwd, "t2.asd-ste100.ownership.json"));
+  const checkerCwd = input.checkerCwd ?? input.cwd;
+  const treeCwd = input.treeCwd ?? input.cwd;
+  const manifest = loadOwnershipManifest(path.join(checkerCwd, "t2.asd-ste100.ownership.json"));
   const records = collectScopeRecords({
-    cwd: input.cwd,
+    cwd: treeCwd,
     mode: input.mode,
     baseSha: input.baseSha,
     headSha: input.headSha,
     manifest,
   });
   const officialBytes = input.officialBytes ?? null;
+  const profile = loadJson<AsdProfile>(checkerCwd, "t2.asd-ste100.json");
   if (officialBytes !== null) {
-    const profile = loadJson<AsdProfile>(input.cwd, "t2.asd-ste100.json");
     if (sha256Bytes(officialBytes) !== profile.vocabularySha256) {
       throw new VocabularyChecksumMismatchError();
     }
   }
-  const lexicon = loadScanLexicon(input.cwd, officialBytes);
+  const lexicon = loadScanLexicon(checkerCwd, officialBytes);
   const knownNouns = knownNounsFromTerms(lexicon.technicalTerms);
+  const liveRules = profile.rules ?? [];
   const findings: Array<Finding> = [];
   const paths: Array<string> = [];
+  const kind = (text: string) => inferMechanicalKind(text);
   for (const record of records) {
     if (!record.includeInCorpusFindings || skipScanPath(record.path)) {
       continue;
     }
     paths.push(record.path);
-    const source = gitShow(input.cwd, input.headSha, record.path);
+    const source = gitShow(treeCwd, input.headSha, record.path);
     if (source === null) {
       continue;
     }
     for (const extracted of extractOwned(record.path, source)) {
-      findings.push(
-        ...checkMechanicalRules({
-          path: extracted.path,
-          line: extracted.line,
-          column: extracted.column,
-          text: extracted.text,
-          kind: inferMechanicalKind(extracted.text),
-        }),
-        ...checkClaims(extracted),
-        ...checkMembershipAndIdentification({
-          path: extracted.path,
-          line: extracted.line,
-          column: extracted.column,
-          text: extracted.text,
-          approvedWords: lexicon.approvedWords,
-          technicalTerms: lexicon.technicalTerms,
-          knownNouns,
-        }),
-      );
+      findings.push(...checkClaims(extracted));
+      for (const rule of liveRules) {
+        if (rule.checker === undefined || rule.checker.length === 0) {
+          throw new Error(`unregistered checker: (missing)`);
+        }
+        const checker = enforcedChecker(rule.checker);
+        findings.push(
+          ...checker.check({
+            path: extracted.path,
+            line: extracted.line,
+            column: extracted.column,
+            text: extracted.text,
+            kind: kind(extracted.text),
+            approvedWords: lexicon.approvedWords,
+            technicalTerms: lexicon.technicalTerms,
+            knownNouns,
+          }),
+        );
+      }
     }
+  }
+  for (const row of loadLiveMappingRecords(checkerCwd)) {
+    if (row.class !== "fail_closed_uncheckable") {
+      continue;
+    }
+    findings.push(...admitFailClosedUncheckable({ row }).findings);
   }
   return { paths, findings };
 }
 
 export function createDefaultDeps(cwd = process.cwd(), mode: CliMode = "fixture"): CliDeps {
   const root = findRepoRoot(cwd);
-  const scanRoot = process.env.ASD_STE100_PR_TREE ?? root;
+  const treeCwd = process.env.ASD_STE100_PR_TREE ?? root;
   const actionsEnv = process.env.ASD_STE100_GITHUB_ACTIONS;
-  const gitHead = (): string => git(scanRoot, ["rev-parse", "HEAD"]);
+  const gitHead = (): string => git(treeCwd, ["rev-parse", "HEAD"]);
   const gitMergeBase = (): string => {
     const base = process.env.ASD_STE100_BASE_SHA;
     if (base !== undefined && base !== "") {
-      return git(scanRoot, ["merge-base", base, "HEAD"]);
+      return git(root, ["merge-base", base, "HEAD"]);
     }
     try {
       return execFileSync("git", ["merge-base", "origin/main", "HEAD"], {
-        cwd: scanRoot,
+        cwd: root,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
       }).trim();
     } catch {
-      return gitHead();
+      return git(root, ["rev-parse", "HEAD"]);
     }
   };
   const officialPath = process.env.ASD_STE100_VOCABULARY;
@@ -535,19 +557,18 @@ export function createDefaultDeps(cwd = process.cwd(), mode: CliMode = "fixture"
   }
   let scanned = { paths: [] as Array<string>, findings: [] as Array<Finding> };
   if (mode !== "fixture") {
-    try {
-      scanned = scanGovernedFindings({
-        cwd: scanRoot,
-        mode: mode === "pr" ? "pr" : "corpus",
-        baseSha: gitMergeBase(),
-        headSha: gitHead(),
-        officialBytes,
-      });
-    } catch (error) {
-      if (!isVocabularyGateError(error)) {
-        throw error;
-      }
+    if (officialBytes === null) {
+      throw new VocabularyMissingError();
     }
+    scanned = scanGovernedFindings({
+      cwd: root,
+      checkerCwd: root,
+      treeCwd,
+      mode: mode === "pr" ? "pr" : "corpus",
+      baseSha: gitMergeBase(),
+      headSha: gitHead(),
+      officialBytes,
+    });
   }
   return {
     cwd: root,
@@ -569,6 +590,9 @@ export function createDefaultDeps(cwd = process.cwd(), mode: CliMode = "fixture"
     changedPaths: mode === "pr" ? scanned.paths : [],
     corpusPaths: mode === "main" || mode === "release" ? scanned.paths : [],
     findings: scanned.findings,
+    authorIds: [],
+    reviewerIds: [],
+    overrides: [],
     governedSystemTextWithoutTrace: false,
     writeOutput: (filePath, body) => {
       const absolute = path.join(root, filePath);

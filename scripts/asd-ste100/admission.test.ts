@@ -14,6 +14,7 @@ const content = "sentence that fails a rule";
 const contentSha = sha(content);
 
 const roster: ReviewerRoster = {
+  identities: [{ userId: 1, principal: "author-1", kind: "human", ci: false }],
   reviewers: [
     { userId: 2, principal: "human-a", kind: "human", ci: false },
     { userId: 3, principal: "agent-b", kind: "agent", ci: false },
