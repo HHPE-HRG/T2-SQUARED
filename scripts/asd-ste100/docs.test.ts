@@ -64,6 +64,17 @@ describe("owned enforcement documentation", () => {
     const text = ownedDocs.map(read).join("\n");
     assert.doesNotMatch(text, /approved word list|dictionary entry|camshaft/i);
   });
+
+  it("records Forgejo admission, excluded transcripts and machine text, and deferred registry work", () => {
+    const text = read("docs/internals/asd-ste100-enforcement.md");
+    assert.match(text, /Forgejo admission/);
+    assert.match(text, /not a local commit typecheck/);
+    assert.match(text, /transcripts/);
+    assert.match(text, /machine text/);
+    assert.match(text, /does not start work-registry/);
+    assert.match(text, /does not start CAN campaign/);
+    assert.doesNotMatch(text, /Work-registry implementation can start after this slice/);
+  });
 });
 
 describe("contributor index", () => {

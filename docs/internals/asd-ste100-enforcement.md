@@ -24,9 +24,23 @@ Raw prompts stay byte-identical.
 
 Raw conversation fixtures stay byte-identical.
 
+Files under transcripts stay excluded.
+
 The suite stores origin hashes.
 
 It does not rewrite user language.
+
+## Admission scope
+
+The suite is a Forgejo admission gate.
+
+It is not a local commit typecheck.
+
+Lockfiles, images, binaries, and other machine text stay excluded.
+
+This slice does not start work-registry work.
+
+This slice does not start CAN campaign work.
 
 ## Checks
 
@@ -34,7 +48,11 @@ Extraction finds Markdown prose and source strings.
 
 Mechanical Issue 9 checks cover sentence length and paragraph length.
 
-Heuristic checks cover contractions and semicolons.
+Live checks cover vocabulary membership and articles before known nouns.
+
+Heuristic checks cover contractions, semicolons, passive constructions, verb forms, and American spelling.
+
+U10 membership and identification checks are in the public suite.
 
 A prohibited language-authority claim fails.
 
