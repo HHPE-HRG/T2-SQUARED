@@ -14,6 +14,20 @@ export interface RuleInput {
   kind: "procedural" | "descriptive";
 }
 
+const LIST_PREFIX = /^(?:[-*+]|\d+[.)])\s+/;
+const DESCRIPTIVE_OPENER = /^(?:The|A|An|This|These|Those|It)\b/;
+
+export function inferMechanicalKind(text: string): RuleInput["kind"] {
+  const trimmed = text.trim();
+  if (LIST_PREFIX.test(trimmed)) {
+    return "procedural";
+  }
+  if (/^[A-Z][a-z]+\b/.test(trimmed) && !DESCRIPTIVE_OPENER.test(trimmed)) {
+    return "procedural";
+  }
+  return "descriptive";
+}
+
 function wordCount(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean);
   return words.length;

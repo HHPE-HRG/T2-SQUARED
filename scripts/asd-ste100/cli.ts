@@ -22,7 +22,7 @@ import {
   knownNounsFromTerms,
 } from "./membership.ts";
 import { ASD_RULE_PREFIX } from "./registry.ts";
-import { checkMechanicalRules } from "./rules.ts";
+import { checkMechanicalRules, inferMechanicalKind } from "./rules.ts";
 import type { Finding } from "./rules.ts";
 import { evaluateIntentApplicability } from "./trace.ts";
 import {
@@ -463,7 +463,14 @@ export function scanGovernedFindings(input: {
     headSha: input.headSha,
     manifest,
   });
-  const lexicon = loadScanLexicon(input.cwd, input.officialBytes ?? null);
+  const officialBytes = input.officialBytes ?? null;
+  if (officialBytes !== null) {
+    const profile = loadJson<AsdProfile>(input.cwd, "t2.asd-ste100.json");
+    if (sha256Bytes(officialBytes) !== profile.vocabularySha256) {
+      throw new VocabularyChecksumMismatchError();
+    }
+  }
+  const lexicon = loadScanLexicon(input.cwd, officialBytes);
   const knownNouns = knownNounsFromTerms(lexicon.technicalTerms);
   const findings: Array<Finding> = [];
   const paths: Array<string> = [];
@@ -483,7 +490,7 @@ export function scanGovernedFindings(input: {
           line: extracted.line,
           column: extracted.column,
           text: extracted.text,
-          kind: "descriptive",
+          kind: inferMechanicalKind(extracted.text),
         }),
         ...checkClaims(extracted),
         ...checkMembershipAndIdentification({
