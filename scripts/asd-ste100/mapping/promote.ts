@@ -11,6 +11,14 @@ export interface MappingReview {
   reviewNotes: string | null;
 }
 
+export interface MappingIdentity {
+  id: string;
+  principal: string;
+  kind: "human" | "agent";
+}
+
+export const MAPPING_PRINCIPALS_PATH = "scripts/asd-ste100/mapping/records/principals.json";
+
 export interface PrivateLexiconCoverage {
   class: "private_lexicon";
   startPage: number;
@@ -60,6 +68,9 @@ export function markMappingReviewed(row: MappingRow, review: MappingReview): Map
   if (review.reviewerId === review.authorId) {
     throw new Error("self-review is not permitted; reviewerId must be distinct from author");
   }
+  if (row.authorId !== undefined && row.authorId !== null && review.reviewerId === row.authorId) {
+    throw new Error("self-review is not permitted; reviewerId must be distinct from author");
+  }
   return {
     ...row,
     reviewed: true,
@@ -67,6 +78,53 @@ export function markMappingReviewed(row: MappingRow, review: MappingReview): Map
     reviewerId: review.reviewerId,
     reviewNotes: review.reviewNotes,
   };
+}
+
+function identityById(
+  identities: ReadonlyArray<MappingIdentity>,
+  id: string,
+): MappingIdentity | undefined {
+  return identities.find((entry) => entry.id === id);
+}
+
+export function loadMappingPrincipals(root: string): Array<MappingIdentity> {
+  const filePath = path.join(root, MAPPING_PRINCIPALS_PATH);
+  if (!existsSync(filePath)) {
+    return [];
+  }
+  const parsed = JSON.parse(readFileSync(filePath, "utf8")) as {
+    identities?: Array<MappingIdentity>;
+  };
+  return parsed.identities ?? [];
+}
+
+export function reviewOfficialMappingRows(
+  rows: ReadonlyArray<MappingRow>,
+  review: MappingReview,
+  identities: ReadonlyArray<MappingIdentity>,
+): Array<MappingRow> {
+  const author = identityById(identities, review.authorId);
+  const reviewer = identityById(identities, review.reviewerId);
+  if (author === undefined) {
+    throw new Error("author principal cannot resolve");
+  }
+  if (reviewer === undefined) {
+    throw new Error("reviewer principal cannot resolve");
+  }
+  if (author.principal === reviewer.principal) {
+    throw new Error("author principal must differ from reviewer principal");
+  }
+  return rows.map((row) => {
+    if (row.class === "private_lexicon") {
+      return {
+        ...row,
+        reviewed: false,
+        reviewerId: null,
+        reviewNotes: null,
+      };
+    }
+    return markMappingReviewed(row, review);
+  });
 }
 
 function mappingRowToLiveRule(row: MappingRow): AsdRuleMapping {

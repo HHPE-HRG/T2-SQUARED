@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "id": "u12-wave-author",
+      "principal": "t2-asd-u12-mapping-session",
+      "kind": "agent"
+    }
+  ]
+}

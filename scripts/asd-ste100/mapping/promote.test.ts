@@ -14,8 +14,10 @@ import {
   assertReviewedRulesHaveMappingRecords,
   coverageFromPrivateLexicon,
   loadLiveMappingRecords,
+  loadMappingPrincipals,
   markMappingReviewed,
   promoteMappingToProfile,
+  reviewOfficialMappingRows,
   scanCoverageLeak,
   writePrivateLexiconCoverage,
 } from "./promote.ts";
@@ -92,6 +94,119 @@ describe("markMappingReviewed", () => {
     assert.equal(reviewed.reviewerId, "reviewer-b");
     assert.equal(reviewed.authorId, "mapper-a");
     assert.equal(row.reviewed, false);
+    assert.throws(
+      () =>
+        markMappingReviewed(
+          mappingRow({
+            id: "9.2",
+            class: "fail_closed_uncheckable",
+            authorId: "u12-wave-author",
+          }),
+          {
+            authorId: "laundered-author",
+            reviewerId: "u12-wave-author",
+            reviewNotes: null,
+          },
+        ),
+      /self-review|distinct|principal/i,
+    );
+  });
+});
+
+describe("reviewOfficialMappingRows", () => {
+  const identities = [
+    { id: "u12-wave-author", principal: "t2-asd-u12-mapping-session", kind: "agent" as const },
+    { id: "u12-wave-subagent", principal: "t2-asd-u12-mapping-session", kind: "agent" as const },
+    { id: "operator-reviewer", principal: "operator-human", kind: "human" as const },
+  ];
+
+  it("refuses a sub-agent reviewer that shares the mapping principal", () => {
+    const rows = [
+      mappingRow({
+        id: "1.1",
+        class: "deterministic",
+        authorId: "u12-wave-author",
+        proposedCheckerId: "vocabulary-membership",
+      }),
+    ];
+    assert.throws(
+      () =>
+        reviewOfficialMappingRows(
+          rows,
+          {
+            authorId: "u12-wave-author",
+            reviewerId: "u12-wave-subagent",
+            reviewNotes: "KTD28",
+          },
+          identities,
+        ),
+      /principal/i,
+    );
+  });
+
+  it("marks writing-rule rows when the reviewer principal differs, and leaves private_lexicon unreviewed", () => {
+    const rows = [
+      mappingRow({
+        id: "1.1",
+        class: "deterministic",
+        authorId: "u12-wave-author",
+        proposedCheckerId: "vocabulary-membership",
+        sourcePages: [41],
+      }),
+      mappingRow({
+        id: "part2-dictionary",
+        class: "private_lexicon",
+        authorId: "u12-wave-author",
+        proposedCheckerId: "vocabulary-membership",
+        sourcePages: [181],
+      }),
+    ];
+    const next = reviewOfficialMappingRows(
+      rows,
+      {
+        authorId: "u12-wave-author",
+        reviewerId: "operator-reviewer",
+        reviewNotes: "KTD28",
+      },
+      identities,
+    );
+    const writing = next.find((row) => row.id === "1.1");
+    const lexicon = next.find((row) => row.id === "part2-dictionary");
+    assert.equal(writing?.reviewed, true);
+    assert.equal(writing?.reviewerId, "operator-reviewer");
+    assert.equal(lexicon?.reviewed, false);
+    assert.equal(lexicon?.reviewerId, null);
+  });
+
+  it("keeps committed official rows unreviewed until an operator principal is supplied", () => {
+    const officialPath = path.join(mappingDir, "records/official-unreviewed.json");
+    const payload = JSON.parse(readFileSync(officialPath, "utf8")) as { rows: Array<MappingRow> };
+    const identitiesOnDisk = loadMappingPrincipals(repoRoot);
+    assert.equal(
+      identitiesOnDisk.some((entry) => entry.id === "u12-wave-author"),
+      true,
+    );
+    assert.equal(
+      identitiesOnDisk.every((entry) => entry.principal === "t2-asd-u12-mapping-session"),
+      true,
+    );
+    assert.throws(
+      () =>
+        reviewOfficialMappingRows(
+          payload.rows,
+          {
+            authorId: "u12-wave-author",
+            reviewerId: "u12-wave-author",
+            reviewNotes: "KTD28",
+          },
+          identitiesOnDisk,
+        ),
+      /self-review|distinct|principal/i,
+    );
+    assert.equal(
+      payload.rows.every((row) => row.reviewed === false && row.reviewerId === null),
+      true,
+    );
   });
 });
 
