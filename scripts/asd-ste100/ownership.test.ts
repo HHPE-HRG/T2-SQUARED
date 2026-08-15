@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
+import { scanGovernedFindings } from "./cli.ts";
 import {
   classifyCommitMessage,
   classifyPath,
@@ -13,6 +16,11 @@ import {
   resolveUpstreamAncestry,
 } from "./ownership.ts";
 import type { OwnershipManifest, UpstreamLock } from "./ownership.ts";
+
+const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const repoOwnershipPath = path.join(repoRoot, "t2.asd-ste100.ownership.json");
+const nonSteSentence =
+  "This conversation sentence is deliberately longer than twenty-five words so it would fail a T2 length rule.\n";
 
 function git(cwd: string, args: ReadonlyArray<string>): string {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -224,5 +232,87 @@ describe("loadOwnershipManifest", () => {
     );
     const manifest = loadOwnershipManifest(path.join(root, "t2.asd-ste100.ownership.json"));
     assert.deepEqual(manifest.ownedGlobs, ["scripts/asd-ste100/**"]);
+  });
+});
+
+describe("repo ownership admission exclusions", () => {
+  const manifest = loadOwnershipManifest(repoOwnershipPath);
+
+  it("classifies transcripts as raw and keeps them out of corpus findings", () => {
+    const result = classifyPath("transcripts/session.md", manifest);
+    assert.equal(result.className, "raw");
+    assert.equal(result.includeInCorpusFindings, false);
+    const nested = classifyPath("transcripts/agent/chat.jsonl", manifest);
+    assert.equal(nested.className, "raw");
+    assert.equal(nested.includeInCorpusFindings, false);
+  });
+
+  it("classifies lockfiles, images, and binaries as machine text", () => {
+    const paths = [
+      "pnpm-lock.yaml",
+      "package-lock.json",
+      "apps/web/package-lock.json",
+      "assets/logo.png",
+      "docs/diagram.jpg",
+      "native/tool.bin",
+    ];
+    for (const filePath of paths) {
+      const result = classifyPath(filePath, manifest);
+      assert.equal(result.className, "machine", filePath);
+      assert.equal(result.includeInCorpusFindings, false, filePath);
+    }
+  });
+
+  it("does not report an STE finding for a noncompliant transcript and leaves bytes unchanged", () => {
+    const root = initRepo();
+    write(root, "t2.asd-ste100.ownership.json", readFileSync(repoOwnershipPath, "utf8"));
+    write(
+      root,
+      "t2.asd-ste100.terms.json",
+      JSON.stringify({
+        terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+      }),
+    );
+    write(root, "transcripts/session.md", nonSteSentence);
+    write(root, "pnpm-lock.yaml", `lockfileVersion: 9.0\n# ${nonSteSentence}`);
+    const sha = commit(root, "raw transcript and lockfile");
+    const records = collectScopeRecords({
+      cwd: root,
+      mode: "corpus",
+      baseSha: sha,
+      headSha: sha,
+      manifest: loadOwnershipManifest(path.join(root, "t2.asd-ste100.ownership.json")),
+    });
+    assert.equal(
+      records.find((record) => record.path === "transcripts/session.md")?.className,
+      "raw",
+    );
+    assert.equal(records.find((record) => record.path === "pnpm-lock.yaml")?.className, "machine");
+    const before = createHash("sha256")
+      .update(readFileSync(path.join(root, "transcripts/session.md")))
+      .digest("hex");
+
+    const scanned = scanGovernedFindings({
+      cwd: root,
+      mode: "corpus",
+      baseSha: sha,
+      headSha: sha,
+      officialBytes: null,
+    });
+    const after = createHash("sha256")
+      .update(readFileSync(path.join(root, "transcripts/session.md")))
+      .digest("hex");
+
+    assert.equal(before, after);
+    assert.equal(
+      scanned.findings.some((finding) => finding.path.startsWith("transcripts/")),
+      false,
+    );
+    assert.equal(
+      scanned.findings.some((finding) => finding.path.endsWith("pnpm-lock.yaml")),
+      false,
+    );
+    assert.equal(scanned.paths.includes("transcripts/session.md"), false);
+    assert.equal(scanned.paths.includes("pnpm-lock.yaml"), false);
   });
 });
