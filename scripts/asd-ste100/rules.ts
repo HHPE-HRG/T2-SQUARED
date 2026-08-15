@@ -15,14 +15,37 @@ export interface RuleInput {
 }
 
 const LIST_PREFIX = /^(?:[-*+]|\d+[.)])\s+/;
-const DESCRIPTIVE_OPENER = /^(?:The|A|An|This|These|Those|It)\b/;
+// Bare-form instruction verbs only; capitalized nouns must stay descriptive.
+const IMPERATIVE_VERBS = new Set([
+  "add",
+  "check",
+  "click",
+  "close",
+  "copy",
+  "enter",
+  "install",
+  "merge",
+  "open",
+  "press",
+  "remove",
+  "run",
+  "save",
+  "select",
+  "set",
+  "start",
+  "stop",
+  "type",
+  "verify",
+  "wait",
+]);
 
 export function inferMechanicalKind(text: string): RuleInput["kind"] {
   const trimmed = text.trim();
   if (LIST_PREFIX.test(trimmed)) {
     return "procedural";
   }
-  if (/^[A-Z][a-z]+\b/.test(trimmed) && !DESCRIPTIVE_OPENER.test(trimmed)) {
+  const firstWord = trimmed.match(/^[A-Za-z]+/)?.[0];
+  if (firstWord !== undefined && IMPERATIVE_VERBS.has(firstWord.toLowerCase())) {
     return "procedural";
   }
   return "descriptive";

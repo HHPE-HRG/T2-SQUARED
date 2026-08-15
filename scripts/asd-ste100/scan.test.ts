@@ -179,4 +179,16 @@ describe("scanGovernedFindings", () => {
       false,
     );
   });
+
+  it("does not emit ASD-STE100-5.1 for long capitalized descriptive prose", () => {
+    const { root, sha, bytes } = initScanRepo({
+      prose:
+        "Provider adapters accept configuration and return a typed client for downstream callers across every supported driver kind and keep that client ready.",
+    });
+    const scanned = scan(root, sha, bytes);
+    assert.equal(
+      scanned.findings.some((finding) => finding.ruleId === "ASD-STE100-5.1"),
+      false,
+    );
+  });
 });

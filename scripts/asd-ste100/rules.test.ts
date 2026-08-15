@@ -3,9 +3,40 @@ import { describe, it } from "node:test";
 
 import { checkClaims } from "./claim.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
-import { checkMechanicalRules } from "./rules.ts";
+import { checkMechanicalRules, inferMechanicalKind } from "./rules.ts";
 
 const loc = { path: "docs/note.md", line: 1, column: 1 };
+
+const DESCRIPTIVE_22 =
+  "Provider adapters accept configuration and return a typed client for downstream callers across every supported driver kind and keep that client ready.";
+
+describe("inferMechanicalKind", () => {
+  it("classifies markdown list items as procedural", () => {
+    assert.equal(
+      inferMechanicalKind("- Install the runner then open the pull request."),
+      "procedural",
+    );
+  });
+
+  it("classifies a clear imperative opener as procedural", () => {
+    assert.equal(
+      inferMechanicalKind(
+        "Install the runner then open the pull request then wait for the result.",
+      ),
+      "procedural",
+    );
+  });
+
+  it("defaults long capitalized descriptive prose to descriptive", () => {
+    assert.equal(inferMechanicalKind(DESCRIPTIVE_22), "descriptive");
+    assert.equal(
+      inferMechanicalKind(
+        "The runner waits for jobs from Forgejo and then executes those jobs on the local machine.",
+      ),
+      "descriptive",
+    );
+  });
+});
 
 describe("checkMechanicalRules", () => {
   it("reports Rule 5.1 when procedural text exceeds 20 words", () => {
