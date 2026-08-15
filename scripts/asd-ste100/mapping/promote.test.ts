@@ -300,4 +300,45 @@ describe("live mapping records", () => {
       true,
     );
   });
+
+  it("assigns every official source page once in the committed coverage ledger", () => {
+    const ledgerPath = path.join(mappingDir, "records/coverage-ledger.json");
+    const ledger = JSON.parse(readFileSync(ledgerPath, "utf8")) as Array<{
+      page: number;
+      waveIndex: number;
+    }>;
+    assert.equal(ledger.length, 430);
+    assert.deepEqual(
+      ledger.map((entry) => entry.page),
+      Array.from({ length: 430 }, (_, offset) => offset + 1),
+    );
+    const waves = new Set(ledger.map((entry) => entry.waveIndex));
+    assert.equal(waves.size, 22);
+    const leak = scanMappingLeak(
+      ledger.map((entry) =>
+        mappingRow({
+          id: `p${entry.page}`,
+          class: "private_lexicon",
+          sourcePages: [entry.page],
+          proposedCheckerId: "coverage-ledger",
+        }),
+      ),
+    );
+    assert.equal(leak.ok, true);
+  });
+
+  it("keeps live-pin records until a distinct principal reviews official pages", () => {
+    const livePath = path.join(mappingDir, "records/records.json");
+    const live = JSON.parse(readFileSync(livePath, "utf8")) as {
+      coverageKind: string;
+      issue9PagesMapped: boolean;
+      rows: Array<MappingRow>;
+    };
+    assert.equal(live.coverageKind, "live-pin");
+    assert.equal(live.issue9PagesMapped, false);
+    assert.equal(
+      live.rows.every((row) => row.sourcePages.length === 0),
+      true,
+    );
+  });
 });
