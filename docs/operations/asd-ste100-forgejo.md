@@ -48,6 +48,14 @@ The committed test fixture is `scripts/asd-ste100/test/fixtures/vocab/synthetic.
 
 Copy those bytes onto `t2-trusted`. Do not commit a private official word list.
 
+Vocabulary review stays `pending-human` until an operator checks the word list.
+
+G2 ignores Rule 1.1 and Rule 4.5 until that review.
+
+G2 still applies sentence length rules and claim rules.
+
+Run `npm run asd-ste100:provision-vocab -- --dest <vocab-dir>` to mount the test fixture and refresh the pin.
+
 Do not provision enforcement PATs yet.
 
 Do not provision the release identity yet.

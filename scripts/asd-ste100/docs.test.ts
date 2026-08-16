@@ -58,6 +58,7 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /hhpe-ci/);
     assert.match(text, /distinct/i);
     assert.match(text, /t2-trusted/);
+    assert.match(text, /pending-human/);
   });
 
   it("does not copy official dictionary entries or ASD examples", () => {

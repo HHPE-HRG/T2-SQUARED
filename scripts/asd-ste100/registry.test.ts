@@ -52,6 +52,11 @@ describe("live profile matches enforced checkers", () => {
     assert.equal(liveProfile().claim, "ASD-STE100 mechanical rule-subset result");
   });
 
+  it("records pending-human vocabulary review on the live profile", () => {
+    const profile = liveProfile() as { vocabularyReview?: string };
+    assert.equal(profile.vocabularyReview, "pending-human");
+  });
+
   it("pins connected G3 to the committed test vocabulary fixture", () => {
     const profile = liveProfile() as { vocabularySha256: string };
     const fixture = readFileSync(

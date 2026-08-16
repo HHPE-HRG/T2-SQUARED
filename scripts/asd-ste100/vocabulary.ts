@@ -17,6 +17,7 @@ export interface AsdProfile {
   issue: string;
   vocabularySha256: string;
   claim: string;
+  vocabularyReview?: "pending-human" | "human-verified";
   rules?: Array<AsdRuleMapping>;
 }
 
@@ -185,6 +186,13 @@ export function validateProfile(profile: AsdProfile): void {
   }
   if (profile.claim !== "ASD-STE100 mechanical rule-subset result") {
     throw new ProfileValidationError("profile claim must use the mechanical rule-subset statement");
+  }
+  if (
+    profile.vocabularyReview !== undefined &&
+    profile.vocabularyReview !== "pending-human" &&
+    profile.vocabularyReview !== "human-verified"
+  ) {
+    throw new ProfileValidationError("vocabularyReview must be pending-human or human-verified");
   }
   for (const rule of profile.rules ?? []) {
     if (!rule.reviewed) {

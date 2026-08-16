@@ -15,6 +15,7 @@ import {
   resolvePrGitRefs,
   runCli,
   runFixtureSelfTest,
+  skipScanPath,
 } from "./cli.ts";
 import type { CliDeps } from "./cli.ts";
 
@@ -49,7 +50,10 @@ function sha256(contents: string | Buffer): string {
   return createHash("sha256").update(contents).digest("hex");
 }
 
-function connectedCwd(vocabularySha256: string): string {
+function connectedCwd(
+  vocabularySha256: string,
+  extra: { vocabularyReview?: "pending-human" | "human-verified" } = {},
+): string {
   const dir = mkdtempSync(path.join(tmpdir(), "asd-g3-"));
   writeFileSync(
     path.join(dir, "t2.asd-ste100.json"),
@@ -57,6 +61,7 @@ function connectedCwd(vocabularySha256: string): string {
       issue: "9",
       vocabularySha256,
       claim: "ASD-STE100 mechanical rule-subset result",
+      vocabularyReview: extra.vocabularyReview,
       rules: [{ id: "1.1", reviewed: true, checker: "vocabulary-membership" }],
     })}\n`,
   );
@@ -108,6 +113,17 @@ describe("package scripts", () => {
 describe("parseMode", () => {
   it("defaults to fixture self-test", () => {
     assert.equal(parseMode([]), "fixture");
+  });
+});
+
+describe("skipScanPath", () => {
+  it("keeps campaign plans and the mapping heuristic card out of corpus findings", () => {
+    assert.equal(
+      skipScanPath("docs/plans/2026-08-14-001-fix-asd-ste100-remediation-wave-1-plan.md"),
+      true,
+    );
+    assert.equal(skipScanPath("scripts/asd-ste100/mapping/AGENT_HEURISTIC.md"), true);
+    assert.equal(skipScanPath("docs/operations/asd-ste100-forgejo.md"), false);
   });
 });
 
@@ -266,6 +282,45 @@ describe("runCli", () => {
       result.gates.some((gate) => gate.id === "G2" && gate.ok === false),
       true,
     );
+  });
+
+  it("does not fail G2 on Rule 1.1 while vocabulary review is pending-human", () => {
+    const result = runCli(
+      ["--mode", "fixture"],
+      deps({
+        findings: [
+          {
+            path: "docs/note.md",
+            line: 1,
+            column: 1,
+            ruleId: "ASD-STE100-1.1",
+            message: 'word "must" is not in the approved set.',
+          },
+        ],
+      }),
+    );
+    assert.equal(gate(result, "G2").ok, true);
+  });
+
+  it("fails G2 on Rule 1.1 after a human verifies the vocabulary", () => {
+    const official = Buffer.from(`${JSON.stringify({ words: ["qzvstelemmaone"] })}\n`);
+    const result = runCli(
+      ["--mode", "pr"],
+      deps({
+        cwd: connectedCwd(sha256(official), { vocabularyReview: "human-verified" }),
+        officialVocabularyBytes: () => official,
+        findings: [
+          {
+            path: "docs/note.md",
+            line: 1,
+            column: 1,
+            ruleId: "ASD-STE100-1.1",
+            message: 'word "must" is not in the approved set.',
+          },
+        ],
+      }),
+    );
+    assert.equal(gate(result, "G2").ok, false);
   });
 
   it("keeps T2-HEURISTIC findings visible without failing G2", () => {

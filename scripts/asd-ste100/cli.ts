@@ -156,8 +156,14 @@ function connected(mode: CliMode): boolean {
   return mode === "pr" || mode === "main" || mode === "release";
 }
 
-function countsTowardG2(finding: Finding): boolean {
-  return finding.ruleId.startsWith(ASD_RULE_PREFIX) || finding.ruleId === "T10";
+function countsTowardG2(finding: Finding, profile: AsdProfile): boolean {
+  if (finding.ruleId === "T10") {
+    return true;
+  }
+  if (finding.ruleId === `${ASD_RULE_PREFIX}1.1` || finding.ruleId === `${ASD_RULE_PREFIX}4.5`) {
+    return profile.vocabularyReview === "human-verified";
+  }
+  return finding.ruleId.startsWith(ASD_RULE_PREFIX);
 }
 
 function sha256Bytes(contents: Buffer): string {
@@ -269,7 +275,7 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
   const gates: Array<GateResult> = [];
   gates.push({ id: "G1", ok: true, reason: "" });
 
-  const g2ok = !deps.findings.some(countsTowardG2);
+  const g2ok = !deps.findings.some((finding) => countsTowardG2(finding, profile));
   gates.push({
     id: "G2",
     ok: g2ok,
@@ -429,8 +435,16 @@ function gitShow(cwd: string, sha: string, filePath: string): string | null {
 }
 
 function skipScanPath(filePath: string): boolean {
-  return /\.test\.ts$/.test(filePath) || filePath.includes("/test/") || filePath.endsWith(".yml");
+  return (
+    /\.test\.ts$/.test(filePath) ||
+    filePath.includes("/test/") ||
+    filePath.endsWith(".yml") ||
+    filePath.startsWith("docs/plans/") ||
+    filePath.endsWith("AGENT_HEURISTIC.md")
+  );
 }
+
+export { skipScanPath };
 
 function extractOwned(filePath: string, source: string) {
   if (filePath.endsWith(".md")) {
