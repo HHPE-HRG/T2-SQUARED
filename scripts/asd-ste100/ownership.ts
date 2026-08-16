@@ -154,13 +154,24 @@ export function classifyCommitMessage(input: {
   };
 }
 
+const GIT_MAX_BUFFER = 64_000_000;
+
 function git(cwd: string, args: ReadonlyArray<string>): string {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: GIT_MAX_BUFFER,
+  }).trim();
 }
 
 function gitOk(cwd: string, args: ReadonlyArray<string>): boolean {
   try {
-    execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    execFileSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: GIT_MAX_BUFFER,
+    });
     return true;
   } catch {
     return false;

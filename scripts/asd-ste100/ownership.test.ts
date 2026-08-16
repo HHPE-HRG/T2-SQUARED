@@ -178,6 +178,18 @@ describe("collectScopeRecords", () => {
     assert.equal(fixture.className, "fixture");
     assert.equal(fixture.includeInCorpusFindings, false);
   });
+
+  it("lists the live corpus tree without the default 1 MiB git spawn buffer", () => {
+    const head = git(repoRoot, ["rev-parse", "HEAD"]);
+    const records = collectScopeRecords({
+      cwd: repoRoot,
+      mode: "corpus",
+      baseSha: head,
+      headSha: head,
+      manifest: loadOwnershipManifest(repoOwnershipPath),
+    });
+    assert.ok(records.length > 10_000);
+  });
 });
 
 describe("classifyCommitMessage", () => {

@@ -21,10 +21,7 @@ import {
   loadLiveMappingRecords,
 } from "./mapping/promote.ts";
 import { collectScopeRecords, loadOwnershipManifest } from "./ownership.ts";
-import {
-  approvedWordSet,
-  knownNounsFromTerms,
-} from "./membership.ts";
+import { approvedWordSet, knownNounsFromTerms } from "./membership.ts";
 import { ASD_RULE_PREFIX, enforcedChecker } from "./registry.ts";
 import { inferMechanicalKind } from "./rules.ts";
 import type { Finding } from "./rules.ts";
@@ -327,9 +324,7 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
     sourceSha: refs.headSha,
     upstreamSha: loadJson<{ acceptedBaseSha: string }>(deps.cwd, "t2.upstream.json")
       .acceptedBaseSha,
-    ownershipSha256: sha256Bytes(
-      readFileSync(path.join(deps.cwd, "t2.asd-ste100.ownership.json")),
-    ),
+    ownershipSha256: sha256Bytes(readFileSync(path.join(deps.cwd, "t2.asd-ste100.ownership.json"))),
     corpusSha256: digestCanonical(scannedPaths),
     vocabularySha256: profile.vocabularySha256,
     profileIssue: profile.issue,
@@ -411,8 +406,14 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
   };
 }
 
+const GIT_MAX_BUFFER = 64_000_000;
+
 function git(cwd: string, args: ReadonlyArray<string>): string {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: GIT_MAX_BUFFER,
+  }).trim();
 }
 
 function gitShow(cwd: string, sha: string, filePath: string): string | null {
@@ -545,6 +546,7 @@ export function createDefaultDeps(cwd = process.cwd(), mode: CliMode = "fixture"
         cwd: root,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
+        maxBuffer: GIT_MAX_BUFFER,
       }).trim();
     } catch {
       return git(root, ["rev-parse", "HEAD"]);
