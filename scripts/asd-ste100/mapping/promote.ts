@@ -18,6 +18,8 @@ export interface MappingIdentity {
 }
 
 export const MAPPING_PRINCIPALS_PATH = "scripts/asd-ste100/mapping/records/principals.json";
+export const DEFAULT_SELF_SIGN_HUMAN_THRESHOLD = 2;
+export const SELF_SIGN_REVIEW_NOTE = "KTD28 self-sign: single operator";
 
 export interface PrivateLexiconCoverage {
   class: "private_lexicon";
@@ -58,17 +60,21 @@ function digestUtf8(contents: string): string {
   return createHash("sha256").update(contents, "utf8").digest("hex");
 }
 
-export function markMappingReviewed(row: MappingRow, review: MappingReview): MappingRow {
+export function markMappingReviewed(
+  row: MappingRow,
+  review: MappingReview,
+  options: { allowSelfSign?: boolean } = {},
+): MappingRow {
   if (row.class !== "deterministic" && row.class !== "fail_closed_uncheckable") {
     throw new Error("only deterministic or fail_closed_uncheckable rows accept review");
   }
   if (review.reviewerId.length === 0) {
     throw new Error("reviewed:true requires a reviewerId");
   }
-  if (review.reviewerId === review.authorId) {
-    throw new Error("self-review is not permitted; reviewerId must be distinct from author");
-  }
-  if (row.authorId !== undefined && row.authorId !== null && review.reviewerId === row.authorId) {
+  const sameReviewer = review.reviewerId === review.authorId;
+  const sameRowAuthor =
+    row.authorId !== undefined && row.authorId !== null && review.reviewerId === row.authorId;
+  if ((sameReviewer || sameRowAuthor) && options.allowSelfSign !== true) {
     throw new Error("self-review is not permitted; reviewerId must be distinct from author");
   }
   return {
@@ -98,6 +104,17 @@ export function loadMappingPrincipals(root: string): Array<MappingIdentity> {
   return parsed.identities ?? [];
 }
 
+export function humanIdentityCount(identities: ReadonlyArray<MappingIdentity>): number {
+  return identities.filter((entry) => entry.kind === "human").length;
+}
+
+export function selfSignAllowed(
+  identities: ReadonlyArray<MappingIdentity>,
+  humanCountBelow: number = DEFAULT_SELF_SIGN_HUMAN_THRESHOLD,
+): boolean {
+  return humanIdentityCount(identities) < humanCountBelow;
+}
+
 export function reviewOfficialMappingRows(
   rows: ReadonlyArray<MappingRow>,
   review: MappingReview,
@@ -111,9 +128,20 @@ export function reviewOfficialMappingRows(
   if (reviewer === undefined) {
     throw new Error("reviewer principal cannot resolve");
   }
-  if (author.principal === reviewer.principal) {
+  if (reviewer.kind !== "human") {
+    throw new Error("KTD28 reviewer must be human");
+  }
+  const allowSelfSign = selfSignAllowed(identities);
+  if (author.principal === reviewer.principal && !allowSelfSign) {
     throw new Error("author principal must differ from reviewer principal");
   }
+  const notes =
+    author.principal === reviewer.principal
+      ? review.reviewNotes && /self-sign/i.test(review.reviewNotes)
+        ? review.reviewNotes
+        : SELF_SIGN_REVIEW_NOTE
+      : review.reviewNotes;
+  const stamped: MappingReview = { ...review, reviewNotes: notes };
   return rows.map((row) => {
     if (row.class === "private_lexicon") {
       return {
@@ -123,7 +151,7 @@ export function reviewOfficialMappingRows(
         reviewNotes: null,
       };
     }
-    return markMappingReviewed(row, review);
+    return markMappingReviewed(row, stamped, { allowSelfSign });
   });
 }
 

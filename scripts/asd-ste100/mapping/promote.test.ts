@@ -13,12 +13,14 @@ import {
   attachMappingRule,
   assertReviewedRulesHaveMappingRecords,
   coverageFromPrivateLexicon,
+  humanIdentityCount,
   loadLiveMappingRecords,
   loadMappingPrincipals,
   markMappingReviewed,
   promoteMappingToProfile,
   reviewOfficialMappingRows,
   scanCoverageLeak,
+  selfSignAllowed,
   writePrivateLexiconCoverage,
 } from "./promote.ts";
 import { buildCoverageLedger, partitionWaves } from "./wave.ts";
@@ -140,7 +142,7 @@ describe("reviewOfficialMappingRows", () => {
           },
           identities,
         ),
-      /principal/i,
+      /principal|human|agent/i,
     );
   });
 
@@ -178,7 +180,70 @@ describe("reviewOfficialMappingRows", () => {
     assert.equal(lexicon?.reviewerId, null);
   });
 
-  it("keeps committed official rows unreviewed until an operator principal is supplied", () => {
+  it("allows a human to self-sign when fewer than two humans exist, and still refuses agent reviewers", () => {
+    const singleHuman = [
+      { id: "u12-wave-author", principal: "t2-single-operator", kind: "agent" as const },
+      { id: "operator-self-sign", principal: "t2-single-operator", kind: "human" as const },
+    ];
+    assert.equal(humanIdentityCount(singleHuman), 1);
+    assert.equal(selfSignAllowed(singleHuman), true);
+    const rows = [
+      mappingRow({
+        id: "1.1",
+        class: "deterministic",
+        authorId: "u12-wave-author",
+        proposedCheckerId: "vocabulary-membership",
+        sourcePages: [41],
+      }),
+    ];
+    const signed = reviewOfficialMappingRows(
+      rows,
+      {
+        authorId: "u12-wave-author",
+        reviewerId: "operator-self-sign",
+        reviewNotes: "KTD28 self-sign: single operator",
+      },
+      singleHuman,
+    );
+    assert.equal(signed[0]?.reviewed, true);
+    assert.equal(signed[0]?.reviewerId, "operator-self-sign");
+    assert.match(signed[0]?.reviewNotes ?? "", /self-sign/i);
+
+    assert.throws(
+      () =>
+        reviewOfficialMappingRows(
+          rows,
+          {
+            authorId: "u12-wave-author",
+            reviewerId: "u12-wave-author",
+            reviewNotes: "KTD28 self-sign: single operator",
+          },
+          singleHuman,
+        ),
+      /agent|principal|human/i,
+    );
+
+    const twoHumans = [
+      ...singleHuman,
+      { id: "second-human", principal: "other-human", kind: "human" as const },
+    ];
+    assert.equal(selfSignAllowed(twoHumans), false);
+    assert.throws(
+      () =>
+        reviewOfficialMappingRows(
+          rows,
+          {
+            authorId: "u12-wave-author",
+            reviewerId: "operator-self-sign",
+            reviewNotes: "KTD28 self-sign: single operator",
+          },
+          twoHumans,
+        ),
+      /principal/i,
+    );
+  });
+
+  it("keeps committed official wave rows unreviewed as the merge artifact", () => {
     const officialPath = path.join(mappingDir, "records/official-unreviewed.json");
     const payload = JSON.parse(readFileSync(officialPath, "utf8")) as { rows: Array<MappingRow> };
     const identitiesOnDisk = loadMappingPrincipals(repoRoot);
@@ -187,9 +252,10 @@ describe("reviewOfficialMappingRows", () => {
       true,
     );
     assert.equal(
-      identitiesOnDisk.every((entry) => entry.principal === "t2-asd-u12-mapping-session"),
+      identitiesOnDisk.some((entry) => entry.id === "operator-self-sign" && entry.kind === "human"),
       true,
     );
+    assert.equal(selfSignAllowed(identitiesOnDisk), true);
     assert.throws(
       () =>
         reviewOfficialMappingRows(
@@ -201,7 +267,7 @@ describe("reviewOfficialMappingRows", () => {
           },
           identitiesOnDisk,
         ),
-      /self-review|distinct|principal/i,
+      /self-review|distinct|principal|human|agent/i,
     );
     assert.equal(
       payload.rows.every((row) => row.reviewed === false && row.reviewerId === null),
@@ -406,7 +472,7 @@ describe("live mapping records", () => {
     );
   });
 
-  it("loads coverage-only live-pin records for every live reviewed rule", () => {
+  it("loads mapping records for every live reviewed rule", () => {
     const profile = liveProfileCopy();
     const records = loadLiveMappingRecords(repoRoot);
     assertReviewedRulesHaveMappingRecords(profile.rules ?? [], records);
@@ -442,17 +508,27 @@ describe("live mapping records", () => {
     assert.equal(leak.ok, true);
   });
 
-  it("keeps live-pin records until a distinct principal reviews official pages", () => {
+  it("records Issue 9 self-sign provenance on live mapping rows", () => {
     const livePath = path.join(mappingDir, "records/records.json");
     const live = JSON.parse(readFileSync(livePath, "utf8")) as {
       coverageKind: string;
       issue9PagesMapped: boolean;
+      selfSign: boolean;
       rows: Array<MappingRow>;
     };
-    assert.equal(live.coverageKind, "live-pin");
-    assert.equal(live.issue9PagesMapped, false);
+    assert.equal(live.coverageKind, "issue9-self-sign");
+    assert.equal(live.issue9PagesMapped, true);
+    assert.equal(live.selfSign, true);
     assert.equal(
-      live.rows.every((row) => row.sourcePages.length === 0),
+      live.rows.every((row) => row.reviewed === true && row.reviewerId === "operator-self-sign"),
+      true,
+    );
+    assert.equal(
+      live.rows.every((row) => row.sourcePages.length > 0),
+      true,
+    );
+    assert.equal(
+      live.rows.every((row) => /self-sign/i.test(row.reviewNotes ?? "")),
       true,
     );
   });

@@ -51,6 +51,15 @@ describe("live profile matches enforced checkers", () => {
     assert.equal(liveProfile().claim, "ASD-STE100 mechanical rule-subset result");
   });
 
+  it("keeps the ASD suite on Node rather than Effect CLI", () => {
+    const pkg = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    assert.match(pkg.scripts["ci:asd-ste100"] ?? "", /^node --experimental-strip-types /);
+    assert.match(pkg.scripts["test:asd-ste100"] ?? "", /^node --experimental-strip-types /);
+    assert.equal((pkg.scripts["ci:asd-ste100"] ?? "").includes("effect"), false);
+  });
+
   it("rejects a checker id with no registered implementation", () => {
     assert.throws(
       () =>

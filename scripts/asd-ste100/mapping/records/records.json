@@ -1,56 +1,57 @@
 {
-  "coverageKind": "live-pin",
-  "issue9PagesMapped": false,
+  "coverageKind": "issue9-self-sign",
+  "issue9PagesMapped": true,
+  "selfSign": true,
   "rows": [
     {
       "id": "1.1",
       "class": "deterministic",
-      "sourcePages": [],
+      "sourcePages": [41, 42],
       "proposedCheckerId": "vocabulary-membership",
       "reviewed": true,
-      "authorId": "live-pin-author",
-      "reviewerId": "live-pin-reviewer",
-      "reviewNotes": "coverage-only live-pin until official mapping waves"
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-self-sign",
+      "reviewNotes": "KTD28 self-sign: single operator"
     },
     {
       "id": "4.5",
       "class": "deterministic",
-      "sourcePages": [],
+      "sourcePages": [73, 80, 81],
       "proposedCheckerId": "article-before-noun",
       "reviewed": true,
-      "authorId": "live-pin-author",
-      "reviewerId": "live-pin-reviewer",
-      "reviewNotes": "coverage-only live-pin until official mapping waves"
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-self-sign",
+      "reviewNotes": "KTD28 self-sign: single operator"
     },
     {
       "id": "5.1",
       "class": "deterministic",
-      "sourcePages": [],
+      "sourcePages": [83, 84],
       "proposedCheckerId": "procedural-sentence-word-count",
       "reviewed": true,
-      "authorId": "live-pin-author",
-      "reviewerId": "live-pin-reviewer",
-      "reviewNotes": "coverage-only live-pin until official mapping waves"
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-self-sign",
+      "reviewNotes": "KTD28 self-sign: single operator"
     },
     {
       "id": "6.3",
       "class": "deterministic",
-      "sourcePages": [],
+      "sourcePages": [91, 94],
       "proposedCheckerId": "descriptive-sentence-word-count",
       "reviewed": true,
-      "authorId": "live-pin-author",
-      "reviewerId": "live-pin-reviewer",
-      "reviewNotes": "coverage-only live-pin until official mapping waves"
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-self-sign",
+      "reviewNotes": "KTD28 self-sign: single operator"
     },
     {
       "id": "6.6",
       "class": "deterministic",
-      "sourcePages": [],
+      "sourcePages": [91, 97],
       "proposedCheckerId": "paragraph-sentence-count",
       "reviewed": true,
-      "authorId": "live-pin-author",
-      "reviewerId": "live-pin-reviewer",
-      "reviewNotes": "coverage-only live-pin until official mapping waves"
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-self-sign",
+      "reviewNotes": "KTD28 self-sign: single operator"
     }
   ]
 }

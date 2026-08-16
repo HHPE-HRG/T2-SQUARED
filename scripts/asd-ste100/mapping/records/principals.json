@@ -1,9 +1,15 @@
 {
+  "selfSignWhenHumanCountBelow": 2,
   "identities": [
     {
       "id": "u12-wave-author",
-      "principal": "t2-asd-u12-mapping-session",
+      "principal": "t2-single-operator",
       "kind": "agent"
+    },
+    {
+      "id": "operator-self-sign",
+      "principal": "t2-single-operator",
+      "kind": "human"
     }
   ]
 }
