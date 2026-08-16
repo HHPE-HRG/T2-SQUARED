@@ -40,7 +40,13 @@ Live image is Forgejo 15.0.6.
 
 Set `GITEA_WORK_DIR=/data` on recreate.
 
-Do not provision private vocabulary yet.
+The trusted runner reads `ASD_STE100_VOCABULARY` as a filesystem path.
+
+That path must match the SHA-256 pin in `t2.asd-ste100.json`.
+
+The committed test fixture is `scripts/asd-ste100/test/fixtures/vocab/synthetic.json`.
+
+Copy those bytes onto `t2-trusted`. Do not commit a private official word list.
 
 Do not provision enforcement PATs yet.
 
@@ -262,7 +268,9 @@ Activate protections after workflow-dispatch validation.
 
 Rerun the full corpus from that SHA.
 
-Provision private vocabulary only after leak tests pass.
+Mount the test vocabulary path on `t2-trusted` after leak tests pass.
+
+Use a private official extract only when those bytes exist off git.
 
 ## Secrets and rotation
 

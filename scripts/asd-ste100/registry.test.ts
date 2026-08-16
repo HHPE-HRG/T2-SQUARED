@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -49,6 +50,15 @@ describe("live profile matches enforced checkers", () => {
 
   it("keeps the mechanical rule-subset claim on the live profile", () => {
     assert.equal(liveProfile().claim, "ASD-STE100 mechanical rule-subset result");
+  });
+
+  it("pins connected G3 to the committed test vocabulary fixture", () => {
+    const profile = liveProfile() as { vocabularySha256: string };
+    const fixture = readFileSync(
+      path.join(repoRoot, "scripts/asd-ste100/test/fixtures/vocab/synthetic.json"),
+    );
+    const digest = createHash("sha256").update(fixture).digest("hex");
+    assert.equal(profile.vocabularySha256, digest);
   });
 
   it("keeps the ASD suite on Node rather than Effect CLI", () => {
