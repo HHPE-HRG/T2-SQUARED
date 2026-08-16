@@ -46,7 +46,9 @@
     "sync:repos": "node scripts/sync-reference-repos.ts",
     "ci:asd-ste100": "node --experimental-strip-types scripts/asd-ste100/cli.ts",
     "test:asd-ste100": "node --experimental-strip-types --test scripts/asd-ste100/*.test.ts scripts/asd-ste100/**/*.test.ts",
-    "asd-ste100:provision-vocab": "node --experimental-strip-types scripts/asd-ste100/provision-vocab.ts"
+    "asd-ste100:provision-vocab": "node --experimental-strip-types scripts/asd-ste100/provision-vocab.ts",
+    "ci:work-registry": "node --experimental-strip-types scripts/work-registry/cli.ts",
+    "test:work-registry": "node --experimental-strip-types --test scripts/work-registry/*.test.ts"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-jsx": "7.28.6",

@@ -1,0 +1,9 @@
+{
+  "product": "T2_Squared-Work-Registry",
+  "campaign": "asd-ste100-compliance",
+  "proposal": "proposal.md",
+  "schema": "schema.json",
+  "forgejoApproved": false,
+  "humanApproved": true,
+  "humanOverride": true
+}

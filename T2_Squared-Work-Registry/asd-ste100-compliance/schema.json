@@ -1,0 +1,42 @@
+{
+  "product": "T2_Squared-Work-Registry",
+  "campaign": "asd-ste100-compliance",
+  "terms": [
+    {
+      "term": "approve",
+      "kind": "verb"
+    },
+    {
+      "term": "campaign",
+      "kind": "noun"
+    },
+    {
+      "term": "compile",
+      "kind": "verb"
+    },
+    {
+      "term": "Forgejo-review",
+      "kind": "noun"
+    },
+    {
+      "term": "genesis",
+      "kind": "noun"
+    },
+    {
+      "term": "proposal",
+      "kind": "noun"
+    },
+    {
+      "term": "register",
+      "kind": "verb"
+    },
+    {
+      "term": "schema",
+      "kind": "noun"
+    },
+    {
+      "term": "work-registry",
+      "kind": "noun"
+    }
+  ]
+}

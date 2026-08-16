@@ -80,6 +80,14 @@ jobs:
             exit 0
           fi
           npm run ci:asd-ste100 -- --mode pr
+      - name: Gate work-registry from merge-base checker
+        working-directory: checker
+        run: |
+          if ! node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['ci:work-registry'] ? 0 : 1)"; then
+            echo "merge-base has no ci:work-registry; first-land bootstrap skip"
+            exit 0
+          fi
+          T2_WORK_REGISTRY_ROOT="${{ github.workspace }}/pr-tree" npm run ci:work-registry
       - name: Remove secret mounts
         if: always()
         run: |
@@ -108,6 +116,8 @@ jobs:
           git checkout --force FETCH_HEAD
       - name: Full-corpus baseline
         run: npm run ci:asd-ste100 -- --mode main
+      - name: Work-registry baseline
+        run: npm run ci:work-registry
       - name: Remove secret mounts
         if: always()
         run: |
@@ -136,6 +146,8 @@ jobs:
           git checkout --force FETCH_HEAD
       - name: Release eligibility
         run: npm run ci:asd-ste100 -- --mode release
+      - name: Work-registry release gate
+        run: npm run ci:work-registry
       - name: Publish digest-addressed generic package
         run: |
           digest_file=$(ls .cache/asd-ste100/*.json | head -n 1)

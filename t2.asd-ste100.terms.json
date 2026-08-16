@@ -3,6 +3,19 @@
     { "term": "Forgejo", "kind": "noun", "reviewed": true },
     { "term": "attestation", "kind": "noun", "reviewed": true },
     { "term": "override", "kind": "noun", "reviewed": true },
-    { "term": "runner", "kind": "noun", "reviewed": true }
+    { "term": "runner", "kind": "noun", "reviewed": true },
+    { "term": "work-registry", "kind": "noun", "reviewed": true },
+    { "term": "campaign", "kind": "noun", "reviewed": true },
+    { "term": "proposal", "kind": "noun", "reviewed": true },
+    { "term": "manifest", "kind": "noun", "reviewed": true },
+    { "term": "schema", "kind": "noun", "reviewed": true },
+    { "term": "drift", "kind": "noun", "reviewed": true },
+    { "term": "compile", "kind": "verb", "reviewed": true },
+    { "term": "approve", "kind": "verb", "reviewed": true },
+    { "term": "register", "kind": "verb", "reviewed": true },
+    { "term": "genesis", "kind": "noun", "reviewed": true },
+    { "term": "progeny", "kind": "noun", "reviewed": true },
+    { "term": "epoch", "kind": "noun", "reviewed": true },
+    { "term": "Forgejo-review", "kind": "noun", "reviewed": true }
   ]
 }

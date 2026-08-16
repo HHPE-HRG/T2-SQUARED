@@ -10,7 +10,10 @@
     "docs/operations/asd-ste100-forgejo.md",
     "docs/plans/2026-08-14-001-fix-asd-ste100-remediation-wave-1-plan.md",
     "docs/plans/2026-08-14-001-fix-asd-ste100-remediation-wave-1.json",
-    "docs/plans/schemas/asd-ste100-remediation-wave.schema.json"
+    "docs/plans/schemas/asd-ste100-remediation-wave.schema.json",
+    "scripts/work-registry/**",
+    "T2_Squared-Work-Registry/**",
+    "docs/internals/t2-squared-work-registry.md"
   ],
   "rawGlobs": ["scripts/asd-ste100/test/fixtures/raw/**", "transcripts/**"],
   "machineGlobs": [
@@ -45,13 +48,14 @@
     "*.wasm",
     "**/*.wasm"
   ],
-  "fixtureGlobs": ["scripts/asd-ste100/test/fixtures/**"],
+  "fixtureGlobs": ["scripts/asd-ste100/test/fixtures/**", "scripts/work-registry/**/*.test.ts"],
   "privilegedGlobs": [
     "t2.asd-ste100.json",
     "t2.asd-ste100.*.json",
     "t2.upstream.json",
     "scripts/asd-ste100/*.ts",
     "scripts/asd-ste100/mapping/*.ts",
+    "scripts/work-registry/*.ts",
     ".forgejo/workflows/**"
   ],
   "externalEvidenceGlobs": ["scripts/asd-ste100/test/fixtures/evidence/**"]

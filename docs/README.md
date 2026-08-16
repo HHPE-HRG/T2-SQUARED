@@ -36,6 +36,7 @@ policy in [CONTRIBUTING.md](../CONTRIBUTING.md); agent rules in [AGENTS.md](../A
 - [T3 Connect](./internals/t3-connect.md)
 - [CI gates](./internals/ci.md)
 - [T2 ASD-STE100 mechanical rule-subset](./internals/asd-ste100-enforcement.md)
+- [T2_Squared-Work-Registry](./internals/t2-squared-work-registry.md)
 
 ### Runbooks
 
