@@ -10,6 +10,8 @@ The dump lists the campaign.
 
 The lookup reads the schema.
 
-A human uses the override of the Forgejo-review so the work-registry can register the campaign.
+The Forgejo-review is synthetic because this host has one user.
+
+A human approved this campaign.
 
 The genesis is this campaign.

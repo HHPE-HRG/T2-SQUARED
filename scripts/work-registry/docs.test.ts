@@ -42,6 +42,7 @@ describe("work-registry internals doc", () => {
     assert.match(text, /asd-ste100-compliance/);
     assert.match(text, /registry-yaml-write/);
     assert.match(text, /forgejoClosed/);
+    assert.match(text, /synthetic/);
     assert.doesNotMatch(text, /first live campaign waits/i);
   });
 });

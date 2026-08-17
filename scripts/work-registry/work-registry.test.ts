@@ -408,12 +408,16 @@ describe("dumpWorkRegistry", () => {
     assert.equal(dump[0]?.forgejoClosed, true);
   });
 
-  it("keeps live campaigns Forgejo-closed false", () => {
+  it("keeps live campaigns Forgejo-closed after synthetic review", () => {
     const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
     const dump = dumpWorkRegistry(repoRoot);
     assert.equal(dump.length > 0, true);
     assert.equal(
-      dump.every((entry) => entry.forgejoClosed === false),
+      dump.every((entry) => entry.forgejoClosed === true),
+      true,
+    );
+    assert.equal(
+      dump.every((entry) => entry.humanOverride === false),
       true,
     );
     assert.equal(

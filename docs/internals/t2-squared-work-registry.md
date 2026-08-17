@@ -60,7 +60,7 @@ The dump lists the schema path.
 
 The dump lists the approved boolean.
 
-The dump field forgejoClosed is false when the campaign uses the override.
+The dump field forgejoClosed is true when Forgejo and the human both approve without the override.
 
 Compile writes yaml when the schema path ends in yaml.
 
@@ -74,7 +74,9 @@ The live campaign is asd-ste100-compliance.
 
 The later campaign is registry-yaml-write.
 
-Both campaigns use the override of the Forgejo-review.
+Both live campaigns are Forgejo-closed.
+
+The Forgejo-review id is synthetic because this host has one user.
 
 ## Later work
 
