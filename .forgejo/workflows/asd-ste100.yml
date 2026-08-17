@@ -25,6 +25,12 @@ concurrency:
   group: asd-ste100-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+permissions:
+  actions: read
+  contents: read
+  packages: write
+  pull-requests: read
+
 env:
   PATH: /home/oldmac-vm/.local/node-v24/bin:/usr/local/bin:/usr/bin:/bin
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -129,6 +135,9 @@ jobs:
     name: asd-ste100 / trusted-release
     runs-on: t2-trusted
     if: github.repository == 'maxholden/T2-SQUARED' && github.event_name == 'workflow_dispatch' && inputs.mode == 'release'
+    permissions:
+      contents: write
+      packages: write
     timeout-minutes: 40
     env:
       ASD_STE100_GITHUB_ACTIONS: disabled

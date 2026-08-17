@@ -72,7 +72,15 @@ A human inspects the private file before any pin change off the fixture.
 
 Rule 1.1 and Rule 4.5 stay off G2 in this slice.
 
-Do not provision enforcement PATs yet.
+Pipeline tokens live on the VM under the agent state directory.
+
+Those tokens do not live in git.
+
+Reviewer PATs never enter CI.
+
+The operator SSH key is on the maxholden account.
+
+The hhpe-ci user is a write collaborator.
 
 Do not provision the release identity yet.
 
