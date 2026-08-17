@@ -1,17 +1,17 @@
 {
   "product": "T2_Squared-Work-Registry",
-  "campaign": "asd-ste100-compliance",
+  "campaign": "registry-yaml-write",
   "terms": [
-    {
-      "term": "approve",
-      "kind": "verb"
-    },
     {
       "term": "campaign",
       "kind": "noun"
     },
     {
       "term": "compile",
+      "kind": "verb"
+    },
+    {
+      "term": "dump",
       "kind": "verb"
     },
     {

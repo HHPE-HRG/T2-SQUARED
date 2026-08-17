@@ -52,9 +52,14 @@ describe("live profile matches enforced checkers", () => {
     assert.equal(liveProfile().claim, "ASD-STE100 mechanical rule-subset result");
   });
 
-  it("records pending-human vocabulary review on the live profile", () => {
-    const profile = liveProfile() as { vocabularyReview?: string };
+  it("holds A2 by keeping pending-human and the synthetic fixture pin", () => {
+    const profile = liveProfile() as { vocabularyReview?: string; vocabularySha256: string };
     assert.equal(profile.vocabularyReview, "pending-human");
+    const fixture = readFileSync(
+      path.join(repoRoot, "scripts/asd-ste100/test/fixtures/vocab/synthetic.json"),
+    );
+    const digest = createHash("sha256").update(fixture).digest("hex");
+    assert.equal(profile.vocabularySha256, digest);
   });
 
   it("pins connected G3 to the committed test vocabulary fixture", () => {

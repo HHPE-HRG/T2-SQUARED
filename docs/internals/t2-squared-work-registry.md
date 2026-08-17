@@ -22,6 +22,8 @@ Other files use json or yaml.
 
 Json and yaml name one document.
 
+Yaml form is valid for one document.
+
 Do not add a second markdown file.
 
 ## Approve
@@ -50,8 +52,32 @@ Lookup reads the schema.
 
 Lookup does not run ASD CI.
 
+The dump flag is `--dump`.
+
+The lookup flag is `--lookup`.
+
+The dump lists the schema path.
+
+The dump lists the approved boolean.
+
+The dump field forgejoClosed is false when the campaign uses the override.
+
+Compile writes yaml when the schema path ends in yaml.
+
+Compile writes json when the schema path ends in json.
+
+The check flag can name one campaign.
+
+## Live campaign
+
+The live campaign is asd-ste100-compliance.
+
+The later campaign is registry-yaml-write.
+
+Both campaigns use the override of the Forgejo-review.
+
 ## Later work
 
-The first live campaign waits.
+Issue 9 rows stay out of git.
 
-Issue 9 rows stay out of git until the work-registry is complete.
+This slice does not start CAN campaign work.

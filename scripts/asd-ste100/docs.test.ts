@@ -59,6 +59,8 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /distinct/i);
     assert.match(text, /t2-trusted/);
     assert.match(text, /pending-human/);
+    assert.match(text, /verify-only/);
+    assert.match(text, /inspects the private file/);
   });
 
   it("does not copy official dictionary entries or ASD examples", () => {
@@ -66,15 +68,23 @@ describe("owned enforcement documentation", () => {
     assert.doesNotMatch(text, /approved word list|dictionary entry|camshaft/i);
   });
 
-  it("records Forgejo admission, excluded transcripts and machine text, and deferred registry work", () => {
+  it("records Forgejo admission, excluded transcripts and machine text, and live work-registry", () => {
     const text = read("docs/internals/asd-ste100-enforcement.md");
     assert.match(text, /Forgejo admission/);
     assert.match(text, /not a local commit typecheck/);
     assert.match(text, /transcripts/);
     assert.match(text, /machine text/);
-    assert.match(text, /does not start work-registry/);
+    assert.match(text, /work-registry lives in Git/i);
     assert.match(text, /does not start CAN campaign/);
-    assert.doesNotMatch(text, /Work-registry implementation can start after this slice/);
+    assert.match(text, /dump of the private file/);
+    assert.doesNotMatch(text, /does not start work-registry/);
+    assert.match(text, /provision mounts the/i);
+    assert.match(text, /fixture/i);
+    assert.match(text, /pin check/i);
+    assert.match(text, /without flipping review/i);
+    assert.match(text, /stay off G2/i);
+    assert.match(text, /heuristic/i);
+    assert.match(text, /do not fail G2/i);
   });
 });
 

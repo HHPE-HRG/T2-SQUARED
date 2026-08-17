@@ -26,6 +26,13 @@ import { ASD_RULE_PREFIX, enforcedChecker } from "./registry.ts";
 import { inferMechanicalKind } from "./rules.ts";
 import type { Finding } from "./rules.ts";
 import { evaluateIntentApplicability } from "./trace.ts";
+import type { ForgejoPull, ForgejoReview, ReviewerRoster } from "./forgejo.ts";
+import {
+  validateOverride,
+  validateReview,
+  type CurrentFinding,
+  type ProposedOverride,
+} from "./override.ts";
 import {
   parseApprovedWordsFromOfficialBytes,
   validateProfile,
@@ -81,6 +88,12 @@ export interface CliDeps {
   overrides: Array<unknown>;
   governedSystemTextWithoutTrace: boolean;
   writeOutput: (filePath: string, body: string) => void;
+  pull?: ForgejoPull;
+  review?: ForgejoReview;
+  roster?: ReviewerRoster;
+  mergeBaseRoster?: ReviewerRoster;
+  proposedOverride?: ProposedOverride;
+  overrideCurrentFindings?: Array<CurrentFinding>;
 }
 
 export interface CliRunResult {
@@ -207,6 +220,47 @@ function evaluateG3(mode: CliMode, deps: CliDeps, profile: AsdProfile): GateResu
   }
 }
 
+function evaluateG5(mode: CliMode, deps: CliDeps): GateResult {
+  if (mode !== "pr" && mode !== "release") {
+    return { id: "G5", ok: true, status: "not_applicable", reason: "" };
+  }
+  if (deps.pull === undefined || deps.review === undefined || deps.roster === undefined) {
+    return { id: "G5", ok: false, reason: "review is missing" };
+  }
+  const result = validateReview({
+    pull: deps.pull,
+    review: deps.review,
+    roster: deps.roster,
+  });
+  return { id: "G5", ok: result.ok, reason: result.reason };
+}
+
+function evaluateG6(deps: CliDeps): GateResult {
+  if (deps.proposedOverride === undefined && deps.overrides.length === 0) {
+    return { id: "G6", ok: true, reason: "" };
+  }
+  if (
+    deps.pull === undefined ||
+    deps.review === undefined ||
+    deps.roster === undefined ||
+    deps.mergeBaseRoster === undefined ||
+    deps.proposedOverride === undefined ||
+    deps.overrideCurrentFindings === undefined
+  ) {
+    return { id: "G6", ok: false, reason: "override is missing" };
+  }
+  const result = validateOverride({
+    pull: deps.pull,
+    review: deps.review,
+    roster: deps.roster,
+    mergeBaseRoster: deps.mergeBaseRoster,
+    proposed: deps.proposedOverride,
+    currentFindings: deps.overrideCurrentFindings,
+    changedPaths: deps.changedPaths,
+  });
+  return { id: "G6", ok: result.ok, reason: result.reason };
+}
+
 function failRun(
   partial: Omit<CliRunResult, "ok" | "exitCode" | "outputs"> & { outputs?: Array<CliOutput> },
 ): CliRunResult {
@@ -299,14 +353,8 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
     }
   }
 
-  const reviewRequired = mode === "pr" || mode === "release";
-  gates.push({
-    id: "G5",
-    ok: true,
-    status: reviewRequired ? undefined : "not_applicable",
-    reason: "",
-  });
-  gates.push({ id: "G6", ok: true, reason: "" });
+  gates.push(evaluateG5(mode, deps));
+  gates.push(evaluateG6(deps));
 
   let reason = "";
   if (mode === "release" && !deps.baseline.ok) {

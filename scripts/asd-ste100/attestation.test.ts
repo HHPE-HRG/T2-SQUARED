@@ -77,7 +77,7 @@ describe("attestationFilename", () => {
 });
 
 describe("scanForVocabularyLeak", () => {
-  it("fails when an output contains private vocabulary content", () => {
+  it("fails when output contains a dump of the official file", () => {
     const result = scanForVocabularyLeak({
       texts: ['{"message":"camshaft is approved"}'],
       officialBytes: "camshaft is approved",
@@ -95,10 +95,40 @@ describe("scanForVocabularyLeak", () => {
     assert.match(result.reason, /unavailable|leak/i);
   });
 
-  it("fails when output contains one official lemma", () => {
+  it("does not treat one source token as a vocabulary dump", () => {
     const result = scanForVocabularyLeak({
       texts: ["the camshaft token leaked"],
-      officialBytes: "camshaft is approved for this list",
+      officialBytes: `${JSON.stringify({ words: ["camshaft", "approved"] })}\n`,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.reason, "");
+  });
+
+  it("fails when output contains the serialized words list", () => {
+    const official = `${JSON.stringify({ words: ["synthlemmaaaa", "synthlemmabbb"] })}\n`;
+    const result = scanForVocabularyLeak({
+      texts: [official],
+      officialBytes: official,
+    });
+    assert.equal(result.ok, false);
+    assert.match(result.reason, /leak/i);
+  });
+
+  it("still allows one qzvstelemmaone source token", () => {
+    const official = `${JSON.stringify({ words: ["qzvstelemmaone", "synthlemmaaaa"] })}\n`;
+    const result = scanForVocabularyLeak({
+      texts: ["qzvstelemmaone"],
+      officialBytes: official,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.reason, "");
+  });
+
+  it("still fails on a full serialized words dump of synthetic lemmas", () => {
+    const official = `${JSON.stringify({ words: ["qzvstelemmaone", "synthlemmaaaa"] })}\n`;
+    const result = scanForVocabularyLeak({
+      texts: [`${JSON.stringify({ words: ["qzvstelemmaone", "synthlemmaaaa"] })}\n`],
+      officialBytes: official,
     });
     assert.equal(result.ok, false);
     assert.match(result.reason, /leak/i);

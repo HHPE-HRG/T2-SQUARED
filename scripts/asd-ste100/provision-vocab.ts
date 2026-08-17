@@ -91,24 +91,52 @@ function parseArg(name: string, argv: Array<string>): string | undefined {
   return argv[index + 1];
 }
 
-function main(argv: Array<string>): void {
+function hasFlag(name: string, argv: Array<string>): boolean {
+  return argv.includes(name);
+}
+
+function defaultDestDir(): string {
+  return "/home/oldmac-vm/forgejo-runner-t2-trusted/vocab";
+}
+
+export function runProvisionCli(argv: Array<string>): number {
   const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
-  const destDir = parseArg("--dest", argv) ?? "/home/oldmac-vm/forgejo-runner-t2-trusted/vocab";
+  const profilePath = parseArg("--profile", argv) ?? path.join(repoRoot, "t2.asd-ste100.json");
+  if (hasFlag("--verify-only", argv)) {
+    const vocabularyPath =
+      parseArg("--vocabulary", argv) ??
+      path.join(parseArg("--dest", argv) ?? defaultDestDir(), "synthetic.json");
+    const check = verifyMountedVocabulary({
+      profilePath,
+      vocabularyPath,
+    });
+    process.stdout.write(`${JSON.stringify(check, null, 2)}\n`);
+    return check.pinMatch ? 0 : 1;
+  }
+  const destDir = parseArg("--dest", argv) ?? defaultDestDir();
   const result = installProvisionalVocabulary({
     fixturePath:
       parseArg("--fixture", argv) ??
       path.join(repoRoot, "scripts/asd-ste100/test/fixtures/vocab/synthetic.json"),
     destDir,
-    profilePath: parseArg("--profile", argv) ?? path.join(repoRoot, "t2.asd-ste100.json"),
+    profilePath,
     coveragePath:
       parseArg("--coverage", argv) ??
       path.join(repoRoot, "scripts/asd-ste100/mapping/records/vocabulary-coverage.json"),
   });
   const check = verifyMountedVocabulary({
-    profilePath: parseArg("--profile", argv) ?? path.join(repoRoot, "t2.asd-ste100.json"),
+    profilePath,
     vocabularyPath: result.vocabularyPath,
   });
   process.stdout.write(`${JSON.stringify({ ...result, pinMatch: check.pinMatch }, null, 2)}\n`);
+  return 0;
+}
+
+function main(argv: Array<string>): void {
+  const code = runProvisionCli(argv);
+  if (code !== 0) {
+    process.exit(code);
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

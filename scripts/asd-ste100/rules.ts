@@ -143,5 +143,23 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       message: "this verb form is not permitted as a noun.",
     });
   }
+  if (input.text.includes("?")) {
+    findings.push({
+      path: input.path,
+      line: input.line,
+      column: input.column,
+      ruleId: "T2-HEURISTIC-question",
+      message: "a question mark is not permitted in governed prose.",
+    });
+  }
+  if (/\s\/\s/.test(input.text)) {
+    findings.push({
+      path: input.path,
+      line: input.line,
+      column: input.column,
+      ruleId: "T2-HEURISTIC-slash",
+      message: "a spaced slash is not permitted as a word joiner.",
+    });
+  }
   return findings;
 }

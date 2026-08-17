@@ -54,6 +54,32 @@ describe("checkVocabularyMembership", () => {
       false,
     );
   });
+
+  it("accepts a hyphenated reviewed technical name", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Install the qzvste-lemma-one runner.",
+      approvedWords: approved,
+      technicalTerms: [{ term: "qzvste-lemma-one", kind: "noun", reviewed: true }],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("accepts a hyphenated synthetic lemma that is already approved", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "the synthlemma-aaa token",
+      approvedWords: new Set(["the", "token", "synthlemma-aaa", "qzvstelemmaone"]),
+      technicalTerms: [],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
 });
 
 describe("checkArticleBeforeNoun", () => {
@@ -182,6 +208,26 @@ describe("trusted-runner lexicon proof", () => {
     });
     assert.equal(leak.ok, true);
     assert.equal(leak.reason, "");
+  });
+
+  it("still allows one synthetic source token in leak scan", () => {
+    const official = `${JSON.stringify({ words: ["qzvstelemmaone", "synthlemmaaaa"] })}\n`;
+    const leak = scanForVocabularyLeak({
+      texts: ["the qzvstelemmaone token"],
+      officialBytes: official,
+    });
+    assert.equal(leak.ok, true);
+    assert.equal(leak.reason, "");
+  });
+
+  it("still fails leak scan on a full serialized words dump", () => {
+    const official = `${JSON.stringify({ words: ["qzvstelemmaone", "synthlemmaaaa"] })}\n`;
+    const leak = scanForVocabularyLeak({
+      texts: [JSON.stringify({ words: ["qzvstelemmaone", "synthlemmaaaa"] })],
+      officialBytes: official,
+    });
+    assert.equal(leak.ok, false);
+    assert.match(leak.reason, /leak/i);
   });
 
   it("still allows membership with no official word list, as fixture mode does", () => {

@@ -54,7 +54,23 @@ G2 ignores Rule 1.1 and Rule 4.5 until that review.
 
 G2 still applies sentence length rules and claim rules.
 
+The leak scan rejects a dump of the private file.
+
+The leak scan does not reject one source token.
+
+G5 calls the review check.
+
+G6 calls the override check.
+
+PR and release fail when the review is missing.
+
 Run `npm run asd-ste100:provision-vocab -- --dest <vocab-dir>` to mount the test fixture and refresh the pin.
+
+Run `npm run asd-ste100:provision-vocab -- --verify-only --dest <vocab-dir>` to check the pin.
+
+A human inspects the private file before any pin change off the fixture.
+
+Rule 1.1 and Rule 4.5 stay off G2 in this slice.
 
 Do not provision enforcement PATs yet.
 

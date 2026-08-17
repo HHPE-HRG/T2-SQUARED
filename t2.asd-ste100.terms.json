@@ -11,6 +11,8 @@
     { "term": "schema", "kind": "noun", "reviewed": true },
     { "term": "drift", "kind": "noun", "reviewed": true },
     { "term": "compile", "kind": "verb", "reviewed": true },
+    { "term": "dump", "kind": "verb", "reviewed": true },
+    { "term": "lookup", "kind": "verb", "reviewed": true },
     { "term": "approve", "kind": "verb", "reviewed": true },
     { "term": "register", "kind": "verb", "reviewed": true },
     { "term": "genesis", "kind": "noun", "reviewed": true },

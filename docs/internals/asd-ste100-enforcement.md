@@ -38,7 +38,9 @@ It is not a local commit typecheck.
 
 Lockfiles, images, binaries, and other machine text stay excluded.
 
-This slice does not start work-registry work.
+The work-registry lives in Git.
+
+See `docs/internals/t2-squared-work-registry.md`.
 
 This slice does not start CAN campaign work.
 
@@ -52,11 +54,27 @@ Live checks cover vocabulary membership and articles before known nouns.
 
 Heuristic checks cover contractions, semicolons, passive constructions, verb forms, and American spelling.
 
+Heuristic checks also cover question marks and spaced slashes.
+
+Heuristic findings do not fail G2.
+
+Provision mounts the committed fixture.
+
+A pin check can run without flipping review.
+
+A human inspects the private file before any pin change off the fixture.
+
+Rule 1.1 and Rule 4.5 stay off G2 in this slice.
+
 U10 membership and identification checks are in the public suite.
 
 A prohibited language-authority claim fails.
 
 Private vocabulary stays off Git.
+
+The leak scan rejects a dump of the private file.
+
+The leak scan does not reject one source token.
 
 ## Review and overrides
 
