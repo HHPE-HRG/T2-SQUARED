@@ -77,6 +77,11 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /work-registry lives in Git/i);
     assert.match(text, /does not start CAN campaign/);
     assert.match(text, /dump of the private file/);
+    assert.match(text, /lexicon bridge/);
+    assert.match(text, /git merge is the human gate/i);
+    assert.match(text, /private lexicon store/);
+    assert.match(text, /jpg sidecar/);
+    assert.match(text, /explicit git-merge flag/);
     assert.doesNotMatch(text, /does not start work-registry/);
     assert.match(text, /provision mounts the/i);
     assert.match(text, /fixture/i);
@@ -96,6 +101,7 @@ describe("contributor index", () => {
     assert.match(readme, /asd-ste100-enforcement/);
     assert.match(readme, /asd-ste100-forgejo/);
     assert.match(scripts, /ci:asd-ste100/);
+    assert.match(scripts, /asd-ste100:lexicon-scan/);
     assert.match(agents, /T2-owned/);
     assert.match(agents, /raw conversation/i);
   });

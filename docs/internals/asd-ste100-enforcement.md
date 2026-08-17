@@ -72,6 +72,20 @@ A prohibited language-authority claim fails.
 
 Private vocabulary stays off Git.
 
+The lexicon bridge writes a private words file.
+
+Git stores the pin.
+
+A git merge is the human gate.
+
+The operator scan writes a private lexicon store.
+
+The dest path must stay off Git.
+
+A jpg sidecar holds scan text.
+
+Pin apply needs an explicit git-merge flag.
+
 The leak scan rejects a dump of the private file.
 
 The leak scan does not reject one source token.

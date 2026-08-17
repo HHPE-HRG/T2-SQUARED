@@ -1,0 +1,4 @@
+{
+  "interpreterId": "product-class-to-t2",
+  "outputSurfaces": ["t2", "canBus"]
+}
