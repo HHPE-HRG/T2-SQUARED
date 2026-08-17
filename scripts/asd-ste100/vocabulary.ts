@@ -25,6 +25,15 @@ export interface TechnicalTerm {
   term: string;
   kind: "noun" | "verb";
   reviewed: boolean;
+  concept?: string;
+  canonical?: boolean;
+  subjectFields?: Array<string>;
+  asdBasis?: Array<string>;
+  softwareForms?: {
+    typescriptType?: string;
+    typescriptValue?: string;
+    cli?: string;
+  };
 }
 
 export interface LoadedVocabulary {

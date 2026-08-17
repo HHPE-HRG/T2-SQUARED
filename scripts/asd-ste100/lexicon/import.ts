@@ -62,6 +62,28 @@ export function importOriginals(dbPath: string, input: ImportOriginalsInput): Ar
   return rows;
 }
 
+export function appendDerivedEntities(dbPath: string, rows: Array<LexiconEntity>): void {
+  const write = openLexiconDb(dbPath);
+  try {
+    const insert = write.prepare(
+      "INSERT INTO entities (id, ordinal, page, kind, original_text, parent_id, no_t2_function) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    );
+    for (const row of rows) {
+      insert.run(
+        row.id,
+        row.ordinal,
+        row.page,
+        row.kind,
+        row.originalText,
+        row.parentId,
+        row.noT2Function ? 1 : 0,
+      );
+    }
+  } finally {
+    write.close();
+  }
+}
+
 export function listEntities(dbPath: string): Array<LexiconEntity> {
   const database = openLexiconDb(dbPath);
   try {

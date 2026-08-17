@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { extractMarkdown, extractTypeScript } from "./extract.ts";
+import {
+  extractJsonYaml,
+  extractMarkdown,
+  extractTypeScript,
+  extractTypeScriptComments,
+} from "./extract.ts";
 
 describe("extractMarkdown", () => {
   it("extracts prose with original line and column", () => {
@@ -51,5 +56,47 @@ export const t2Warning = "Do not skip the gate.";
     const warning = records.find((record) => record.text === "Do not skip the gate.");
     assert.ok(warning);
     assert.equal(warning.line, 2);
+  });
+});
+
+describe("extractTypeScriptComments", () => {
+  it("extracts a line comment and a block comment", () => {
+    const source = `// Keep the gate closed.
+const n = 1;
+/** Count owned files. */
+`;
+    const records = extractTypeScriptComments("scripts/note.ts", source);
+    assert.equal(
+      records.some((record) => record.text === "Keep the gate closed."),
+      true,
+    );
+    assert.equal(
+      records.some((record) => record.text === "Count owned files."),
+      true,
+    );
+  });
+});
+
+describe("extractJsonYaml", () => {
+  it("extracts descriptive JSON string fields and ignores other keys", () => {
+    const source = `{
+  "title": "Work registry dump",
+  "campaign": "asd-ste100-compliance",
+  "description": "Show campaign state."
+}
+`;
+    const records = extractJsonYaml("T2_Squared-Work-Registry/sample.json", source);
+    assert.equal(
+      records.some((record) => record.text === "Work registry dump"),
+      true,
+    );
+    assert.equal(
+      records.some((record) => record.text === "Show campaign state."),
+      true,
+    );
+    assert.equal(
+      records.some((record) => record.text === "asd-ste100-compliance"),
+      false,
+    );
   });
 });

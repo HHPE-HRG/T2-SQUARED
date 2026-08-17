@@ -6,7 +6,8 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { importOriginals, listEntities } from "./import.ts";
-import { forkInterpret } from "./interpret.ts";
+import { applyFixtureForks, forkInterpret } from "./interpret.ts";
+import { explodeFrozenPages } from "./layout.ts";
 
 const fixture = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -54,5 +55,27 @@ describe("forkInterpret", () => {
   it("keeps the git interpreter fixture free of official-shaped words arrays", () => {
     const text = readFileSync(fixture, "utf8");
     assert.doesNotMatch(text, /"words"\s*:/);
+  });
+});
+
+describe("applyFixtureForks", () => {
+  it("forks each fixture surface once from the first header", () => {
+    const dest = dbPath();
+    importOriginals(dest, {
+      actorId: "agent-test",
+      items: [{ page: 1, kind: "word", originalText: "# qzvstelemmaone\n- qzvstelemmatwo" }],
+    });
+    const spec = JSON.parse(readFileSync(fixture, "utf8")) as {
+      interpreterId: string;
+      outputSurfaces: Array<string>;
+    };
+    explodeFrozenPages(dest, "agent-test");
+    applyFixtureForks(dest, "agent-test", spec);
+    applyFixtureForks(dest, "agent-test", spec);
+    const surfaces = listEntities(dest)
+      .filter((row) => row.parentId !== null)
+      .map((row) => row.originalText);
+    assert.equal(surfaces.filter((text) => text === "t2").length, 1);
+    assert.equal(surfaces.filter((text) => text === "canBus").length, 1);
   });
 });

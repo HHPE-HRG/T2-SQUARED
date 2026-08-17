@@ -175,6 +175,7 @@ describe("skipScanPath", () => {
       true,
     );
     assert.equal(skipScanPath("scripts/asd-ste100/mapping/AGENT_HEURISTIC.md"), true);
+    assert.equal(skipScanPath("scripts/asd-ste100/mapping/records/official-unreviewed.json"), true);
     assert.equal(skipScanPath("docs/operations/asd-ste100-forgejo.md"), false);
   });
 });

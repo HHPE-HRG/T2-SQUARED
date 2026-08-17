@@ -44,13 +44,23 @@ The trusted runner reads `ASD_STE100_VOCABULARY` as a filesystem path.
 
 That path must match the SHA-256 pin in `t2.asd-ste100.json`.
 
+Reach the runner host with `ssh orchestration-vm`.
+
+Host name `oldmac-vm` does not resolve from this Mac.
+
+The live secret path is `/home/oldmac-vm/forgejo-runner-t2-trusted/vocab/synthetic.json`.
+
 The committed test fixture is `scripts/asd-ste100/test/fixtures/vocab/synthetic.json`.
 
-Copy those bytes onto `t2-trusted`. Do not commit a private official word list.
+The live pin is an Issue 9-derived export.
 
-Vocabulary review is `human-verified` for the pinned fixture list.
+Copy `approved-words.json` from the private lexicon store onto `t2-trusted`.
 
-G2 applies Rule 1.1 and Rule 4.5.
+Do not commit that file.
+
+Vocabulary review is `pending-human`.
+
+G2 does not apply Rule 1.1 or Rule 4.5 while review is pending-human.
 
 G2 still applies sentence length rules and claim rules.
 
@@ -66,9 +76,11 @@ G6 calls the override check.
 
 PR and release fail when the review is missing.
 
-Run `npm run asd-ste100:provision-vocab -- --dest <vocab-dir>` to mount the test fixture and refresh the pin.
+Run `npm run asd-ste100:provision-vocab -- --mount-source <approved-words.json> --dest <vocab-dir>` to copy the Issue 9 export.
 
 Run `npm run asd-ste100:provision-vocab -- --verify-only --dest <vocab-dir>` to check the pin.
+
+Default provision refuses to replace an Issue 9 pin with the fixture.
 
 A human inspects the private file before any pin change off the fixture.
 

@@ -48,3 +48,58 @@ export function forkInterpret(dbPath: string, input: ForkInterpretInput): Lexico
   });
   return child;
 }
+
+export function selectProductClassParent(rows: Array<LexiconEntity>): string {
+  const derived = rows.filter((row) => row.parentId !== null);
+  const header = derived.find((row) => row.kind === "header");
+  if (header !== undefined) {
+    return header.id;
+  }
+  const item = derived.find((row) => row.kind === "item");
+  if (item !== undefined) {
+    return item.id;
+  }
+  const word = derived.find((row) => row.kind === "word");
+  if (word !== undefined) {
+    return word.id;
+  }
+  const stock = rows.find((row) => row.parentId === null);
+  if (stock === undefined) {
+    throw new LexiconError("the parent entity is missing.");
+  }
+  return stock.id;
+}
+
+export interface InterpreterFixture {
+  interpreterId: string;
+  outputSurfaces: Array<string>;
+}
+
+export function applyFixtureForks(
+  dbPath: string,
+  actorId: string,
+  fixture: InterpreterFixture,
+): Array<LexiconEntity> {
+  const parentId = selectProductClassParent(listEntities(dbPath));
+  const existing = new Set(
+    listEntities(dbPath)
+      .filter((row) => row.parentId !== null)
+      .map((row) => row.originalText),
+  );
+  const created: Array<LexiconEntity> = [];
+  for (const surface of fixture.outputSurfaces) {
+    if (existing.has(surface)) {
+      continue;
+    }
+    created.push(
+      forkInterpret(dbPath, {
+        actorId,
+        parentId,
+        interpreterId: fixture.interpreterId,
+        surfaceText: surface,
+      }),
+    );
+    existing.add(surface);
+  }
+  return created;
+}

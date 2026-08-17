@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { formatDiagnostic } from "./diagnostics.ts";
+import { scanCoverageLeak } from "./mapping/promote.ts";
 import {
   ASD_RULE_PREFIX,
   assertLiveRulesMatchEnforcedCheckers,
@@ -52,23 +53,48 @@ describe("live profile matches enforced checkers", () => {
     assert.equal(liveProfile().claim, "ASD-STE100 mechanical rule-subset result");
   });
 
-  it("records human-verified on the synthetic fixture pin", () => {
+  it("records pending-human on an Issue 9-derived pin, not the synthetic fixture", () => {
     const profile = liveProfile() as { vocabularyReview?: string; vocabularySha256: string };
-    assert.equal(profile.vocabularyReview, "human-verified");
+    const coverage = JSON.parse(
+      readFileSync(
+        path.join(repoRoot, "scripts/asd-ste100/mapping/records/vocabulary-coverage.json"),
+        "utf8",
+      ),
+    ) as {
+      coverageKind: string;
+      lemmaCount: number;
+      vocabularySha256: string;
+      humanReview: string;
+      words?: unknown;
+    };
     const fixture = readFileSync(
       path.join(repoRoot, "scripts/asd-ste100/test/fixtures/vocab/synthetic.json"),
     );
-    const digest = createHash("sha256").update(fixture).digest("hex");
-    assert.equal(profile.vocabularySha256, digest);
+    const fixtureDigest = createHash("sha256").update(fixture).digest("hex");
+    assert.equal(profile.vocabularyReview, "pending-human");
+    assert.equal(coverage.humanReview, "pending-human");
+    assert.equal(coverage.coverageKind, "issue9-derived-unreviewed");
+    assert.equal(coverage.words, undefined);
+    assert.equal(profile.vocabularySha256, coverage.vocabularySha256);
+    assert.notEqual(profile.vocabularySha256, fixtureDigest);
+    assert.equal(coverage.lemmaCount > 3, true);
+    assert.equal(scanCoverageLeak(coverage).ok, true);
   });
 
-  it("pins connected G3 to the committed test vocabulary fixture", () => {
+  it("pins connected G3 to the coverage digest, not the committed test fixture", () => {
     const profile = liveProfile() as { vocabularySha256: string };
+    const coverage = JSON.parse(
+      readFileSync(
+        path.join(repoRoot, "scripts/asd-ste100/mapping/records/vocabulary-coverage.json"),
+        "utf8",
+      ),
+    ) as { vocabularySha256: string };
     const fixture = readFileSync(
       path.join(repoRoot, "scripts/asd-ste100/test/fixtures/vocab/synthetic.json"),
     );
-    const digest = createHash("sha256").update(fixture).digest("hex");
-    assert.equal(profile.vocabularySha256, digest);
+    const fixtureDigest = createHash("sha256").update(fixture).digest("hex");
+    assert.equal(profile.vocabularySha256, coverage.vocabularySha256);
+    assert.notEqual(profile.vocabularySha256, fixtureDigest);
   });
 
   it("keeps the ASD suite on Node rather than Effect CLI", () => {

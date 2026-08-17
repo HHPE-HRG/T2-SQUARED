@@ -7,7 +7,11 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { installProvisionalVocabulary, verifyMountedVocabulary } from "./provision-vocab.ts";
+import {
+  installProvisionalVocabulary,
+  mountIssue9Vocabulary,
+  verifyMountedVocabulary,
+} from "./provision-vocab.ts";
 
 const script = fileURLToPath(new URL("./provision-vocab.ts", import.meta.url));
 
@@ -181,5 +185,62 @@ describe("provision-vocab --verify-only", () => {
     };
     assert.equal(readFileSync(profilePath, "utf8"), before);
     assert.equal(after.vocabularyReview, "pending-human");
+  });
+});
+
+describe("mountIssue9Vocabulary", () => {
+  it("copies source bytes to approved-words.json without rewriting the profile", () => {
+    const dest = mkdtempSync(path.join(tmpdir(), "asd-vocab-mount-"));
+    const source = path.join(dest, "source.json");
+    writeFileSync(source, `${JSON.stringify({ words: ["synthlemmaaaa", "synthlemmabbb"] })}\n`);
+    const profilePath = path.join(dest, "t2.asd-ste100.json");
+    const digest = createHash("sha256").update(readFileSync(source)).digest("hex");
+    writeFileSync(
+      profilePath,
+      `${JSON.stringify({
+        issue: "9",
+        vocabularySha256: digest,
+        claim: "ASD-STE100 mechanical rule-subset result",
+        vocabularyReview: "pending-human",
+      })}\n`,
+    );
+    const before = readFileSync(profilePath, "utf8");
+    const result = mountIssue9Vocabulary({ sourcePath: source, destDir: dest });
+    assert.equal(result.lemmaCount, 2);
+    assert.equal(result.vocabularySha256, digest);
+    assert.equal(readFileSync(profilePath, "utf8"), before);
+    const check = verifyMountedVocabulary({
+      profilePath,
+      vocabularyPath: result.vocabularyPath,
+    });
+    assert.equal(check.pinMatch, true);
+  });
+});
+
+describe("provision-vocab refuses to clobber an Issue 9 pin", () => {
+  it("exits non-zero without --force-fixture when the profile is not the synthetic digest", () => {
+    const dest = mkdtempSync(path.join(tmpdir(), "asd-vocab-refuse-"));
+    const profilePath = path.join(dest, "t2.asd-ste100.json");
+    writeFileSync(
+      profilePath,
+      `${JSON.stringify({
+        issue: "9",
+        vocabularySha256: "b".repeat(64),
+        claim: "ASD-STE100 mechanical rule-subset result",
+        vocabularyReview: "pending-human",
+      })}\n`,
+    );
+    const before = readFileSync(profilePath, "utf8");
+    const ran = runProvision([
+      "--profile",
+      profilePath,
+      "--dest",
+      dest,
+      "--coverage",
+      path.join(dest, "coverage.json"),
+    ]);
+    assert.notEqual(ran.status, 0);
+    assert.match(ran.stderr, /refuse to replace an Issue 9 pin/);
+    assert.equal(readFileSync(profilePath, "utf8"), before);
   });
 });

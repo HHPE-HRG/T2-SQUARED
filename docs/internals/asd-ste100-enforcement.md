@@ -48,6 +48,8 @@ This slice does not start CAN campaign work.
 
 Extraction finds Markdown prose and source strings.
 
+Extraction also finds comments and JSON descriptive fields.
+
 Mechanical Issue 9 checks cover sentence length and paragraph length.
 
 Live checks cover vocabulary membership and articles before known nouns.
@@ -63,6 +65,10 @@ Provision mounts the committed fixture.
 A pin check can run without flipping review.
 
 A human inspects the private file before any pin change off the fixture.
+
+The live pin is an Issue 9-derived export.
+
+Review stays pending-human until a human inspects that export.
 
 Rule 1.1 and Rule 4.5 fail G2 after that approve.
 
@@ -84,7 +90,13 @@ The dest path must stay off Git.
 
 A jpg sidecar holds scan text.
 
+The private lexicon store lives under T2-SQUARED-References.
+
 Pin apply needs an explicit git-merge flag.
+
+A frozen page splits into line rows.
+
+Product-class forks from the first header.
 
 The leak scan rejects a dump of the private file.
 

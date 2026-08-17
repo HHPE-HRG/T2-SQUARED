@@ -58,6 +58,8 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /hhpe-ci/);
     assert.match(text, /distinct/i);
     assert.match(text, /t2-trusted/);
+    assert.match(text, /orchestration-vm/);
+    assert.match(text, /forgejo-runner-t2-trusted\/vocab\/synthetic\.json/);
     assert.match(text, /pending-human/);
     assert.match(text, /verify-only/);
     assert.match(text, /inspects the private file/);
@@ -81,7 +83,10 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /git merge is the human gate/i);
     assert.match(text, /private lexicon store/);
     assert.match(text, /jpg sidecar/);
+    assert.match(text, /T2-SQUARED-References/);
     assert.match(text, /explicit git-merge flag/);
+    assert.match(text, /frozen page splits/);
+    assert.match(text, /Product-class forks/);
     assert.doesNotMatch(text, /does not start work-registry/);
     assert.match(text, /provision mounts the/i);
     assert.match(text, /fixture/i);

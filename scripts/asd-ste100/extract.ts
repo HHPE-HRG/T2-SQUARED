@@ -71,3 +71,73 @@ export function extractTypeScript(filePath: string, source: string): Array<Extra
   }
   return records;
 }
+
+export function extractTypeScriptComments(
+  filePath: string,
+  source: string,
+): Array<ExtractedRecord> {
+  const records: Array<ExtractedRecord> = [];
+  const block = /\/\*\*?([\s\S]*?)\*\//g;
+  for (const match of source.matchAll(block)) {
+    const body = match[1]
+      ?.replace(/^\s*\*/gm, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (body === undefined || body.length === 0 || match.index === undefined) {
+      continue;
+    }
+    const { line, column } = offsetToLineColumn(source, match.index);
+    records.push({ path: filePath, line, column, text: body });
+  }
+  const lineComment = /(^|[^:])\/\/(.*)$/gm;
+  for (const match of source.matchAll(lineComment)) {
+    const body = match[2]?.trim();
+    if (body === undefined || body.length === 0 || match.index === undefined) {
+      continue;
+    }
+    const { line, column } = offsetToLineColumn(source, match.index);
+    records.push({ path: filePath, line, column, text: body });
+  }
+  return records;
+}
+
+const DESCRIPTIVE_KEYS = new Set(["title", "description", "summary", "message", "reason"]);
+
+function walkDescriptive(
+  value: unknown,
+  filePath: string,
+  source: string,
+  records: Array<ExtractedRecord>,
+): void {
+  if (typeof value === "string") {
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      walkDescriptive(entry, filePath, source, records);
+    }
+    return;
+  }
+  if (value === null || typeof value !== "object") {
+    return;
+  }
+  for (const [key, entry] of Object.entries(value)) {
+    if (DESCRIPTIVE_KEYS.has(key) && typeof entry === "string" && /[a-zA-Z]/.test(entry)) {
+      const idx = source.indexOf(entry);
+      const { line, column } = offsetToLineColumn(source, Math.max(idx, 0));
+      records.push({ path: filePath, line, column, text: entry });
+    }
+    walkDescriptive(entry, filePath, source, records);
+  }
+}
+
+export function extractJsonYaml(filePath: string, source: string): Array<ExtractedRecord> {
+  const records: Array<ExtractedRecord> = [];
+  try {
+    const parsed: unknown = JSON.parse(source);
+    walkDescriptive(parsed, filePath, source, records);
+  } catch {
+    return records;
+  }
+  return records;
+}

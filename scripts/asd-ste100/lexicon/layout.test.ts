@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 
 import { listEvents } from "./events.ts";
 import { importOriginals, listEntities } from "./import.ts";
-import { applyLayoutAutomation, guessLayoutKind } from "./layout.ts";
+import { applyLayoutAutomation, explodeFrozenPages, guessLayoutKind } from "./layout.ts";
 
 function dbPath(): string {
   return path.join(mkdtempSync(path.join(tmpdir(), "t2-lexicon-layout-")), "bridge.sqlite");
@@ -23,6 +23,10 @@ describe("guessLayoutKind", () => {
 
   it("guesses a plain synthetic token as word", () => {
     assert.equal(guessLayoutKind("qzvstelemmathree"), "word");
+  });
+
+  it("guesses a short uppercase synthetic line as header", () => {
+    assert.equal(guessLayoutKind("QZVSTELEMMAONE"), "header");
   });
 });
 
@@ -47,5 +51,30 @@ describe("applyLayoutAutomation", () => {
     assert.equal(correct?.subjectEntityIds.length, 1);
     assert.equal(typeof correct?.id, "string");
     assert.match(correct?.utcTime ?? "", /^\d{4}-\d{2}-\d{2}T/);
+  });
+});
+
+describe("explodeFrozenPages", () => {
+  it("keeps the stock page and adds one child per synthetic line", () => {
+    const dest = dbPath();
+    const imported = importOriginals(dest, {
+      actorId: "agent-test",
+      items: [
+        {
+          page: 1,
+          kind: "word",
+          originalText: "# qzvstelemmaone\n- qzvstelemmatwo",
+        },
+      ],
+    });
+    const parentId = imported[0]?.id ?? "";
+    const derived = explodeFrozenPages(dest, "agent-test");
+    assert.equal(derived.length, 2);
+    const stock = listEntities(dest).find((row) => row.id === parentId);
+    assert.equal(stock?.originalText.includes("qzvstelemmaone"), true);
+    assert.equal(stock?.parentId, null);
+    assert.equal(listEntities(dest).filter((row) => row.parentId === parentId).length, 2);
+    explodeFrozenPages(dest, "agent-test");
+    assert.equal(listEntities(dest).filter((row) => row.parentId === parentId).length, 2);
   });
 });

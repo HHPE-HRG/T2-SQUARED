@@ -94,6 +94,26 @@ describe("validateTechnicalTerms", () => {
       (error: unknown) => error instanceof Error && /unreviewed/i.test(error.message),
     );
   });
+
+  it("accepts optional concept, canonical, and software form fields", () => {
+    assert.doesNotThrow(() =>
+      validateTechnicalTerms([
+        {
+          term: "work-registry",
+          kind: "noun",
+          reviewed: true,
+          concept: "The git store of T2 campaign records.",
+          canonical: true,
+          subjectFields: ["work-registry"],
+          softwareForms: {
+            typescriptType: "WorkRegistry",
+            typescriptValue: "workRegistry",
+            cli: "work-registry",
+          },
+        },
+      ]),
+    );
+  });
 });
 
 describe("validateProfile", () => {

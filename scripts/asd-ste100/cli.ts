@@ -15,7 +15,12 @@ import type { RuleSubsetAttestation } from "./attestation.ts";
 import { admitFailClosedUncheckable } from "./admission.ts";
 import { checkClaims } from "./claim.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
-import { extractMarkdown, extractTypeScript } from "./extract.ts";
+import {
+  extractJsonYaml,
+  extractMarkdown,
+  extractTypeScript,
+  extractTypeScriptComments,
+} from "./extract.ts";
 import {
   assertReviewedRulesHaveMappingRecords,
   loadLiveMappingRecords,
@@ -487,7 +492,9 @@ function skipScanPath(filePath: string): boolean {
     /\.test\.ts$/.test(filePath) ||
     filePath.includes("/test/") ||
     filePath.endsWith(".yml") ||
+    filePath.endsWith(".yaml") ||
     filePath.startsWith("docs/plans/") ||
+    filePath.startsWith("scripts/asd-ste100/mapping/records/") ||
     filePath.endsWith("AGENT_HEURISTIC.md")
   );
 }
@@ -499,7 +506,10 @@ function extractOwned(filePath: string, source: string) {
     return extractMarkdown(filePath, source);
   }
   if (/\.[cm]?[jt]sx?$/.test(filePath)) {
-    return extractTypeScript(filePath, source);
+    return [...extractTypeScript(filePath, source), ...extractTypeScriptComments(filePath, source)];
+  }
+  if (/\.json$/.test(filePath)) {
+    return extractJsonYaml(filePath, source);
   }
   return [];
 }

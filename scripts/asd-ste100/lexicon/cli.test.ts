@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -40,9 +40,64 @@ describe("runLexiconScan", () => {
     assert.equal(destInsideGitWorkTree(dest), false);
     runLexiconScan({ src, dest, actorId: "agent-test" });
     const rows = listEntities(dest);
-    assert.equal(rows.length, 2);
-    assert.equal(rows[0]?.originalText, "qzvstelemmaone");
-    assert.equal(rows[1]?.kind, "item");
+    const roots = rows.filter((row) => row.parentId === null);
+    assert.equal(roots.length, 2);
+    assert.equal(
+      roots.every((row) => row.noT2Function),
+      true,
+    );
+    assert.equal(
+      rows.some((row) => row.originalText === "t2"),
+      true,
+    );
+    assert.equal(
+      rows.some((row) => row.originalText === "canBus"),
+      true,
+    );
+    const exported = JSON.parse(
+      readFileSync(path.join(path.dirname(dest), "words.json"), "utf8"),
+    ) as {
+      words: Array<string>;
+    };
+    assert.equal(exported.words.includes("t2"), true);
+    assert.equal(exported.words.includes("canBus"), true);
+    const approved = JSON.parse(
+      readFileSync(path.join(path.dirname(dest), "approved-words.json"), "utf8"),
+    ) as { words: Array<string> };
+    assert.equal(approved.words.includes("qzvstelemmaone"), true);
+    assert.equal(approved.words.includes("t2"), false);
+    assert.equal(approved.words.includes("canbus"), false);
+  });
+
+  it("ocrs into dest sidecars when the jpg has no twin", () => {
+    const src = tempDir();
+    writeFileSync(path.join(src, "page_0001.jpg"), EMPTY_JPEG);
+    const dest = path.join(tempDir(), "bridge.sqlite");
+    const ocrHits: Array<string> = [];
+    runLexiconScan({
+      src,
+      dest,
+      actorId: "agent-test",
+      ocrPage: (_jpg, txt) => {
+        ocrHits.push(txt);
+        writeFileSync(txt, "qzvstelemmaone");
+      },
+    });
+    assert.equal(ocrHits.length, 1);
+    assert.equal(
+      listEntities(dest).some((row) => row.originalText === "qzvstelemmaone"),
+      true,
+    );
+    const afterFirst = listEntities(dest).length;
+    runLexiconScan({
+      src,
+      dest,
+      actorId: "agent-test",
+      ocrPage: () => {
+        throw new Error("must not ocr again");
+      },
+    });
+    assert.equal(listEntities(dest).length, afterFirst);
   });
 });
 
