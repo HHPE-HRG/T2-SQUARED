@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -180,15 +180,35 @@ describe("collectScopeRecords", () => {
   });
 
   it("lists the live corpus tree without the default 1 MiB git spawn buffer", () => {
-    const head = git(repoRoot, ["rev-parse", "HEAD"]);
-    const records = collectScopeRecords({
-      cwd: repoRoot,
-      mode: "corpus",
-      baseSha: head,
-      headSha: head,
-      manifest: loadOwnershipManifest(repoOwnershipPath),
-    });
-    assert.ok(records.length > 10_000);
+    const previousObjectDir = process.env.GIT_OBJECT_DIRECTORY;
+    const previousAlternates = process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES;
+    const fallbackObjects = process.env.T2_GIT_OBJECT_DIRECTORY ?? "/tmp/t2-git-objects";
+    try {
+      if (previousObjectDir === undefined && existsSync(fallbackObjects)) {
+        process.env.GIT_OBJECT_DIRECTORY = fallbackObjects;
+        process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES = path.join(repoRoot, ".git", "objects");
+      }
+      const head = git(repoRoot, ["rev-parse", "HEAD"]);
+      const records = collectScopeRecords({
+        cwd: repoRoot,
+        mode: "corpus",
+        baseSha: head,
+        headSha: head,
+        manifest: loadOwnershipManifest(repoOwnershipPath),
+      });
+      assert.ok(records.length > 10_000);
+    } finally {
+      if (previousObjectDir === undefined) {
+        delete process.env.GIT_OBJECT_DIRECTORY;
+      } else {
+        process.env.GIT_OBJECT_DIRECTORY = previousObjectDir;
+      }
+      if (previousAlternates === undefined) {
+        delete process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES;
+      } else {
+        process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES = previousAlternates;
+      }
+    }
   });
 });
 
