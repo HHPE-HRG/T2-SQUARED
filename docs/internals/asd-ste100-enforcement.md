@@ -68,9 +68,15 @@ A human inspects the private file before any pin change off the fixture.
 
 The live pin is an Issue 9-derived export.
 
+The anchor records pin-landed-pending-review.
+
 Review stays pending-human until a human inspects that export.
 
 Rule 1.1 and Rule 4.5 fail G2 after that approve.
+
+T2 software forms are identifier policy.
+
+They are not ASD dictionary rows.
 
 U10 membership and identification checks are in the public suite.
 

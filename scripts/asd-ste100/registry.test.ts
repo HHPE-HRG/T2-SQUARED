@@ -81,6 +81,25 @@ describe("live profile matches enforced checkers", () => {
     assert.equal(scanCoverageLeak(coverage).ok, true);
   });
 
+  it("records pin-landed-pending-review without a reviewer principal", () => {
+    const anchor = JSON.parse(
+      readFileSync(path.join(repoRoot, "t2.asd-ste100.anchor.json"), "utf8"),
+    ) as {
+      checkerSha: string | null;
+      status: string;
+      reviewerPrincipal: string | null;
+      fixtureResult: { ok: boolean; command: string } | null;
+      protectionActivation: string;
+    };
+    assert.equal(anchor.status, "pin-landed-pending-review");
+    assert.equal(anchor.reviewerPrincipal, null);
+    assert.equal(anchor.protectionActivation, "after-workflow-dispatch-validation");
+    assert.equal(typeof anchor.checkerSha, "string");
+    assert.match(anchor.checkerSha ?? "", /^[0-9a-f]{40}$/);
+    assert.equal(anchor.fixtureResult?.ok, true);
+    assert.equal(anchor.fixtureResult?.command, "npm run ci:asd-ste100");
+  });
+
   it("pins connected G3 to the coverage digest, not the committed test fixture", () => {
     const profile = liveProfile() as { vocabularySha256: string };
     const coverage = JSON.parse(

@@ -21,6 +21,28 @@ export interface AsdProfile {
   rules?: Array<AsdRuleMapping>;
 }
 
+export const ANCHOR_STATUSES = [
+  "bootstrap-pending",
+  "pin-landed-pending-review",
+  "reviewed",
+] as const;
+
+export type AnchorStatus = (typeof ANCHOR_STATUSES)[number];
+
+export interface AnchorFixtureResult {
+  ok: boolean;
+  mode: string;
+  command: string;
+}
+
+export interface AsdAnchor {
+  checkerSha: string | null;
+  status: AnchorStatus;
+  reviewerPrincipal: string | null;
+  fixtureResult: AnchorFixtureResult | null;
+  protectionActivation: string;
+}
+
 export interface TechnicalTerm {
   term: string;
   kind: "noun" | "verb";
@@ -207,5 +229,41 @@ export function validateProfile(profile: AsdProfile): void {
     if (!rule.reviewed) {
       throw new ProfileValidationError(`unreviewed ASD rule mapping: ${rule.id}`);
     }
+  }
+}
+
+export function validateAnchor(anchor: AsdAnchor): void {
+  if (!ANCHOR_STATUSES.includes(anchor.status)) {
+    throw new ProfileValidationError("anchor status is not a known value");
+  }
+  if (anchor.protectionActivation !== "after-workflow-dispatch-validation") {
+    throw new ProfileValidationError(
+      "protection activation stays after-workflow-dispatch-validation",
+    );
+  }
+  if (anchor.status === "bootstrap-pending") {
+    throw new ProfileValidationError(
+      "anchor must not stay bootstrap-pending after the Issue 9 pin",
+    );
+  }
+  if (anchor.checkerSha === null || !/^[0-9a-f]{40}$/.test(anchor.checkerSha)) {
+    throw new ProfileValidationError("anchor checkerSha must be a 40-character lowercase git SHA");
+  }
+  if (anchor.fixtureResult === null || anchor.fixtureResult.ok !== true) {
+    throw new ProfileValidationError("anchor fixtureResult must record a passing fixture run");
+  }
+  if (anchor.fixtureResult.command !== "npm run ci:asd-ste100") {
+    throw new ProfileValidationError("anchor fixtureResult command must be npm run ci:asd-ste100");
+  }
+  if (anchor.status === "pin-landed-pending-review" && anchor.reviewerPrincipal !== null) {
+    throw new ProfileValidationError(
+      "pin-landed-pending-review must leave reviewer principal empty",
+    );
+  }
+  if (
+    anchor.status === "reviewed" &&
+    (anchor.reviewerPrincipal === null || anchor.reviewerPrincipal.length === 0)
+  ) {
+    throw new ProfileValidationError("reviewed anchor needs a reviewer principal");
   }
 }

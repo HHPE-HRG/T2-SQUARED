@@ -25,8 +25,39 @@ function tokens(text: string): Array<string> {
   return text.match(TOKEN) ?? [];
 }
 
+// T2 policy: a hyphenated term also matches its camel and Pascal code forms.
+function derivedIdentifierForms(term: string): Array<string> {
+  const forms = [term];
+  if (!/[-_]/.test(term)) {
+    return forms;
+  }
+  const parts = term.split(/[-_]/).filter((part) => part.length > 0);
+  if (parts.length < 2) {
+    return forms;
+  }
+  const pascal = parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
+  const camel = pascal.charAt(0).toLowerCase() + pascal.slice(1);
+  forms.push(pascal, camel);
+  return forms;
+}
+
 function technicalNames(terms: ReadonlyArray<TechnicalTerm>): Set<string> {
-  return new Set(terms.map((term) => term.term.toLowerCase()));
+  const names = new Set<string>();
+  for (const term of terms) {
+    for (const form of derivedIdentifierForms(term.term)) {
+      names.add(form.toLowerCase());
+    }
+    const software = term.softwareForms;
+    if (software === undefined) {
+      continue;
+    }
+    for (const value of [software.typescriptType, software.typescriptValue, software.cli]) {
+      if (value !== undefined && value.length > 0) {
+        names.add(value.toLowerCase());
+      }
+    }
+  }
+  return names;
 }
 
 export function unapprovedTokenMessage(token: string): string {

@@ -40,6 +40,7 @@ import {
 } from "./override.ts";
 import {
   parseApprovedWordsFromOfficialBytes,
+  validateAnchor,
   validateProfile,
   validateTechnicalTerms,
   VocabularyChecksumMismatchError,
@@ -47,7 +48,7 @@ import {
   VocabularyMissingError,
   VocabularyOpaqueError,
 } from "./vocabulary.ts";
-import type { AsdProfile, TechnicalTerm } from "./vocabulary.ts";
+import type { AsdAnchor, AsdProfile, TechnicalTerm } from "./vocabulary.ts";
 
 export const EXIT = {
   ok: 0,
@@ -168,6 +169,8 @@ export function runFixtureSelfTest(root = process.cwd()): void {
   const termsFile = loadJson<{ terms: Array<TechnicalTerm> }>(root, "t2.asd-ste100.terms.json");
   validateTechnicalTerms(termsFile.terms);
   loadOwnershipManifest(path.join(root, "t2.asd-ste100.ownership.json"));
+  const anchor = loadJson<AsdAnchor>(root, "t2.asd-ste100.anchor.json");
+  validateAnchor(anchor);
 }
 
 function connected(mode: CliMode): boolean {

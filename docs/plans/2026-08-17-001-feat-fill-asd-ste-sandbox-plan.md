@@ -32,11 +32,12 @@ Do not restart around a new architecture.
 
 One public command, Forgejo trusted jobs, fail-closed admission, private vocabulary mount, digest pin, ownership, attestations, diagnostics, overrides, and the language-authority claim check already exist.
 Five reviewed Issue 9 ids are live: 1.1, 4.5, 5.1, 6.3, 6.6.
-The live pin is still the three-lemma fixture SHA.
-`vocabularyReview` is `human-verified` on that fixture, which is the honesty gap, not a missing CLI.
-Mapping machinery exists. Promotion of the rest of Issue 9 is incomplete.
-`t2.asd-ste100.terms.json` is a string bank, not a concept model.
-Extraction covers Markdown prose and TypeScript strings only.
+The live pin is an Issue 9-derived export with `pending-human` review.
+Mapping machinery exists. Overlay classes exist. Uncheckable ids stay out of live G2.
+`t2.asd-ste100.terms.json` has concept, canonical, and software forms.
+Extraction covers Markdown, TypeScript strings and comments, and JSON descriptive fields.
+Identifier membership accepts software forms as T2 policy.
+The anchor is `pin-landed-pending-review`. Protections are not activated.
 
 ### Actors
 
@@ -93,7 +94,9 @@ Extraction covers Markdown prose and TypeScript strings only.
 - Distinct-principal KTD28.
 - Process-language model.
 - Full repository migration of unchanged upstream T3 prose.
-- Identifier projection until natural-language surfaces are solid.
+- Extracting code identifiers as corpus prose. Software-form membership is already T2 policy.
+- Human inspect of the Issue 9-derived export, then `human-verified`.
+- Anchor `reviewed` status, reviewer principal, and protection activation.
 
 **Outside this product**
 
@@ -112,19 +115,20 @@ Extraction covers Markdown prose and TypeScript strings only.
 
 ## Current chassis (retain)
 
-| Layer               | State                                                     |
-| ------------------- | --------------------------------------------------------- |
-| CI entry            | `npm run ci:asd-ste100`                                   |
-| Forgejo             | PR / main / release trusted jobs on `t2-trusted`          |
-| Fail-closed         | Admission, vocabulary mount, claim checks                 |
-| Vocabulary handling | Private mount + digest pin                                |
-| Ownership           | Closed path classification                                |
-| Evidence            | Diagnostics + attestations                                |
-| Overrides           | Targeted override records                                 |
-| Extraction          | Markdown prose + TypeScript strings                       |
-| Promoted ASD ids    | 1.1, 4.5, 5.1, 6.3, 6.6                                   |
-| Live pin            | Three-lemma fixture SHA; `human-verified` on that fixture |
-| T2 terms            | `t2.asd-ste100.terms.json` string bank                    |
+| Layer               | State                                                                  |
+| ------------------- | ---------------------------------------------------------------------- |
+| CI entry            | `npm run ci:asd-ste100`                                                |
+| Forgejo             | PR / main / release trusted jobs on `t2-trusted`                       |
+| Fail-closed         | Admission, vocabulary mount, claim checks                              |
+| Vocabulary handling | Private mount + digest pin                                             |
+| Ownership           | Closed path classification                                             |
+| Evidence            | Diagnostics + attestations                                             |
+| Overrides           | Targeted override records                                              |
+| Extraction          | Markdown, TypeScript strings and comments, JSON descriptive fields     |
+| Promoted ASD ids    | 1.1, 4.5, 5.1, 6.3, 6.6                                                |
+| Live pin            | Issue 9-derived SHA; `pending-human` until a human inspects the export |
+| T2 terms            | Concept, canonical, software forms; identifier policy in membership    |
+| Anchor              | `pin-landed-pending-review`; protections not activated                 |
 
 Profile bundle stays:
 
@@ -197,19 +201,17 @@ FULL T2 ENFORCEMENT
 
 ### First milestone
 
-Replace every bootstrap, synthetic, and provisional language-authority dependency in the existing checker with a real Issue 9-derived authority, while preserving the fail-closed Forgejo contract.
+The Issue 9-derived pin is live. Fixture SHA and fixture-scale lemmaCount are not the live authority.
 
-Concretely leave behind:
+Still pending human review:
 
-- `anchor.json` `bootstrap-pending`
-- fixture `lemmaCount` 3
-- fixture SHA as live G3 pin
-- fixture-scale approved set driving Rule 1.1
-- Issue 9 mount absent on the trusted runner
+- `vocabularyReview` / coverage `humanReview` stay `pending-human`
+- Anchor status stays `pin-landed-pending-review` (not `reviewed`)
+- Protections stay `after-workflow-dispatch-validation`
 
-Do not change the enforcement architecture to do that.
+Do not change the enforcement architecture to finish review.
 
-After that milestone, each new rule or surface is a coverage increment.
+After that inspect, each new rule or surface is a coverage increment.
 
 ---
 

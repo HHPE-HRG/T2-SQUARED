@@ -14,10 +14,11 @@ import {
   deriveRunnerLexiconJson,
   loadVocabulary,
   parseApprovedWordsFromOfficialBytes,
+  validateAnchor,
   validateProfile,
   validateTechnicalTerms,
 } from "./vocabulary.ts";
-import type { AsdProfile, TechnicalTerm } from "./vocabulary.ts";
+import type { AsdAnchor, AsdProfile, TechnicalTerm } from "./vocabulary.ts";
 
 function sha256(contents: string): string {
   return createHash("sha256").update(contents, "utf8").digest("hex");
@@ -127,6 +128,57 @@ describe("validateProfile", () => {
           rules: [{ id: "5.1", maxWords: 20, reviewed: false }],
         }),
       (error: unknown) => error instanceof Error && /unreviewed/i.test(error.message),
+    );
+  });
+});
+
+const pinLandedAnchor = (): AsdAnchor => ({
+  checkerSha: "7a45fee06b639c234e6e2b6d8e43647e9a71f3a6",
+  status: "pin-landed-pending-review",
+  reviewerPrincipal: null,
+  fixtureResult: {
+    ok: true,
+    mode: "fixture",
+    command: "npm run ci:asd-ste100",
+  },
+  protectionActivation: "after-workflow-dispatch-validation",
+});
+
+describe("validateAnchor", () => {
+  it("accepts a pin-landed anchor that does not claim human review", () => {
+    assert.doesNotThrow(() => validateAnchor(pinLandedAnchor()));
+  });
+
+  it("rejects bootstrap-pending once a checker SHA is recorded", () => {
+    assert.throws(
+      () =>
+        validateAnchor({
+          ...pinLandedAnchor(),
+          status: "bootstrap-pending",
+        }),
+      (error: unknown) => error instanceof Error && /bootstrap-pending/i.test(error.message),
+    );
+  });
+
+  it("rejects pin-landed-pending-review when a reviewer principal is set", () => {
+    assert.throws(
+      () =>
+        validateAnchor({
+          ...pinLandedAnchor(),
+          reviewerPrincipal: "operator-self-sign",
+        }),
+      (error: unknown) => error instanceof Error && /reviewer principal/i.test(error.message),
+    );
+  });
+
+  it("rejects reviewed status without a reviewer principal", () => {
+    assert.throws(
+      () =>
+        validateAnchor({
+          ...pinLandedAnchor(),
+          status: "reviewed",
+        }),
+      (error: unknown) => error instanceof Error && /reviewer principal/i.test(error.message),
     );
   });
 });

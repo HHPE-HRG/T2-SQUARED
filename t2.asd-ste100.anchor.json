@@ -1,7 +1,11 @@
 {
-  "checkerSha": null,
-  "status": "bootstrap-pending",
+  "checkerSha": "7a45fee06b639c234e6e2b6d8e43647e9a71f3a6",
+  "status": "pin-landed-pending-review",
   "reviewerPrincipal": null,
-  "fixtureResult": null,
+  "fixtureResult": {
+    "ok": true,
+    "mode": "fixture",
+    "command": "npm run ci:asd-ste100"
+  },
   "protectionActivation": "after-workflow-dispatch-validation"
 }

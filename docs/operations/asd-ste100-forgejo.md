@@ -302,13 +302,13 @@ Do not run pull-request lifecycle scripts.
 
 ## Bootstrap
 
-`t2.asd-ste100.anchor.json` stays bootstrap-pending until review.
+`t2.asd-ste100.anchor.json` records the pin-landed checker SHA.
 
-Record the reviewed checker SHA.
+Status is pin-landed-pending-review.
 
-Record the reviewer principal.
+Reviewer principal stays empty until a human inspects the private file.
 
-Record the fixture result.
+Fixture result records `npm run ci:asd-ste100`.
 
 Activate protections after workflow-dispatch validation.
 

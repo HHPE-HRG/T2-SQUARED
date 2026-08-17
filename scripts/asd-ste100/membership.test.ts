@@ -80,6 +80,62 @@ describe("checkVocabularyMembership", () => {
       false,
     );
   });
+
+  it("accepts reviewed software forms as T2 identifier policy", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Install the workRegistry runner.",
+      approvedWords: approved,
+      technicalTerms: [
+        {
+          term: "work-registry",
+          kind: "noun",
+          reviewed: true,
+          softwareForms: {
+            typescriptType: "WorkRegistry",
+            typescriptValue: "workRegistry",
+            cli: "work-registry",
+          },
+        },
+      ],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("accepts derived camel and Pascal forms of a hyphenated reviewed term", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Install the WorkRegistry runner.",
+      approvedWords: approved,
+      technicalTerms: [{ term: "work-registry", kind: "noun", reviewed: true }],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("rejects an unknown camelCase token that is not a software form", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Install the xyzzyGate runner.",
+      approvedWords: approved,
+      technicalTerms: [
+        {
+          term: "work-registry",
+          kind: "noun",
+          reviewed: true,
+          softwareForms: { typescriptValue: "workRegistry" },
+        },
+      ],
+    });
+    const hit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
+    assert.ok(hit);
+    assert.equal(hit.message, unapprovedTokenMessage("xyzzyGate"));
+  });
 });
 
 describe("checkArticleBeforeNoun", () => {
@@ -102,6 +158,31 @@ describe("checkArticleBeforeNoun", () => {
       knownNouns: new Set(["runner"]),
     });
     assert.equal(findings.length, 0);
+  });
+
+  it("does not treat software forms as Rule 4.5 known nouns", () => {
+    const nouns = knownNounsFromTerms([
+      {
+        term: "work-registry",
+        kind: "noun",
+        reviewed: true,
+        softwareForms: {
+          typescriptType: "WorkRegistry",
+          typescriptValue: "workRegistry",
+        },
+      },
+    ]);
+    assert.equal(nouns.has("work-registry"), true);
+    assert.equal(nouns.has("workregistry"), false);
+    const findings = checkArticleBeforeNoun({
+      ...loc,
+      text: "Install workRegistry.",
+      knownNouns: nouns,
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-4.5"),
+      false,
+    );
   });
 });
 
