@@ -82,7 +82,7 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /fixture/i);
     assert.match(text, /pin check/i);
     assert.match(text, /without flipping review/i);
-    assert.match(text, /stay off G2/i);
+    assert.match(text, /fail G2 after that approve/i);
     assert.match(text, /heuristic/i);
     assert.match(text, /do not fail G2/i);
   });

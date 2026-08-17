@@ -330,9 +330,12 @@ describe("runCli", () => {
   });
 
   it("does not fail G2 on Rule 1.1 while vocabulary review is pending-human", () => {
+    const official = Buffer.from(`${JSON.stringify({ words: ["qzvstelemmaone"] })}\n`);
     const result = runCli(
-      ["--mode", "fixture"],
+      ["--mode", "pr"],
       deps({
+        cwd: connectedCwd(sha256(official), { vocabularyReview: "pending-human" }),
+        officialVocabularyBytes: () => official,
         findings: [
           {
             path: "docs/note.md",

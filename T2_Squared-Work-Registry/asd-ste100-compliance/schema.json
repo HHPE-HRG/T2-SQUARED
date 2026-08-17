@@ -3,10 +3,6 @@
   "campaign": "asd-ste100-compliance",
   "terms": [
     {
-      "term": "approve",
-      "kind": "verb"
-    },
-    {
       "term": "campaign",
       "kind": "noun"
     },

@@ -52,9 +52,9 @@ describe("live profile matches enforced checkers", () => {
     assert.equal(liveProfile().claim, "ASD-STE100 mechanical rule-subset result");
   });
 
-  it("holds A2 by keeping pending-human and the synthetic fixture pin", () => {
+  it("records human-verified on the synthetic fixture pin", () => {
     const profile = liveProfile() as { vocabularyReview?: string; vocabularySha256: string };
-    assert.equal(profile.vocabularyReview, "pending-human");
+    assert.equal(profile.vocabularyReview, "human-verified");
     const fixture = readFileSync(
       path.join(repoRoot, "scripts/asd-ste100/test/fixtures/vocab/synthetic.json"),
     );

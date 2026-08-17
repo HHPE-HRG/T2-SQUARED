@@ -48,11 +48,13 @@ The committed test fixture is `scripts/asd-ste100/test/fixtures/vocab/synthetic.
 
 Copy those bytes onto `t2-trusted`. Do not commit a private official word list.
 
-Vocabulary review stays `pending-human` until an operator checks the word list.
+Vocabulary review is `human-verified` for the pinned fixture list.
 
-G2 ignores Rule 1.1 and Rule 4.5 until that review.
+G2 applies Rule 1.1 and Rule 4.5.
 
 G2 still applies sentence length rules and claim rules.
+
+A remount of the fixture still writes `pending-human`.
 
 The leak scan rejects a dump of the private file.
 
@@ -70,7 +72,7 @@ Run `npm run asd-ste100:provision-vocab -- --verify-only --dest <vocab-dir>` to 
 
 A human inspects the private file before any pin change off the fixture.
 
-Rule 1.1 and Rule 4.5 stay off G2 in this slice.
+Rule 1.1 and Rule 4.5 fail G2 after that approve.
 
 Pipeline tokens live on the VM under the agent state directory.
 

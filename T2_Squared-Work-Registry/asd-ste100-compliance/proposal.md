@@ -6,13 +6,13 @@ The proposal is the only markdown file.
 
 The genesis is this campaign.
 
-pending-human is a schema state for vocabulary until a human inspects the private file.
+A human approved the pinned vocabulary.
 
 The private words stay off git.
 
 G3 still pins those words.
 
-Rule 1.1 and Rule 4.5 do not fail G2 until that approve.
+Rule 1.1 and Rule 4.5 fail G2.
 
 The Forgejo-review is synthetic because this host has one user.
 

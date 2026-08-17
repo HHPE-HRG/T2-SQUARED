@@ -64,7 +64,7 @@ A pin check can run without flipping review.
 
 A human inspects the private file before any pin change off the fixture.
 
-Rule 1.1 and Rule 4.5 stay off G2 in this slice.
+Rule 1.1 and Rule 4.5 fail G2 after that approve.
 
 U10 membership and identification checks are in the public suite.
 
