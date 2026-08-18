@@ -74,7 +74,21 @@ function connectedCwd(
   writeFileSync(
     path.join(dir, "t2.asd-ste100.terms.json"),
     `${JSON.stringify({
-      terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+      subjectFields: {
+        "asd-enforcement": { admittedTerms: ["Forgejo"] },
+      },
+      terms: [
+        {
+          term: "Forgejo",
+          kind: "noun",
+          reviewed: true,
+          concept: "The self-hosted git forge that admits T2 work.",
+          canonical: true,
+          technicalTermClass: "product-name",
+          subjectFields: ["asd-enforcement"],
+          asdBasis: ["1.5"],
+        },
+      ],
     })}\n`,
   );
   writeFileSync(
@@ -415,6 +429,44 @@ describe("runCli", () => {
     assert.equal(result.ok, false);
   });
 
+  it("fails G2 on T2 identifier-policy findings", () => {
+    const result = runCli(
+      ["--mode", "fixture"],
+      deps({
+        findings: [
+          {
+            path: "docs/note.md",
+            line: 1,
+            column: 1,
+            ruleId: "T2-IDENTIFIER-projection",
+            message: 'T2 identifier "xyzzyGate" is not bound to a qualified concept.',
+          },
+        ],
+      }),
+    );
+    assert.equal(gate(result, "G2").ok, false);
+    assert.equal(result.ok, false);
+  });
+
+  it("fails G2 on T2 canonical-term findings", () => {
+    const result = runCli(
+      ["--mode", "fixture"],
+      deps({
+        findings: [
+          {
+            path: "docs/note.md",
+            line: 1,
+            column: 1,
+            ruleId: "T2-TERM-canonical",
+            message: 'prose "Work-Registry" is not the canonical human form "work-registry".',
+          },
+        ],
+      }),
+    );
+    assert.equal(gate(result, "G2").ok, false);
+    assert.equal(result.ok, false);
+  });
+
   it("does not let a not-applicable intent result hide another gate failure", () => {
     const result = runCli(
       ["--mode", "pr"],
@@ -576,7 +628,21 @@ describe("loadScanLexicon", () => {
     writeFileSync(
       path.join(dir, "t2.asd-ste100.terms.json"),
       `${JSON.stringify({
-        terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+        subjectFields: {
+          "asd-enforcement": { admittedTerms: ["Forgejo"] },
+        },
+        terms: [
+          {
+            term: "Forgejo",
+            kind: "noun",
+            reviewed: true,
+            concept: "The self-hosted git forge that admits T2 work.",
+            canonical: true,
+            technicalTermClass: "product-name",
+            subjectFields: ["asd-enforcement"],
+            asdBasis: ["1.5"],
+          },
+        ],
       })}\n`,
     );
     const syntheticDir = path.join(dir, "scripts/asd-ste100/test/fixtures/vocab");

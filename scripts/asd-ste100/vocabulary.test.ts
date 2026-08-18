@@ -16,9 +16,44 @@ import {
   parseApprovedWordsFromOfficialBytes,
   validateAnchor,
   validateProfile,
+  isQualifiedTerm,
   validateTechnicalTerms,
 } from "./vocabulary.ts";
 import type { AsdAnchor, AsdProfile, TechnicalTerm } from "./vocabulary.ts";
+
+function subjectFieldNoun(
+  term: string,
+  subjectField: string,
+  extra: Partial<TechnicalTerm> = {},
+): TechnicalTerm {
+  return {
+    term,
+    kind: "noun",
+    reviewed: true,
+    concept: `The ${term} concept.`,
+    canonical: true,
+    technicalTermClass: "subject-field-noun",
+    subjectFields: [subjectField],
+    asdBasis: ["1.5"],
+    ...extra,
+  };
+}
+
+function fieldsFor(
+  terms: ReadonlyArray<TechnicalTerm>,
+): Record<string, { admittedTerms: Array<string> }> {
+  const fields: Record<string, { admittedTerms: Array<string> }> = {};
+  for (const term of terms) {
+    for (const field of term.subjectFields ?? []) {
+      const record = fields[field] ?? { admittedTerms: [] };
+      if (!record.admittedTerms.includes(term.term)) {
+        record.admittedTerms.push(term.term);
+      }
+      fields[field] = record;
+    }
+  }
+  return fields;
+}
 
 function sha256(contents: string): string {
   return createHash("sha256").update(contents, "utf8").digest("hex");
@@ -83,8 +118,24 @@ describe("loadVocabulary", () => {
 describe("validateTechnicalTerms", () => {
   it("rejects a duplicate or unreviewed technical term", () => {
     const terms: Array<TechnicalTerm> = [
-      { term: "Forgejo", kind: "noun", reviewed: true },
-      { term: "Forgejo", kind: "noun", reviewed: true },
+      {
+        term: "Forgejo",
+        kind: "noun",
+        reviewed: true,
+        concept: "The self-hosted git forge that admits T2 work.",
+        canonical: true,
+        subjectFields: ["asd-enforcement"],
+        asdBasis: ["1.1"],
+      },
+      {
+        term: "Forgejo",
+        kind: "noun",
+        reviewed: true,
+        concept: "The self-hosted git forge that admits T2 work.",
+        canonical: true,
+        subjectFields: ["asd-enforcement"],
+        asdBasis: ["1.1"],
+      },
     ];
     assert.throws(
       () => validateTechnicalTerms(terms),
@@ -96,23 +147,135 @@ describe("validateTechnicalTerms", () => {
     );
   });
 
-  it("accepts optional concept, canonical, and software form fields", () => {
-    assert.doesNotThrow(() =>
-      validateTechnicalTerms([
-        {
-          term: "work-registry",
-          kind: "noun",
-          reviewed: true,
-          concept: "The git store of T2 campaign records.",
-          canonical: true,
-          subjectFields: ["work-registry"],
-          softwareForms: {
-            typescriptType: "WorkRegistry",
-            typescriptValue: "workRegistry",
-            cli: "work-registry",
+  it("rejects a reviewed term that lacks concept, canonical, subject-field, or asdBasis", () => {
+    assert.throws(
+      () => validateTechnicalTerms([{ term: "Forgejo", kind: "noun", reviewed: true }]),
+      (error: unknown) => error instanceof Error && /qualified/i.test(error.message),
+    );
+  });
+
+  it("rejects a software form that only changes capitalization of the canonical term", () => {
+    assert.throws(
+      () =>
+        validateTechnicalTerms(
+          [
+            {
+              term: "work-registry",
+              kind: "noun",
+              reviewed: true,
+              concept: "The git store of T2 campaign records.",
+              canonical: true,
+              technicalTermClass: "subject-field-noun",
+              subjectFields: ["work-registry"],
+              asdBasis: ["1.5"],
+              softwareForms: { cli: "Work-Registry" },
+            },
+          ],
+          {
+            "work-registry": { admittedTerms: ["work-registry"] },
           },
-        },
-      ]),
+        ),
+      (error: unknown) => error instanceof Error && /case-duplicate/i.test(error.message),
+    );
+  });
+
+  it("accepts a qualified canonical term with a distinct software projection", () => {
+    const term: TechnicalTerm = {
+      term: "work-registry",
+      kind: "noun",
+      reviewed: true,
+      concept: "The git store of T2 campaign records.",
+      canonical: true,
+      technicalTermClass: "subject-field-noun",
+      subjectFields: ["work-registry"],
+      asdBasis: ["1.5"],
+      softwareForms: {
+        typescriptType: "WorkRegistry",
+      },
+    };
+    assert.doesNotThrow(() =>
+      validateTechnicalTerms([term], {
+        "work-registry": { admittedTerms: ["work-registry"] },
+      }),
+    );
+  });
+
+  it("rejects asdBasis that only cites Rule 1.1", () => {
+    const term = subjectFieldNoun("Forgejo", "asd-enforcement", { asdBasis: ["1.1"] });
+    assert.equal(isQualifiedTerm(term), false);
+    assert.throws(
+      () => validateTechnicalTerms([term], fieldsFor([term])),
+      (error: unknown) => error instanceof Error && /insufficient/i.test(error.message),
+    );
+  });
+
+  it("rejects asdBasis that cites a live mechanical id that is not a technical-name class", () => {
+    const term = subjectFieldNoun("Forgejo", "asd-enforcement", { asdBasis: ["5.1"] });
+    assert.equal(isQualifiedTerm(term), false);
+    assert.throws(
+      () => validateTechnicalTerms([term], fieldsFor([term])),
+      (error: unknown) => error instanceof Error && /impossible/i.test(error.message),
+    );
+  });
+
+  it("rejects a noun that lacks a technical-noun class", () => {
+    const term = subjectFieldNoun("Forgejo", "asd-enforcement");
+    delete (term as { technicalTermClass?: string }).technicalTermClass;
+    assert.equal(isQualifiedTerm(term), false);
+    assert.throws(
+      () => validateTechnicalTerms([term], fieldsFor([term])),
+      (error: unknown) => error instanceof Error && /technical-term class/i.test(error.message),
+    );
+  });
+
+  it("rejects a verb classified as a company-name", () => {
+    const term: TechnicalTerm = {
+      term: "compile",
+      kind: "verb",
+      reviewed: true,
+      concept: "Build registry output from campaign files.",
+      canonical: true,
+      technicalTermClass: "company-name",
+      subjectFields: ["work-registry"],
+      asdBasis: ["1.5"],
+    };
+    assert.equal(isQualifiedTerm(term), false);
+    assert.throws(
+      () => validateTechnicalTerms([term], fieldsFor([term])),
+      (error: unknown) => error instanceof Error && /does not match kind/i.test(error.message),
+    );
+  });
+
+  it("rejects an unknown subject field", () => {
+    const term = subjectFieldNoun("Forgejo", "physics");
+    assert.throws(
+      () =>
+        validateTechnicalTerms([term], {
+          physics: { admittedTerms: ["Forgejo"] },
+        }),
+      (error: unknown) => error instanceof Error && /unknown subject field/i.test(error.message),
+    );
+  });
+
+  it("rejects a term that is not admitted for its subject field", () => {
+    const term = subjectFieldNoun("Forgejo", "asd-enforcement");
+    assert.throws(
+      () =>
+        validateTechnicalTerms([term], {
+          "asd-enforcement": { admittedTerms: ["attestation"] },
+        }),
+      (error: unknown) => error instanceof Error && /not admitted/i.test(error.message),
+    );
+  });
+
+  it("rejects an admitted name that has no matching term record", () => {
+    const term = subjectFieldNoun("Forgejo", "asd-enforcement");
+    assert.throws(
+      () =>
+        validateTechnicalTerms([term], {
+          "asd-enforcement": { admittedTerms: ["Forgejo", "attestation"] },
+        }),
+      (error: unknown) => error instanceof Error && /no matching term/i.test(error.message),
     );
   });
 });
@@ -189,6 +352,15 @@ describe("parseApprovedWordsFromOfficialBytes", () => {
       Buffer.from(JSON.stringify({ words: ["synthlemmaaaa", "synthlemmabbb"] })),
     );
     assert.deepEqual(words, ["synthlemmaaaa", "synthlemmabbb"]);
+  });
+
+  it("consolidates approved lemmas that differ only by capitalization", () => {
+    const words = parseApprovedWordsFromOfficialBytes(
+      Buffer.from(
+        JSON.stringify({ words: ["work-registry", "Work-Registry", "WORK-REGISTRY", "runner"] }),
+      ),
+    );
+    assert.deepEqual(words, ["work-registry", "runner"]);
   });
 
   it("fails closed on opaque PDF-like bytes before language checks", () => {

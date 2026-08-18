@@ -74,9 +74,19 @@ Review stays pending-human until a human inspects that export.
 
 Rule 1.1 and Rule 4.5 fail G2 after that approve.
 
-T2 software forms are identifier policy.
+Rule 1.1 qualifies the canonical human term.
 
-They are not ASD dictionary rows.
+ASD lexical membership is case-folded.
+
+Work-Registry and work-registry are the same lemma.
+
+A T2-TERM-canonical check requires one human form.
+
+Sentence-initial capitalization may change the first letter.
+
+A T2 identifier-policy check binds software forms to that concept.
+
+Those software forms are not ASD dictionary rows.
 
 U10 membership and identification checks are in the public suite.
 

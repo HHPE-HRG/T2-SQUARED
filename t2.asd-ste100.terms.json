@@ -1,4 +1,31 @@
 {
+  "subjectFields": {
+    "asd-enforcement": {
+      "admittedTerms": ["Forgejo", "attestation", "override", "runner"]
+    },
+    "work-registry": {
+      "admittedTerms": [
+        "work-registry",
+        "campaign",
+        "proposal",
+        "manifest",
+        "schema",
+        "drift",
+        "compile",
+        "dump",
+        "lookup",
+        "approve",
+        "register",
+        "genesis",
+        "progeny",
+        "epoch",
+        "Forgejo-review"
+      ]
+    },
+    "t2-platform": {
+      "admittedTerms": ["T2", "canBus"]
+    }
+  },
   "terms": [
     {
       "term": "Forgejo",
@@ -7,11 +34,8 @@
       "concept": "The self-hosted git forge that admits T2 work.",
       "canonical": true,
       "subjectFields": ["asd-enforcement"],
-      "softwareForms": {
-        "typescriptType": "Forgejo",
-        "typescriptValue": "forgejo",
-        "cli": "forgejo"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "product-name"
     },
     {
       "term": "attestation",
@@ -20,11 +44,8 @@
       "concept": "A signed record of a mechanical rule-subset result.",
       "canonical": true,
       "subjectFields": ["asd-enforcement"],
-      "softwareForms": {
-        "typescriptType": "Attestation",
-        "typescriptValue": "attestation",
-        "cli": "attestation"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "override",
@@ -33,11 +54,8 @@
       "concept": "A governed exception bound to one finding.",
       "canonical": true,
       "subjectFields": ["asd-enforcement"],
-      "softwareForms": {
-        "typescriptType": "Override",
-        "typescriptValue": "override",
-        "cli": "override"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "runner",
@@ -46,11 +64,8 @@
       "concept": "A trusted host that runs Forgejo jobs.",
       "canonical": true,
       "subjectFields": ["asd-enforcement"],
-      "softwareForms": {
-        "typescriptType": "Runner",
-        "typescriptValue": "runner",
-        "cli": "runner"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "work-registry",
@@ -60,10 +75,10 @@
       "canonical": true,
       "subjectFields": ["work-registry"],
       "softwareForms": {
-        "typescriptType": "WorkRegistry",
-        "typescriptValue": "workRegistry",
-        "cli": "work-registry"
-      }
+        "typescriptType": "WorkRegistry"
+      },
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "campaign",
@@ -72,11 +87,8 @@
       "concept": "One bounded product effort in the work-registry.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Campaign",
-        "typescriptValue": "campaign",
-        "cli": "campaign"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "proposal",
@@ -85,11 +97,8 @@
       "concept": "The written ask that opens a campaign.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Proposal",
-        "typescriptValue": "proposal",
-        "cli": "proposal"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "manifest",
@@ -98,11 +107,8 @@
       "concept": "The campaign file that records approval state.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Manifest",
-        "typescriptValue": "manifest",
-        "cli": "manifest"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "schema",
@@ -111,11 +117,8 @@
       "concept": "The shape that campaign records must match.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Schema",
-        "typescriptValue": "schema",
-        "cli": "schema"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "drift",
@@ -124,11 +127,8 @@
       "concept": "A mismatch between compiled registry output and git.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Drift",
-        "typescriptValue": "drift",
-        "cli": "drift"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "compile",
@@ -137,11 +137,8 @@
       "concept": "Build registry output from campaign files.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Compile",
-        "typescriptValue": "compile",
-        "cli": "compile"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-verb"
     },
     {
       "term": "dump",
@@ -150,11 +147,8 @@
       "concept": "Write a readable snapshot of campaign state.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Dump",
-        "typescriptValue": "dump",
-        "cli": "dump"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-verb"
     },
     {
       "term": "lookup",
@@ -163,11 +157,8 @@
       "concept": "Find one campaign record by identity.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Lookup",
-        "typescriptValue": "lookup",
-        "cli": "lookup"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-verb"
     },
     {
       "term": "approve",
@@ -176,11 +167,8 @@
       "concept": "Mark a campaign as admitted by the named gate.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Approve",
-        "typescriptValue": "approve",
-        "cli": "approve"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-verb"
     },
     {
       "term": "register",
@@ -189,11 +177,8 @@
       "concept": "Add a campaign to the work-registry.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Register",
-        "typescriptValue": "register",
-        "cli": "register"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-verb"
     },
     {
       "term": "genesis",
@@ -202,11 +187,8 @@
       "concept": "The first recorded commit for a campaign.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Genesis",
-        "typescriptValue": "genesis",
-        "cli": "genesis"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "progeny",
@@ -215,11 +197,8 @@
       "concept": "Later commits that follow a campaign genesis.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Progeny",
-        "typescriptValue": "progeny",
-        "cli": "progeny"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "epoch",
@@ -228,11 +207,8 @@
       "concept": "A bounded generation of campaign records.",
       "canonical": true,
       "subjectFields": ["work-registry"],
-      "softwareForms": {
-        "typescriptType": "Epoch",
-        "typescriptValue": "epoch",
-        "cli": "epoch"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
       "term": "Forgejo-review",
@@ -242,23 +218,20 @@
       "canonical": true,
       "subjectFields": ["work-registry"],
       "softwareForms": {
-        "typescriptType": "ForgejoReview",
-        "typescriptValue": "forgejoReview",
-        "cli": "Forgejo-review"
-      }
+        "typescriptType": "ForgejoReview"
+      },
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "subject-field-noun"
     },
     {
-      "term": "t2",
+      "term": "T2",
       "kind": "noun",
       "reviewed": true,
       "concept": "The T2 product surface that owns this checker.",
       "canonical": true,
       "subjectFields": ["t2-platform"],
-      "softwareForms": {
-        "typescriptType": "T2",
-        "typescriptValue": "t2",
-        "cli": "t2"
-      }
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "product-name"
     },
     {
       "term": "canBus",
@@ -268,10 +241,10 @@
       "canonical": true,
       "subjectFields": ["t2-platform"],
       "softwareForms": {
-        "typescriptType": "CanBus",
-        "typescriptValue": "canBus",
         "cli": "can-bus"
-      }
+      },
+      "asdBasis": ["1.5"],
+      "technicalTermClass": "product-name"
     }
   ]
 }

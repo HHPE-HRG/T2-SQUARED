@@ -140,6 +140,8 @@ describe("buildAttestation", () => {
     const attestation = base();
     assert.equal(attestation.kind, "rule-subset attestation");
     assert.equal(attestation.claim, "ASD-STE100 mechanical rule-subset result");
+    assert.equal(attestation.identifierPolicy, "T2-IDENTIFIER-projection");
+    assert.equal(attestation.termCanonical, "T2-TERM-canonical");
   });
 
   it("keeps ownership digest distinct from the vocabulary digest", () => {

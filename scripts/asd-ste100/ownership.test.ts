@@ -343,7 +343,21 @@ describe("repo ownership admission exclusions", () => {
       root,
       "t2.asd-ste100.terms.json",
       JSON.stringify({
-        terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+        subjectFields: {
+          "asd-enforcement": { admittedTerms: ["Forgejo"] },
+        },
+        terms: [
+          {
+            term: "Forgejo",
+            kind: "noun",
+            reviewed: true,
+            concept: "The self-hosted git forge that admits T2 work.",
+            canonical: true,
+            technicalTermClass: "product-name",
+            subjectFields: ["asd-enforcement"],
+            asdBasis: ["1.5"],
+          },
+        ],
       }),
     );
     write(

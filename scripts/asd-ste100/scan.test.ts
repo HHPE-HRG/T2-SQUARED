@@ -9,7 +9,40 @@ import { describe, it } from "node:test";
 import { scanGovernedFindings } from "./cli.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
 import { unapprovedTokenMessage } from "./membership.ts";
-import { VocabularyChecksumMismatchError } from "./vocabulary.ts";
+import { VocabularyChecksumMismatchError, type TechnicalTerm } from "./vocabulary.ts";
+
+const QUALIFIED_FORGEJO: TechnicalTerm = {
+  term: "Forgejo",
+  kind: "noun",
+  reviewed: true,
+  concept: "The self-hosted git forge that admits T2 work.",
+  canonical: true,
+  technicalTermClass: "product-name",
+  subjectFields: ["asd-enforcement"],
+  asdBasis: ["1.5"],
+};
+
+const QUALIFIED_RUNNER: TechnicalTerm = {
+  term: "runner",
+  kind: "noun",
+  reviewed: true,
+  concept: "A trusted host that runs Forgejo jobs.",
+  canonical: true,
+  technicalTermClass: "subject-field-noun",
+  subjectFields: ["asd-enforcement"],
+  asdBasis: ["1.5"],
+};
+
+const QUALIFIED_WORK_REGISTRY: TechnicalTerm = {
+  term: "work-registry",
+  kind: "noun",
+  reviewed: true,
+  concept: "The git store of T2 campaign records.",
+  canonical: true,
+  technicalTermClass: "subject-field-noun",
+  subjectFields: ["work-registry"],
+  asdBasis: ["1.5"],
+};
 
 const LEAK_UNSAFE = /did you mean|dictionary|approved alternative|lemma list|for example/i;
 
@@ -78,15 +111,23 @@ function ownershipJson(): string {
   })}\n`;
 }
 
-function termsJson(
-  terms: Array<{ term: string; kind: "noun" | "verb"; reviewed: boolean }>,
-): string {
-  return `${JSON.stringify({ terms })}\n`;
+function termsJson(terms: Array<TechnicalTerm>): string {
+  const subjectFields: Record<string, { admittedTerms: Array<string> }> = {};
+  for (const term of terms) {
+    for (const field of term.subjectFields ?? []) {
+      const record = subjectFields[field] ?? { admittedTerms: [] };
+      if (!record.admittedTerms.includes(term.term)) {
+        record.admittedTerms.push(term.term);
+      }
+      subjectFields[field] = record;
+    }
+  }
+  return `${JSON.stringify({ subjectFields, terms })}\n`;
 }
 
 function initScanRepo(input: {
   prose: string;
-  terms?: Array<{ term: string; kind: "noun" | "verb"; reviewed: boolean }>;
+  terms?: Array<TechnicalTerm>;
   vocabularySha256?: string;
   rules?: Array<{ id: string; reviewed: boolean; checker: string }>;
 }): { root: string; sha: string; bytes: Buffer } {
@@ -97,12 +138,12 @@ function initScanRepo(input: {
   git(root, ["config", "commit.gpgsign", "false"]);
   const bytes = officialBytes();
   write(root, "t2.asd-ste100.ownership.json", ownershipJson());
+  write(root, "t2.asd-ste100.terms.json", termsJson(input.terms ?? [QUALIFIED_FORGEJO]));
   write(
     root,
-    "t2.asd-ste100.terms.json",
-    termsJson(input.terms ?? [{ term: "Forgejo", kind: "noun", reviewed: true }]),
+    "t2.asd-ste100.json",
+    profileJson(input.vocabularySha256 ?? sha256(bytes), input.rules),
   );
-  write(root, "t2.asd-ste100.json", profileJson(input.vocabularySha256 ?? sha256(bytes), input.rules));
   write(root, "docs/note.md", `${input.prose}\n`);
   git(root, ["add", "-A"]);
   git(root, ["commit", "-m", "scan fixture"]);
@@ -140,7 +181,7 @@ describe("scanGovernedFindings", () => {
   it("reports AE9 missing article as ASD-STE100-4.5", () => {
     const { root, sha, bytes } = initScanRepo({
       prose: "Install runner.",
-      terms: [{ term: "runner", kind: "noun", reviewed: true }],
+      terms: [QUALIFIED_RUNNER],
       rules: [
         { id: "1.1", reviewed: true, checker: "vocabulary-membership" },
         { id: "4.5", reviewed: true, checker: "article-before-noun" },
@@ -156,6 +197,22 @@ describe("scanGovernedFindings", () => {
   it("accepts a reviewed T2 technical name in owned prose", () => {
     const { root, sha, bytes } = initScanRepo({ prose: "Install the Forgejo runner." });
     const scanned = scan(root, sha, bytes);
+    assert.equal(
+      scanned.findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("reports T2-TERM-canonical for a noncanonical human form without using Rule 1.1", () => {
+    const { root, sha, bytes } = initScanRepo({
+      prose: "Install the Work-Registry runner.",
+      terms: [QUALIFIED_WORK_REGISTRY, QUALIFIED_RUNNER],
+    });
+    const scanned = scan(root, sha, bytes);
+    assert.equal(
+      scanned.findings.some((finding) => finding.ruleId === "T2-TERM-canonical"),
+      true,
+    );
     assert.equal(
       scanned.findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
       false,
@@ -228,11 +285,7 @@ describe("scanGovernedFindings", () => {
     });
     const checker = mkdtempSync(path.join(tmpdir(), "asd-checker-"));
     write(checker, "t2.asd-ste100.ownership.json", ownershipJson());
-    write(
-      checker,
-      "t2.asd-ste100.terms.json",
-      termsJson([{ term: "Forgejo", kind: "noun", reviewed: true }]),
-    );
+    write(checker, "t2.asd-ste100.terms.json", termsJson([QUALIFIED_FORGEJO]));
     write(checker, "t2.asd-ste100.json", profileJson(sha256(tree.bytes)));
     const scanned = scanGovernedFindings({
       cwd: tree.root,
