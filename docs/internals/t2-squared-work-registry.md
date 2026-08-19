@@ -26,7 +26,7 @@ Other `files` use `json` or `yaml`.
 
 Do not add a `second` `markdown` `file`.
 
-## Approve
+## The approve
 
 A campaign `needs` the Forgejo-review.
 
