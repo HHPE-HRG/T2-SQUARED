@@ -1,7 +1,7 @@
 import type { Finding } from "./rules.ts";
 import { isQualifiedTerm, type TechnicalTerm } from "./vocabulary.ts";
 
-const TOKEN = /[A-Za-z][A-Za-z'-]*/g;
+const TOKEN = /[A-Za-z][A-Za-z0-9'-]*/g;
 const DETERMINERS = new Set(["the", "a", "an", "this", "these"]);
 
 export const IDENTIFIER_POLICY_RULE_ID = "T2-IDENTIFIER-projection";
@@ -320,6 +320,14 @@ export function classifyUnapprovedToken(input: {
     }
     const parts = tokenize(form).map((part) => part.token);
     if (parts.includes(token)) {
+      return "tokenizer-split";
+    }
+    const rest = form.slice(token.length);
+    if (
+      form.toLowerCase().startsWith(token.toLowerCase()) &&
+      rest.length > 0 &&
+      /^[0-9]/.test(rest)
+    ) {
       return "tokenizer-split";
     }
   }

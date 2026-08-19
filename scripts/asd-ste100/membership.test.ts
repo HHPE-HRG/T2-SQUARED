@@ -486,14 +486,6 @@ describe("trusted-runner lexicon proof", () => {
 
 describe("classifyUnapprovedToken", () => {
   it("classifies a leftover letter from T2 as a tokenizer split, not a missing technical name", () => {
-    const findings = checkVocabularyMembership({
-      ...loc,
-      text: "T2 owns this checker.",
-      approvedWords: new Set(["owns", "this", "checker"]),
-      technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
-    });
-    const leftover = findings.find((finding) => finding.message.includes('"T"'));
-    assert.ok(leftover);
     assert.equal(
       classifyUnapprovedToken({
         token: "T",
@@ -513,5 +505,45 @@ describe("classifyUnapprovedToken", () => {
       }),
       "rewrite-or-export",
     );
+  });
+});
+
+describe("product token boundaries", () => {
+  it("keeps T2 as one token so leftover T is not a Rule 1.1 finding", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "T2 owns this checker.",
+      approvedWords: new Set(["owns", "this", "checker"]),
+      technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("keeps ASD-STE100 as one token when that product name is bound", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "ASD-STE100 owns this checker.",
+      approvedWords: new Set(["owns", "this", "checker"]),
+      technicalTerms: [qt("ASD-STE100", { technicalTermClass: "product-name" })],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("still rejects unrelated letter-digit junk that is not bound", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "X9 leftover",
+      approvedWords: new Set(["leftover"]),
+      technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
+    });
+    const hit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
+    assert.ok(hit);
+    assert.equal(hit.message, unapprovedTokenMessage("X9"));
   });
 });
