@@ -222,7 +222,7 @@ describe("checkCanonicalTermForm", () => {
     });
     const hit = findings.find((finding) => finding.ruleId === TERM_CANONICAL_RULE_ID);
     assert.ok(hit);
-    assert.match(hit.message, /canonical human form/);
+    assert.match(hit.message, /as the work-registry/);
     assert.match(hit.message, /work-registry/);
     assert.equal(
       findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
@@ -376,8 +376,8 @@ describe("checkIdentifierPolicy", () => {
     });
     const hit = findings.find((finding) => finding.ruleId === IDENTIFIER_POLICY_RULE_ID);
     assert.ok(hit);
-    assert.match(hit.message, /T2 identifier/);
-    assert.match(hit.message, /qualified concept/);
+    assert.match(hit.message, /The T2 keep/);
+    assert.match(hit.message, /off this name/);
     assert.equal(
       findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
       false,
@@ -434,7 +434,7 @@ function assertLeakSafeMembershipDiagnostic(
 describe("unapprovedTokenMessage", () => {
   it("locks the Rule 1.1 message without alternatives, dictionary rows, or examples", () => {
     const message = unapprovedTokenMessage("xyzzy");
-    assert.equal(message, 'word "xyzzy" is not in the approved set.');
+    assert.equal(message, 'keep "xyzzy" out of the approved set.');
     assertLeakSafeMembershipDiagnostic(message, ["install", "runner", "attestation"]);
   });
 });

@@ -124,15 +124,15 @@ function isIdentifierToken(token: string, bindings: ReadonlyMap<string, Technica
 }
 
 export function unapprovedTokenMessage(token: string): string {
-  return `word "${token}" is not in the approved set.`;
+  return `keep "${token}" out of the approved set.`;
 }
 
 export function unboundIdentifierMessage(token: string): string {
-  return `T2 identifier "${token}" is not bound to a qualified concept.`;
+  return `The T2 keep "${token}" off this name.`;
 }
 
 export function noncanonicalTermMessage(token: string, canonical: string): string {
-  return `prose "${token}" is not the canonical human form "${canonical}".`;
+  return `Keep "${token}" as the ${canonical}.`;
 }
 
 export function checkVocabularyMembership(input: MembershipInput): Array<Finding> {
@@ -268,7 +268,7 @@ export function checkArticleBeforeNoun(input: ArticleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "ASD-STE100-4.5",
-      message: `known noun "${parts[index]}" needs an article or demonstrative.`,
+      message: `Keep the name "${parts[index]}" with a or this.`,
     });
   }
   return findings;

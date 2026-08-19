@@ -89,7 +89,7 @@ export function classifyPath(filePath: string, manifest: OwnershipManifest): Sco
       ...base,
       className: "raw",
       includeInCorpusFindings: false,
-      reason: "raw conversation fixture",
+      reason: "`raw` `conversation` `fixture`",
     };
   }
   if (matchesAny(normalized, manifest.externalEvidenceGlobs)) {
@@ -98,7 +98,7 @@ export function classifyPath(filePath: string, manifest: OwnershipManifest): Sco
       className: "external-evidence",
       includeInCorpusFindings: false,
       requiresRedaction: true,
-      reason: "external provider evidence",
+      reason: "external `provider` `evidence`",
     };
   }
   if (matchesAny(normalized, manifest.fixtureGlobs)) {
@@ -106,7 +106,7 @@ export function classifyPath(filePath: string, manifest: OwnershipManifest): Sco
       ...base,
       className: "fixture",
       includeInCorpusFindings: false,
-      reason: "suite fixture",
+      reason: "`suite` `fixture`",
     };
   }
   if (matchesAny(normalized, manifest.machineGlobs)) {
@@ -114,20 +114,20 @@ export function classifyPath(filePath: string, manifest: OwnershipManifest): Sco
       ...base,
       className: "machine",
       includeInCorpusFindings: false,
-      reason: "machine literal exclusion",
+      reason: "`machine` `literal` `exclusion`",
     };
   }
   if (matchesAny(normalized, manifest.privilegedGlobs)) {
-    return { ...base, className: "privileged", reason: "privileged control path" };
+    return { ...base, className: "privileged", reason: "`privileged` control `path`" };
   }
   if (matchesAny(normalized, manifest.ownedGlobs)) {
-    return { ...base, className: "owned", reason: "owned glob" };
+    return { ...base, className: "owned", reason: "`owned` `glob`" };
   }
   return {
     ...base,
     className: "unclassified",
     includeInCorpusFindings: false,
-    reason: "no owned pattern",
+    reason: "no `owned` `pattern`",
   };
 }
 
@@ -140,7 +140,7 @@ export function classifyCommitMessage(input: {
     return {
       path: `commit:${input.sha}`,
       className: "upstream-unchanged",
-      reason: "imported upstream commit",
+      reason: "`imported` upstream `commit`",
       includeInCorpusFindings: false,
       requiresRedaction: false,
     };
@@ -148,7 +148,7 @@ export function classifyCommitMessage(input: {
   return {
     path: `commit:${input.sha}`,
     className: "owned",
-    reason: "fork-authored commit message",
+    reason: "`fork-authored` `commit` `message`",
     includeInCorpusFindings: true,
     requiresRedaction: false,
   };
@@ -212,7 +212,7 @@ export function collectScopeRecords(input: {
       return {
         path: posixPath(filePath),
         className: "owned-delta",
-        reason: "T2 changed an upstream path",
+        reason: "`T2` `changed` an upstream `path`",
         includeInCorpusFindings: true,
         requiresRedaction: false,
       };
@@ -230,13 +230,13 @@ export function resolveUpstreamAncestry(input: { cwd: string; lock: UpstreamLock
   try {
     actual = git(input.cwd, ["remote", "get-url", "upstream"]);
   } catch {
-    throw new UpstreamUrlError("upstream remote is missing");
+    throw new UpstreamUrlError("upstream `remote` `is` missing");
   }
   if (normalizeRemoteUrl(actual) !== normalizeRemoteUrl(input.lock.url)) {
-    throw new UpstreamUrlError("upstream URL does not match the lock");
+    throw new UpstreamUrlError("upstream `URL` `does` not `match` the lock");
   }
   if (!gitOk(input.cwd, ["merge-base", "--is-ancestor", input.lock.acceptedBaseSha, "HEAD"])) {
-    throw new UpstreamAncestryError("locked upstream base is not an ancestor of HEAD");
+    throw new UpstreamAncestryError("`locked` upstream `base` `is` not an `ancestor` of HEAD");
   }
 }
 

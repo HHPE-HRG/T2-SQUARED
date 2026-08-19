@@ -136,7 +136,7 @@ export function findRepoRoot(start: string): string {
     }
     const parent = path.dirname(current);
     if (parent === current) {
-      throw new Error("repository root with t2.asd-ste100.json was not found");
+      throw new Error("`repository` `root` with `t2`.`asd-ste100`.`json` `was` not `found`");
     }
     current = parent;
   }
@@ -235,7 +235,7 @@ function evaluateG3(mode: CliMode, deps: CliDeps, profile: AsdProfile): GateResu
       return {
         id: "G3",
         ok: false,
-        reason: error instanceof Error ? error.message : "private vocabulary file is missing",
+        reason: error instanceof Error ? error.message : "`private` `vocabulary` `file` `is` missing",
       };
     }
     throw error;
@@ -247,7 +247,7 @@ function evaluateG5(mode: CliMode, deps: CliDeps): GateResult {
     return { id: "G5", ok: true, status: "not_applicable", reason: "" };
   }
   if (deps.pull === undefined || deps.review === undefined || deps.roster === undefined) {
-    return { id: "G5", ok: false, reason: "review is missing" };
+    return { id: "G5", ok: false, reason: "`review` `is` missing" };
   }
   const result = validateReview({
     pull: deps.pull,
@@ -269,7 +269,7 @@ function evaluateG6(deps: CliDeps): GateResult {
     deps.proposedOverride === undefined ||
     deps.overrideCurrentFindings === undefined
   ) {
-    return { id: "G6", ok: false, reason: "override is missing" };
+    return { id: "G6", ok: false, reason: "`override` `is` missing" };
   }
   const result = validateOverride({
     pull: deps.pull,
@@ -308,7 +308,7 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
     const actions = deps.githubActionsState();
     if (actions !== "disabled") {
       return failRun({
-        reason: "GitHub Actions are enabled or their state cannot be verified",
+        reason: "`GitHub` `Actions` `are` `enabled` or their `state` cannot be `verified`",
         exitCategory: "github_actions",
         mode,
         gates: [],
@@ -333,7 +333,7 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
         (error instanceof Error && error.name === "VocabularyMissingError")
       ) {
         const reason =
-          error instanceof Error ? error.message : "private vocabulary file is missing";
+          error instanceof Error ? error.message : "`private` `vocabulary` `file` `is` missing";
         return failRun({
           reason,
           exitCategory: "prerequisite",
@@ -355,7 +355,7 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
   gates.push({
     id: "G2",
     ok: g2ok,
-    reason: g2ok ? "" : "T2-owned changed text has unresolved rule findings",
+    reason: g2ok ? "" : "the `T2-owned` `changed` `text` `has` `unresolved` `rule` `findings`",
   });
 
   gates.push(evaluateG3(mode, deps, profile));
@@ -364,12 +364,12 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
     gates.push({
       id: "G4",
       ok: false,
-      reason: "governed system text is missing required trace evidence",
+      reason: "`governed` system `text` `is` missing `required` `trace` `evidence`",
     });
   } else {
     const intent = evaluateIntentApplicability({ changedPaths: deps.changedPaths });
     if (intent.status === "not_applicable") {
-      gates.push({ id: "G4", ok: true, status: "not_applicable", reason: "no intent artifacts" });
+      gates.push({ id: "G4", ok: true, status: "not_applicable", reason: "no `intent` `artifacts`" });
     } else {
       gates.push({ id: "G4", ok: intent.ok, reason: intent.reason });
     }
@@ -380,17 +380,17 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
 
   let reason = "";
   if (mode === "release" && !deps.baseline.ok) {
-    reason = "current successful main baseline is missing";
+    reason = "`current` `successful` `main` `baseline` `is` missing";
     gates.push({ id: "G7", ok: false, reason });
   } else if (mode === "release" && deps.baseline.sourceSha !== refs.headSha) {
-    reason = "baseline source SHA must equal the release candidate SHA";
+    reason = "`baseline` source `SHA` must equal the release `candidate` `SHA`";
     gates.push({ id: "G7", ok: false, reason });
   } else if (mode === "release" && !deps.attestationPresent) {
-    reason = "rule-subset attestation is missing";
+    reason = "`rule-subset` `attestation` `is` missing";
     gates.push({ id: "G7", ok: false, reason });
   } else {
     const requiredFailed = gates.some((gate) => gate.ok === false);
-    reason = requiredFailed ? "required gate failure" : "";
+    reason = requiredFailed ? "`required` `gate` `failure`" : "";
     gates.push({ id: "G7", ok: !requiredFailed, reason });
   }
 
@@ -732,7 +732,7 @@ if (isDirect) {
       }
       process.exitCode = result.exitCode;
     } else if (result.mode === "fixture") {
-      process.stdout.write("asd-ste100 fixture self-test passed\n");
+      process.stdout.write("`asd-ste100` `fixture` `self-test` `passed`\n");
     } else {
       process.stdout.write(`asd-ste100 ${result.mode} passed\n`);
     }

@@ -57,6 +57,83 @@ export const t2Warning = "Do not skip the gate.";
     assert.ok(warning);
     assert.equal(warning.line, 2);
   });
+
+  it("does not extract import specifiers or encoding literals", () => {
+    const source = `import fs from "node:fs";
+const enc = "utf8";
+export const t2Warning = "Do not skip the gate.";
+`;
+    const records = extractTypeScript("scripts/note.ts", source);
+    assert.equal(
+      records.some((record) => record.text === "node:fs" || record.text === "utf8"),
+      false,
+    );
+    assert.equal(
+      records.some((record) => record.text === "Do not skip the gate."),
+      true,
+    );
+  });
+
+  it("does not extract SQL statements as prose", () => {
+    const source = `const q = "INSERT INTO entities (id) VALUES (1)";
+export const t2Warning = "Do not skip the gate.";
+`;
+    const records = extractTypeScript("scripts/note.ts", source);
+    assert.equal(
+      records.some((record) => record.text.includes("INSERT")),
+      false,
+    );
+  });
+
+  it("does not extract the frozen mechanical rule-subset claim string", () => {
+    const source = 'export const claim = "ASD-STE100 mechanical rule-subset result";\n';
+    const records = extractTypeScript("scripts/note.ts", source);
+    assert.equal(records.length, 0);
+  });
+
+  it("does not extract protocol kind strings or regex character classes", () => {
+    const source = `export const kind = "rule-subset attestation";
+export const sourceLabel = "ASD-STE100 Issue 9";
+export const selfSign = "KTD28 self-sign: single operator";
+export const HEAD = "([A-Za-z][A-Za-z0-9'/\\\\-]*(?:[ \\\\-][A-Za-z0-9'/\\\\-]+)*)";
+export const t2Warning = "Do not skip the gate.";
+`;
+    const records = extractTypeScript("scripts/note.ts", source);
+    assert.equal(
+      records.some((record) => record.text.includes("rule-subset attestation")),
+      false,
+    );
+    assert.equal(
+      records.some((record) => record.text.includes("Issue 9")),
+      false,
+    );
+    assert.equal(
+      records.some((record) => record.text.includes("self-sign")),
+      false,
+    );
+    assert.equal(
+      records.some((record) => record.text.includes("A-Za-z")),
+      false,
+    );
+    assert.equal(
+      records.some((record) => record.text === "Do not skip the gate."),
+      true,
+    );
+  });
+
+  it("strips inline code from extracted TypeScript strings", () => {
+    const source = 'export const t2Warning = "Keep the `gate` closed.";\n';
+    const records = extractTypeScript("scripts/note.ts", source);
+    assert.equal(records.some((record) => record.text.includes("gate")), false);
+    assert.equal(records.some((record) => record.text.includes("Keep the")), true);
+  });
+
+  it("does not treat escaped newlines as vocabulary tokens", () => {
+    const source = 'export const t2Warning = "Keep the gate closed.\\n";\n';
+    const records = extractTypeScript("scripts/note.ts", source);
+    assert.equal(records.some((record) => record.text.includes("Keep the gate closed.")), true);
+    assert.equal(records.some((record) => /(?:^| )n(?:$| )/.test(record.text)), false);
+  });
 });
 
 describe("extractTypeScriptComments", () => {
@@ -74,6 +151,13 @@ const n = 1;
       records.some((record) => record.text === "Count owned files."),
       true,
     );
+  });
+
+  it("strips inline code from comments", () => {
+    const source = `// Keep the \`gate\` closed.
+`;
+    const records = extractTypeScriptComments("scripts/note.ts", source);
+    assert.equal(records.some((record) => record.text.includes("gate")), false);
   });
 });
 

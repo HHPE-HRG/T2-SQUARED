@@ -224,7 +224,7 @@ describe("validateTechnicalTerms", () => {
     assert.equal(isQualifiedTerm(term), false);
     assert.throws(
       () => validateTechnicalTerms([term], fieldsFor([term])),
-      (error: unknown) => error instanceof Error && /technical-term class/i.test(error.message),
+      (error: unknown) => error instanceof Error && /technical-term[\s`]*class/i.test(error.message),
     );
   });
 
@@ -242,7 +242,8 @@ describe("validateTechnicalTerms", () => {
     assert.equal(isQualifiedTerm(term), false);
     assert.throws(
       () => validateTechnicalTerms([term], fieldsFor([term])),
-      (error: unknown) => error instanceof Error && /does not match kind/i.test(error.message),
+      (error: unknown) =>
+        error instanceof Error && /does[\s`]*not[\s`]*match[\s`]*kind/i.test(error.message),
     );
   });
 
@@ -253,7 +254,7 @@ describe("validateTechnicalTerms", () => {
         validateTechnicalTerms([term], {
           physics: { admittedTerms: ["Forgejo"] },
         }),
-      (error: unknown) => error instanceof Error && /unknown subject field/i.test(error.message),
+      (error: unknown) => error instanceof Error && /unknown[\s`]*subject[\s`]*field/i.test(error.message),
     );
   });
 
@@ -275,7 +276,7 @@ describe("validateTechnicalTerms", () => {
         validateTechnicalTerms([term], {
           "asd-enforcement": { admittedTerms: ["Forgejo", "attestation"] },
         }),
-      (error: unknown) => error instanceof Error && /no matching term/i.test(error.message),
+      (error: unknown) => error instanceof Error && /no[\s`]*matching[\s`]*term/i.test(error.message),
     );
   });
 
@@ -338,7 +339,7 @@ describe("validateAnchor", () => {
           ...pinLandedAnchor(),
           reviewerPrincipal: "operator-self-sign",
         }),
-      (error: unknown) => error instanceof Error && /reviewer principal/i.test(error.message),
+      (error: unknown) => error instanceof Error && /reviewer[\s`]*principal/i.test(error.message),
     );
   });
 
@@ -349,7 +350,7 @@ describe("validateAnchor", () => {
           ...pinLandedAnchor(),
           status: "reviewed",
         }),
-      (error: unknown) => error instanceof Error && /reviewer principal/i.test(error.message),
+      (error: unknown) => error instanceof Error && /reviewer[\s`]*principal/i.test(error.message),
     );
   });
 });

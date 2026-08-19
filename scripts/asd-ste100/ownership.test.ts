@@ -60,7 +60,7 @@ describe("classifyPath", () => {
   it("fails a new T2 file that matches no owned pattern", () => {
     const result = classifyPath("docs/new-operator-note.md", emptyManifest());
     assert.equal(result.className, "unclassified");
-    assert.match(result.reason, /no owned pattern/i);
+    assert.match(result.reason, /no[\s`]*owned[\s`]*pattern/i);
   });
 
   it("classifies privileged control files before review validation", () => {
@@ -236,7 +236,7 @@ describe("resolveUpstreamAncestry", () => {
     };
     assert.throws(
       () => resolveUpstreamAncestry({ cwd: root, lock }),
-      (error: unknown) => error instanceof Error && /upstream URL/i.test(error.message),
+      (error: unknown) => error instanceof Error && /upstream[\s`]*URL/i.test(error.message),
     );
   });
 

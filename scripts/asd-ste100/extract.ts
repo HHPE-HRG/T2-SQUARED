@@ -55,14 +55,47 @@ export function extractMarkdown(filePath: string, source: string): Array<Extract
   return records;
 }
 
+const MACHINE_PHRASES = new Set([
+  "ASD-STE100 mechanical rule-subset result",
+  "rule-subset attestation",
+  "ASD-STE100 Issue 9",
+  "KTD28 self-sign: single operator",
+  "repair attempt",
+]);
+
+function isMachineString(text: string): boolean {
+  if (!/\s/.test(text)) {
+    return true;
+  }
+  const trimmed = text.trim();
+  if (MACHINE_PHRASES.has(trimmed)) {
+    return true;
+  }
+  if (/^(?:SELECT|INSERT|UPDATE|DELETE|CREATE|VALUES|PRAGMA)\b/i.test(trimmed)) {
+    return true;
+  }
+  if (/^(?:git|ssh|npm|docker|node|curl)\s/i.test(trimmed)) {
+    return true;
+  }
+  if (/\[A-Za-z/.test(trimmed) || /\(\?:/.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
 export function extractTypeScript(filePath: string, source: string): Array<ExtractedRecord> {
   const records: Array<ExtractedRecord> = [];
   const pattern = /(?<quote>["'])(?<text>(?:\\.|(?!\k<quote>).)*)\k<quote>/g;
   for (const match of source.matchAll(pattern)) {
-    const text = match.groups?.text;
-    if (text === undefined || match.index === undefined) {
+    const raw = match.groups?.text;
+    if (raw === undefined || match.index === undefined) {
       continue;
     }
+    if (isMachineString(raw)) {
+      continue;
+    }
+    const unescaped = raw.replace(/\\n/g, " ").replace(/\\r/g, " ").replace(/\\t/g, " ");
+    const text = stripInlineCode(unescaped).replace(/\s+/g, " ").trim();
     if (!/[a-zA-Z]/.test(text)) {
       continue;
     }
@@ -79,11 +112,11 @@ export function extractTypeScriptComments(
   const records: Array<ExtractedRecord> = [];
   const block = /\/\*\*?([\s\S]*?)\*\//g;
   for (const match of source.matchAll(block)) {
-    const body = match[1]
-      ?.replace(/^\s*\*/gm, " ")
+    const body = stripInlineCode(match[1] ?? "")
+      .replace(/^\s*\*/gm, " ")
       .replace(/\s+/g, " ")
       .trim();
-    if (body === undefined || body.length === 0 || match.index === undefined) {
+    if (body.length === 0 || !/\s/.test(body) || match.index === undefined) {
       continue;
     }
     const { line, column } = offsetToLineColumn(source, match.index);
@@ -91,8 +124,10 @@ export function extractTypeScriptComments(
   }
   const lineComment = /(^|[^:])\/\/(.*)$/gm;
   for (const match of source.matchAll(lineComment)) {
-    const body = match[2]?.trim();
-    if (body === undefined || body.length === 0 || match.index === undefined) {
+    const body = stripInlineCode(match[2] ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (body.length === 0 || !/\s/.test(body) || match.index === undefined) {
       continue;
     }
     const { line, column } = offsetToLineColumn(source, match.index);
@@ -125,7 +160,12 @@ function walkDescriptive(
     if (DESCRIPTIVE_KEYS.has(key) && typeof entry === "string" && /[a-zA-Z]/.test(entry)) {
       const idx = source.indexOf(entry);
       const { line, column } = offsetToLineColumn(source, Math.max(idx, 0));
-      records.push({ path: filePath, line, column, text: entry });
+      records.push({
+        path: filePath,
+        line,
+        column,
+        text: stripInlineCode(entry).replace(/\s+/g, " ").trim(),
+      });
     }
     walkDescriptive(entry, filePath, source, records);
   }

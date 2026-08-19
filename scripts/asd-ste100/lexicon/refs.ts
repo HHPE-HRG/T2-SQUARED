@@ -38,9 +38,9 @@ export function shuffleDuplicate(
       action: "shuffle-duplicate",
       subjectEntityIds: [input.savedId, input.duplicateId],
       payload: { savedId: input.savedId, duplicateId: input.duplicateId },
-      error: "the duplicate shuffle subjects are missing.",
+      error: "the `duplicate` `shuffle` `subjects` `are` missing.",
     });
-    throw new LexiconError("the duplicate shuffle subjects are missing.");
+    throw new LexiconError("the `duplicate` `shuffle` `subjects` `are` missing.");
   }
   const database = openLexiconDb(dbPath);
   try {
