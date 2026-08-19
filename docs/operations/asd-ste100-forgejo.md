@@ -48,7 +48,7 @@ Reach the runner host with `ssh orchestration-vm`.
 
 Host name `oldmac-vm` does not resolve from this Mac.
 
-The live secret path is `/home/oldmac-vm/forgejo-runner-t2-trusted/vocab/synthetic.json`.
+The live secret path is `/home/oldmac-vm/forgejo-runner-t2-trusted/vocab/approved-words.json`.
 
 The committed test fixture is `scripts/asd-ste100/test/fixtures/vocab/synthetic.json`.
 
