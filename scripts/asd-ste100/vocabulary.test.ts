@@ -278,6 +278,14 @@ describe("validateTechnicalTerms", () => {
       (error: unknown) => error instanceof Error && /no matching term/i.test(error.message),
     );
   });
+
+  it("accepts an irreducible product name and rejects a canonical-form misspell", () => {
+    const term = subjectFieldNoun("QzvSteGate", "asd-enforcement", {
+      technicalTermClass: "product-name",
+    });
+    validateTechnicalTerms([term], fieldsFor([term]));
+    assert.equal(isQualifiedTerm(term), true);
+  });
 });
 
 describe("validateProfile", () => {
@@ -466,5 +474,22 @@ describe("committed profile mappings", () => {
       (profile.rules ?? []).every((rule) => rule.reviewed),
       true,
     );
+  });
+
+  it("does not admit function-word leftovers as technical names", () => {
+    const payload = JSON.parse(
+      readFileSync(
+        path.join(path.dirname(fileURLToPath(import.meta.url)), "../../t2.asd-ste100.terms.json"),
+        "utf8",
+      ),
+    ) as { terms: Array<TechnicalTerm> };
+    const banned = new Set(["is", "are", "was", "were", "does", "did", "has", "had"]);
+    for (const term of payload.terms) {
+      assert.equal(
+        banned.has(term.term.toLowerCase()),
+        false,
+        `function-word leftover ${term.term} must not be a technical name`,
+      );
+    }
   });
 });

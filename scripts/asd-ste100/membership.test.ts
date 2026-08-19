@@ -118,9 +118,36 @@ describe("checkVocabularyMembership", () => {
       approvedWords: new Set(["move", "the", "unit", "away from"]),
       technicalTerms: [],
     });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      true,
+    );
+  });
+
+  it("accepts an irreducible product name that is not an approved lemma", () => {
+    const product = qt("QzvSteGate", { technicalTermClass: "product-name" });
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Install the QzvSteGate runner.",
+      approvedWords: approved,
+      technicalTerms: [product],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("still reports Rule 1.1 for a function-word leftover", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "The runner is ready.",
+      approvedWords: new Set(["the", "runner", "ready"]),
+      technicalTerms: terms,
+    });
     const hit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
     assert.ok(hit);
-    assert.equal(hit.message, unapprovedTokenMessage("away"));
+    assert.equal(hit.message, unapprovedTokenMessage("is"));
   });
 
   it("prefers the longest approved phrase when a shorter lemma also exists", () => {
@@ -214,6 +241,18 @@ describe("checkCanonicalTermForm", () => {
       technicalTerms: bound,
     });
     assert.equal(findings.length, 0);
+  });
+
+  it("rejects a canonical-form misspell of an irreducible product name", () => {
+    const product = qt("QzvSteGate", { technicalTermClass: "product-name" });
+    const findings = checkCanonicalTermForm({
+      ...loc,
+      text: "Install the qzvstegate runner.",
+      technicalTerms: [product],
+    });
+    const hit = findings.find((finding) => finding.ruleId === TERM_CANONICAL_RULE_ID);
+    assert.ok(hit);
+    assert.match(hit.message, /QzvSteGate/);
   });
 
   it("accepts sentence-initial first-letter capitalization of a lowercase canonical form", () => {
