@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -180,15 +180,35 @@ describe("collectScopeRecords", () => {
   });
 
   it("lists the live corpus tree without the default 1 MiB git spawn buffer", () => {
-    const head = git(repoRoot, ["rev-parse", "HEAD"]);
-    const records = collectScopeRecords({
-      cwd: repoRoot,
-      mode: "corpus",
-      baseSha: head,
-      headSha: head,
-      manifest: loadOwnershipManifest(repoOwnershipPath),
-    });
-    assert.ok(records.length > 10_000);
+    const previousObjectDir = process.env.GIT_OBJECT_DIRECTORY;
+    const previousAlternates = process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES;
+    const fallbackObjects = process.env.T2_GIT_OBJECT_DIRECTORY ?? "/tmp/t2-git-objects";
+    try {
+      if (previousObjectDir === undefined && existsSync(fallbackObjects)) {
+        process.env.GIT_OBJECT_DIRECTORY = fallbackObjects;
+        process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES = path.join(repoRoot, ".git", "objects");
+      }
+      const head = git(repoRoot, ["rev-parse", "HEAD"]);
+      const records = collectScopeRecords({
+        cwd: repoRoot,
+        mode: "corpus",
+        baseSha: head,
+        headSha: head,
+        manifest: loadOwnershipManifest(repoOwnershipPath),
+      });
+      assert.ok(records.length > 10_000);
+    } finally {
+      if (previousObjectDir === undefined) {
+        delete process.env.GIT_OBJECT_DIRECTORY;
+      } else {
+        process.env.GIT_OBJECT_DIRECTORY = previousObjectDir;
+      }
+      if (previousAlternates === undefined) {
+        delete process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES;
+      } else {
+        process.env.GIT_ALTERNATE_OBJECT_DIRECTORIES = previousAlternates;
+      }
+    }
   });
 });
 
@@ -286,6 +306,19 @@ describe("repo ownership admission exclusions", () => {
     assert.equal(plan.className, "owned");
   });
 
+  it("owns fill-sandbox, honesty, and lexicon-bridge campaign plans", () => {
+    const plans = [
+      "docs/plans/2026-08-13-001-feat-asd-ste100-enforcement-plan.md",
+      "docs/plans/2026-08-16-001-fix-human-gate-honesty-plan.md",
+      "docs/plans/2026-08-16-002-feat-asd-lexicon-bridge-plan.md",
+      "docs/plans/2026-08-17-001-feat-fill-asd-ste-sandbox-plan.md",
+    ];
+    for (const filePath of plans) {
+      const result = classifyPath(filePath, manifest);
+      assert.equal(result.className, "owned", filePath);
+    }
+  });
+
   it("classifies lockfiles, images, and binaries as machine text", () => {
     const paths = [
       "pnpm-lock.yaml",
@@ -310,7 +343,21 @@ describe("repo ownership admission exclusions", () => {
       root,
       "t2.asd-ste100.terms.json",
       JSON.stringify({
-        terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+        subjectFields: {
+          "asd-enforcement": { admittedTerms: ["Forgejo"] },
+        },
+        terms: [
+          {
+            term: "Forgejo",
+            kind: "noun",
+            reviewed: true,
+            concept: "The self-hosted git forge that admits T2 work.",
+            canonical: true,
+            technicalTermClass: "product-name",
+            subjectFields: ["asd-enforcement"],
+            asdBasis: ["1.5"],
+          },
+        ],
       }),
     );
     write(

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -31,8 +31,23 @@ export interface VerifyMountedVocabularyResult {
   vocabularyReview: AsdProfile["vocabularyReview"];
 }
 
+export interface MountIssue9VocabularyInput {
+  sourcePath: string;
+  destDir: string;
+}
+
+export interface MountIssue9VocabularyResult {
+  vocabularyPath: string;
+  vocabularySha256: string;
+  lemmaCount: number;
+}
+
 function sha256Bytes(contents: Buffer): string {
   return createHash("sha256").update(contents).digest("hex");
+}
+
+function syntheticFixturePath(repoRoot: string): string {
+  return path.join(repoRoot, "scripts/asd-ste100/test/fixtures/vocab/synthetic.json");
 }
 
 export function installProvisionalVocabulary(
@@ -70,6 +85,20 @@ export function installProvisionalVocabulary(
   };
 }
 
+export function mountIssue9Vocabulary(
+  input: MountIssue9VocabularyInput,
+): MountIssue9VocabularyResult {
+  mkdirSync(input.destDir, { recursive: true });
+  const vocabularyPath = path.join(input.destDir, "approved-words.json");
+  copyFileSync(input.sourcePath, vocabularyPath);
+  const bytes = readFileSync(vocabularyPath);
+  return {
+    vocabularyPath,
+    vocabularySha256: sha256Bytes(bytes),
+    lemmaCount: parseApprovedWordsFromOfficialBytes(bytes).length,
+  };
+}
+
 export function verifyMountedVocabulary(
   input: VerifyMountedVocabularyInput,
 ): VerifyMountedVocabularyResult {
@@ -91,24 +120,79 @@ function parseArg(name: string, argv: Array<string>): string | undefined {
   return argv[index + 1];
 }
 
-function main(argv: Array<string>): void {
+function hasFlag(name: string, argv: Array<string>): boolean {
+  return argv.includes(name);
+}
+
+function defaultDestDir(): string {
+  return "/home/oldmac-vm/forgejo-runner-t2-trusted/vocab";
+}
+
+function resolveVerifyPath(argv: Array<string>): string {
+  const explicit = parseArg("--vocabulary", argv);
+  if (explicit !== undefined) {
+    return explicit;
+  }
+  const destDir = parseArg("--dest", argv) ?? defaultDestDir();
+  const approvedPath = path.join(destDir, "approved-words.json");
+  if (existsSync(approvedPath)) {
+    return approvedPath;
+  }
+  return path.join(destDir, "synthetic.json");
+}
+
+export function runProvisionCli(argv: Array<string>): number {
   const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
-  const destDir = parseArg("--dest", argv) ?? "/home/oldmac-vm/forgejo-runner-t2-trusted/vocab";
+  const profilePath = parseArg("--profile", argv) ?? path.join(repoRoot, "t2.asd-ste100.json");
+  if (hasFlag("--verify-only", argv)) {
+    const check = verifyMountedVocabulary({
+      profilePath,
+      vocabularyPath: resolveVerifyPath(argv),
+    });
+    process.stdout.write(`${JSON.stringify(check, null, 2)}\n`);
+    return check.pinMatch ? 0 : 1;
+  }
+  const destDir = parseArg("--dest", argv) ?? defaultDestDir();
+  const mountSource = parseArg("--mount-source", argv);
+  if (mountSource !== undefined) {
+    const result = mountIssue9Vocabulary({ sourcePath: mountSource, destDir });
+    const check = verifyMountedVocabulary({
+      profilePath,
+      vocabularyPath: result.vocabularyPath,
+    });
+    process.stdout.write(`${JSON.stringify({ ...result, pinMatch: check.pinMatch }, null, 2)}\n`);
+    return check.pinMatch ? 0 : 1;
+  }
+  const fixturePath = parseArg("--fixture", argv) ?? syntheticFixturePath(repoRoot);
+  const profile = JSON.parse(readFileSync(profilePath, "utf8")) as AsdProfile;
+  if (
+    profile.vocabularySha256 !== sha256Bytes(readFileSync(fixturePath)) &&
+    !hasFlag("--force-fixture", argv)
+  ) {
+    process.stderr.write("refuse to replace an Issue 9 pin with the synthetic fixture.\n");
+    return 1;
+  }
   const result = installProvisionalVocabulary({
-    fixturePath:
-      parseArg("--fixture", argv) ??
-      path.join(repoRoot, "scripts/asd-ste100/test/fixtures/vocab/synthetic.json"),
+    fixturePath,
     destDir,
-    profilePath: parseArg("--profile", argv) ?? path.join(repoRoot, "t2.asd-ste100.json"),
+    profilePath,
     coveragePath:
       parseArg("--coverage", argv) ??
       path.join(repoRoot, "scripts/asd-ste100/mapping/records/vocabulary-coverage.json"),
   });
   const check = verifyMountedVocabulary({
-    profilePath: parseArg("--profile", argv) ?? path.join(repoRoot, "t2.asd-ste100.json"),
+    profilePath,
     vocabularyPath: result.vocabularyPath,
   });
   process.stdout.write(`${JSON.stringify({ ...result, pinMatch: check.pinMatch }, null, 2)}\n`);
+  return 0;
+}
+
+function main(argv: Array<string>): void {
+  const code = runProvisionCli(argv);
+  if (code !== 0) {
+    process.exit(code);
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

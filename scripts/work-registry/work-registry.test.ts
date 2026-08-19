@@ -1,15 +1,25 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
-import { PRODUCT_NAME } from "./glossary.ts";
+import { PRODUCT_NAME, REQUIRED_WORK_REGISTRY_TERMS } from "./glossary.ts";
 import {
   appendEpoch,
   checkDrift,
   checkWorkRegistry,
   compileCampaign,
+  dumpWorkRegistry,
   lookupSchema,
   registerCampaign,
   WorkRegistryError,
@@ -98,6 +108,19 @@ function writeCampaign(input: {
   }
   return dir;
 }
+
+describe("glossary", () => {
+  it("lists dump and lookup as verbs", () => {
+    assert.equal(
+      REQUIRED_WORK_REGISTRY_TERMS.some((term) => term.term === "dump" && term.kind === "verb"),
+      true,
+    );
+    assert.equal(
+      REQUIRED_WORK_REGISTRY_TERMS.some((term) => term.term === "lookup" && term.kind === "verb"),
+      true,
+    );
+  });
+});
 
 describe("registerCampaign", () => {
   it("rejects a campaign unless Forgejo and the human both approve", () => {
@@ -246,14 +269,44 @@ describe("compileCampaign", () => {
     assert.equal("event" in schema, false);
   });
 
-  it("loads one schema document from a yaml path using json form", () => {
+  it("loads one schema document from a yaml path using yaml form", () => {
     const dir = writeCampaign({
       proposal: "The campaign uses the work-registry.\n",
       schemaName: "schema.yaml",
     });
     const schema = compileCampaign(dir);
+    const text = readFileSync(path.join(dir, "schema.yaml"), "utf8");
     assert.equal(schema.campaign, "sample");
+    assert.equal(text.trimStart().startsWith("{"), false);
+    assert.match(text, /^product: /m);
+    assert.match(text, /^campaign: sample$/m);
+    assert.match(text, /^terms:$/m);
+    assert.equal(text.endsWith("\n"), true);
     assert.deepEqual(lookupSchema(dir), schema);
+    checkDrift(dir);
+  });
+
+  it("loads a yaml manifest that is not json form", () => {
+    const dir = writeCampaign({
+      proposal: "The campaign uses the work-registry.\n",
+    });
+    writeFileSync(
+      path.join(dir, "manifest.yaml"),
+      [
+        "product: T2_Squared-Work-Registry",
+        "campaign: sample",
+        "proposal: proposal.md",
+        "schema: schema.json",
+        "forgejoApproved: true",
+        "humanApproved: true",
+        "humanOverride: false",
+        "",
+      ].join("\n"),
+    );
+    unlinkSync(path.join(dir, "manifest.json"));
+    const manifest = registerCampaign(dir);
+    assert.equal(manifest.campaign, "sample");
+    assert.equal(manifest.forgejoApproved, true);
   });
 });
 
@@ -276,6 +329,32 @@ describe("appendEpoch", () => {
     assert.equal(again.subject, "progeny");
     assert.equal(again.kind, "epoch");
   });
+
+  it("appends yaml when the epoch path ends in yaml", () => {
+    const dir = writeCampaign({
+      proposal: "The campaign has a genesis.\n",
+    });
+    writeFileSync(
+      path.join(dir, "epoch.yaml"),
+      [
+        "- kind: epoch",
+        "  campaign: sample",
+        "  subject: genesis",
+        "  id: sample",
+        `  commitSha: ${SAMPLE_SHA}`,
+        "",
+      ].join("\n"),
+    );
+    appendEpoch(dir, {
+      subject: "progeny",
+      id: "child-one",
+      commitSha: SAMPLE_SHA,
+    });
+    const text = readFileSync(path.join(dir, "epoch.yaml"), "utf8");
+    assert.equal(text.trimStart().startsWith("["), false);
+    assert.match(text, /^- kind: epoch$/m);
+    assert.equal(text.endsWith("\n"), true);
+  });
 });
 
 describe("checkWorkRegistry", () => {
@@ -284,6 +363,67 @@ describe("checkWorkRegistry", () => {
     mkdirSync(path.join(root, PRODUCT_NAME));
     writeFileSync(path.join(root, PRODUCT_NAME, ".gitkeep"), "");
     checkWorkRegistry(root);
+  });
+
+  it("passes the live asd-ste100-compliance campaign", () => {
+    const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    assert.equal(existsSync(path.join(repoRoot, PRODUCT_NAME, "asd-ste100-compliance")), true);
+    checkWorkRegistry(repoRoot);
+  });
+});
+
+describe("dumpWorkRegistry", () => {
+  it("lists campaigns without a Forgejo-review", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "t2-work-registry-dump-"));
+    const dir = writeCampaign({
+      forgejoApproved: false,
+      humanApproved: true,
+      humanOverride: true,
+      proposal: "The campaign uses the work-registry.\n",
+    });
+    mkdirSync(path.join(root, PRODUCT_NAME), { recursive: true });
+    cpSync(dir, path.join(root, PRODUCT_NAME, "sample"), { recursive: true });
+    const dump = dumpWorkRegistry(root);
+    assert.equal(dump.length, 1);
+    assert.equal(dump[0]?.campaign, "sample");
+    assert.equal(dump[0]?.schema, "schema.json");
+    assert.equal(dump[0]?.approved, true);
+    assert.equal(dump[0]?.forgejoClosed, false);
+    assert.equal(dump[0]?.forgejoApproved, false);
+    assert.equal(dump[0]?.humanOverride, true);
+  });
+
+  it("marks Forgejo-closed only without override", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "t2-work-registry-dump-closed-"));
+    const dir = writeCampaign({
+      forgejoApproved: true,
+      humanApproved: true,
+      humanOverride: false,
+      proposal: "The campaign uses the work-registry.\n",
+    });
+    mkdirSync(path.join(root, PRODUCT_NAME), { recursive: true });
+    cpSync(dir, path.join(root, PRODUCT_NAME, "sample"), { recursive: true });
+    const dump = dumpWorkRegistry(root);
+    assert.equal(dump[0]?.approved, true);
+    assert.equal(dump[0]?.forgejoClosed, true);
+  });
+
+  it("keeps live campaigns Forgejo-closed after synthetic review", () => {
+    const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const dump = dumpWorkRegistry(repoRoot);
+    assert.equal(dump.length > 0, true);
+    assert.equal(
+      dump.every((entry) => entry.forgejoClosed === true),
+      true,
+    );
+    assert.equal(
+      dump.every((entry) => entry.humanOverride === false),
+      true,
+    );
+    assert.equal(
+      dump.every((entry) => entry.approved === true),
+      true,
+    );
   });
 });
 

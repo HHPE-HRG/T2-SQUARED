@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -11,16 +19,42 @@ import { assertLiveRulesMatchEnforcedCheckers, loadLiveRuleMappings } from "./re
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const fixtureRoot = path.join(repoRoot, "scripts/asd-ste100/test/fixtures");
 
-const WORK_REGISTRY_AND_CAN_PATHS = [
-  "governance",
-  "work-registry",
-  "scripts/work-registry",
+const CAN_CAMPAIGN_PATHS = [
   "campaigns",
   "docs/campaigns",
-  "docs/work-registry",
   "can-campaign",
   "docs/can-campaign",
 ] as const;
+
+function jsonHasWordsList(value: unknown): boolean {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  if (Array.isArray(value)) {
+    return value.some((entry) => jsonHasWordsList(entry));
+  }
+  const record = value as Record<string, unknown>;
+  if (Array.isArray(record.words) && record.words.length > 0) {
+    return true;
+  }
+  return Object.values(record).some((entry) => jsonHasWordsList(entry));
+}
+
+function campaignTreeHasOfficialWordsShape(dir: string): boolean {
+  if (!existsSync(dir)) {
+    return false;
+  }
+  return walkFiles(dir).some((filePath) => {
+    if (!filePath.endsWith(".json") && !filePath.endsWith(".yaml")) {
+      return false;
+    }
+    try {
+      return jsonHasWordsList(JSON.parse(readFileSync(filePath, "utf8")));
+    } catch {
+      return false;
+    }
+  });
+}
 
 function walkFiles(dir: string): Array<string> {
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -33,9 +67,9 @@ function walkFiles(dir: string): Array<string> {
   });
 }
 
-describe("AE10 work-registry and CAN campaign files stay absent", () => {
-  it("does not add work-registry or CAN campaign implementation paths", () => {
-    for (const relative of WORK_REGISTRY_AND_CAN_PATHS) {
+describe("AE10 CAN campaign files stay absent", () => {
+  it("does not add CAN campaign implementation paths", () => {
+    for (const relative of CAN_CAMPAIGN_PATHS) {
       assert.equal(
         existsSync(path.join(repoRoot, relative)),
         false,
@@ -73,5 +107,24 @@ describe("fixtures never contain official dictionary entries", () => {
 describe("profile rules match enforced checkers", () => {
   it("reuses the live registry assert against committed mappings", () => {
     assertLiveRulesMatchEnforcedCheckers(loadLiveRuleMappings(repoRoot));
+  });
+});
+
+describe("W4 and W5 hold Issue 9 words and CAN out of git", () => {
+  it("keeps the live work-registry free of a words list payload", () => {
+    assert.equal(
+      campaignTreeHasOfficialWordsShape(path.join(repoRoot, "T2_Squared-Work-Registry")),
+      false,
+    );
+  });
+
+  it("fails a planted official-shaped words file in a campaign folder", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "t2-campaign-words-"));
+    mkdirSync(path.join(dir, "sample"));
+    writeFileSync(
+      path.join(dir, "sample", "words.json"),
+      `${JSON.stringify({ words: ["synthlemmaaaa"] })}\n`,
+    );
+    assert.equal(campaignTreeHasOfficialWordsShape(dir), true);
   });
 });

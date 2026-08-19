@@ -15,6 +15,8 @@ export const REQUIRED_WORK_REGISTRY_TERMS: ReadonlyArray<WorkRegistryTerm> = [
   { term: "schema", kind: "noun" },
   { term: "drift", kind: "noun" },
   { term: "compile", kind: "verb" },
+  { term: "dump", kind: "verb" },
+  { term: "lookup", kind: "verb" },
   { term: "approve", kind: "verb" },
   { term: "register", kind: "verb" },
   { term: "genesis", kind: "noun" },

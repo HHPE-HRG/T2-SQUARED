@@ -58,7 +58,12 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /hhpe-ci/);
     assert.match(text, /distinct/i);
     assert.match(text, /t2-trusted/);
+    assert.match(text, /orchestration-vm/);
+    assert.match(text, /forgejo-runner-t2-trusted\/vocab\/synthetic\.json/);
     assert.match(text, /pending-human/);
+    assert.match(text, /verify-only/);
+    assert.match(text, /inspects the private file/);
+    assert.match(text, /pin-landed-pending-review/);
   });
 
   it("does not copy official dictionary entries or ASD examples", () => {
@@ -66,15 +71,38 @@ describe("owned enforcement documentation", () => {
     assert.doesNotMatch(text, /approved word list|dictionary entry|camshaft/i);
   });
 
-  it("records Forgejo admission, excluded transcripts and machine text, and deferred registry work", () => {
+  it("records Forgejo admission, excluded transcripts and machine text, and live work-registry", () => {
     const text = read("docs/internals/asd-ste100-enforcement.md");
     assert.match(text, /Forgejo admission/);
     assert.match(text, /not a local commit typecheck/);
     assert.match(text, /transcripts/);
     assert.match(text, /machine text/);
-    assert.match(text, /does not start work-registry/);
+    assert.match(text, /work-registry lives in Git/i);
     assert.match(text, /does not start CAN campaign/);
-    assert.doesNotMatch(text, /Work-registry implementation can start after this slice/);
+    assert.match(text, /dump of the private file/);
+    assert.match(text, /lexicon bridge/);
+    assert.match(text, /git merge is the human gate/i);
+    assert.match(text, /private lexicon store/);
+    assert.match(text, /jpg sidecar/);
+    assert.match(text, /T2-SQUARED-References/);
+    assert.match(text, /explicit git-merge flag/);
+    assert.match(text, /frozen page splits/);
+    assert.match(text, /Product-class forks/);
+    assert.doesNotMatch(text, /does not start work-registry/);
+    assert.match(text, /provision mounts the/i);
+    assert.match(text, /fixture/i);
+    assert.match(text, /pin check/i);
+    assert.match(text, /without flipping review/i);
+    assert.match(text, /fail G2 after that approve/i);
+    assert.match(text, /heuristic/i);
+    assert.match(text, /do not fail G2/i);
+    assert.match(text, /identifier[- ]policy/i);
+    assert.match(text, /canonical human term/i);
+    assert.match(text, /T2-TERM-canonical/);
+    assert.match(text, /same lemma/i);
+    assert.match(text, /pin-landed-pending-review/);
+    assert.match(text, /self-sign/);
+    assert.match(text, /co-sign/);
   });
 });
 
@@ -86,6 +114,7 @@ describe("contributor index", () => {
     assert.match(readme, /asd-ste100-enforcement/);
     assert.match(readme, /asd-ste100-forgejo/);
     assert.match(scripts, /ci:asd-ste100/);
+    assert.match(scripts, /asd-ste100:lexicon-scan/);
     assert.match(agents, /T2-owned/);
     assert.match(agents, /raw conversation/i);
   });

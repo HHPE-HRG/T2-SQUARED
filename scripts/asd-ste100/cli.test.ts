@@ -6,6 +6,8 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import type { ForgejoPull, ForgejoReview, ReviewerRoster } from "./forgejo.ts";
+import type { ProposedOverride } from "./override.ts";
 import { VocabularyMissingError } from "./vocabulary.ts";
 import {
   EXIT,
@@ -72,7 +74,21 @@ function connectedCwd(
   writeFileSync(
     path.join(dir, "t2.asd-ste100.terms.json"),
     `${JSON.stringify({
-      terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+      subjectFields: {
+        "asd-enforcement": { admittedTerms: ["Forgejo"] },
+      },
+      terms: [
+        {
+          term: "Forgejo",
+          kind: "noun",
+          reviewed: true,
+          concept: "The self-hosted git forge that admits T2 work.",
+          canonical: true,
+          technicalTermClass: "product-name",
+          subjectFields: ["asd-enforcement"],
+          asdBasis: ["1.5"],
+        },
+      ],
     })}\n`,
   );
   writeFileSync(
@@ -89,10 +105,60 @@ function connectedCwd(
   return dir;
 }
 
-function gate(result: { gates: Array<{ id: string; ok: boolean; reason: string }> }, id: string) {
+function gate(
+  result: { gates: Array<{ id: string; ok: boolean; reason: string; status?: string }> },
+  id: string,
+) {
   const found = result.gates.find((entry) => entry.id === id);
   assert.ok(found, `missing gate ${id}`);
   return found;
+}
+
+const HEAD_SHA = "headsha";
+
+const reviewRoster: ReviewerRoster = {
+  identities: [{ userId: 1, principal: "author-1", kind: "human", ci: false }],
+  reviewers: [{ userId: 2, principal: "human-a", kind: "human", ci: false }],
+};
+
+const reviewPull = (extra: Partial<ForgejoPull> = {}): ForgejoPull => ({
+  id: 11,
+  number: 3,
+  repositoryId: 7,
+  authorId: 1,
+  headSha: HEAD_SHA,
+  title: "Add the gate.",
+  body: "body",
+  commits: [{ sha: HEAD_SHA, authorId: 1, message: "Add the gate." }],
+  ...extra,
+});
+
+const approvedReview = (extra: Partial<ForgejoReview> = {}): ForgejoReview => ({
+  id: 44,
+  userId: 2,
+  state: "APPROVED",
+  commitId: HEAD_SHA,
+  body: "",
+  ...extra,
+});
+
+function withValidReview(extra: Partial<CliDeps> = {}): Partial<CliDeps> {
+  return {
+    pull: reviewPull(),
+    review: approvedReview(),
+    roster: reviewRoster,
+    mergeBaseRoster: reviewRoster,
+    ...extra,
+  };
+}
+
+function connectedOfficial(extra: Partial<CliDeps> = {}): Partial<CliDeps> {
+  const official = Buffer.from(`${JSON.stringify({ words: ["synthlemmaaaa"] })}\n`);
+  return {
+    cwd: connectedCwd(sha256(official)),
+    officialVocabularyBytes: () => official,
+    ...extra,
+  };
 }
 
 describe("package scripts", () => {
@@ -123,6 +189,7 @@ describe("skipScanPath", () => {
       true,
     );
     assert.equal(skipScanPath("scripts/asd-ste100/mapping/AGENT_HEURISTIC.md"), true);
+    assert.equal(skipScanPath("scripts/asd-ste100/mapping/records/official-unreviewed.json"), true);
     assert.equal(skipScanPath("docs/operations/asd-ste100-forgejo.md"), false);
   });
 });
@@ -225,14 +292,7 @@ describe("runCli", () => {
   });
 
   it("passes G3 in connected modes when the pin matches a derived words JSON list", () => {
-    const official = Buffer.from(`${JSON.stringify({ words: ["synthlemmaaaa"] })}\n`);
-    const result = runCli(
-      ["--mode", "pr"],
-      deps({
-        cwd: connectedCwd(sha256(official)),
-        officialVocabularyBytes: () => official,
-      }),
-    );
+    const result = runCli(["--mode", "pr"], deps(connectedOfficial(withValidReview())));
     assert.equal(gate(result, "G3").ok, true);
     assert.equal(result.ok, true);
   });
@@ -285,9 +345,12 @@ describe("runCli", () => {
   });
 
   it("does not fail G2 on Rule 1.1 while vocabulary review is pending-human", () => {
+    const official = Buffer.from(`${JSON.stringify({ words: ["qzvstelemmaone"] })}\n`);
     const result = runCli(
-      ["--mode", "fixture"],
+      ["--mode", "pr"],
       deps({
+        cwd: connectedCwd(sha256(official), { vocabularyReview: "pending-human" }),
+        officialVocabularyBytes: () => official,
         findings: [
           {
             path: "docs/note.md",
@@ -366,6 +429,44 @@ describe("runCli", () => {
     assert.equal(result.ok, false);
   });
 
+  it("fails G2 on T2 identifier-policy findings", () => {
+    const result = runCli(
+      ["--mode", "fixture"],
+      deps({
+        findings: [
+          {
+            path: "docs/note.md",
+            line: 1,
+            column: 1,
+            ruleId: "T2-IDENTIFIER-projection",
+            message: 'T2 identifier "xyzzyGate" is not bound to a qualified concept.',
+          },
+        ],
+      }),
+    );
+    assert.equal(gate(result, "G2").ok, false);
+    assert.equal(result.ok, false);
+  });
+
+  it("fails G2 on T2 canonical-term findings", () => {
+    const result = runCli(
+      ["--mode", "fixture"],
+      deps({
+        findings: [
+          {
+            path: "docs/note.md",
+            line: 1,
+            column: 1,
+            ruleId: "T2-TERM-canonical",
+            message: 'prose "Work-Registry" is not the canonical human form "work-registry".',
+          },
+        ],
+      }),
+    );
+    assert.equal(gate(result, "G2").ok, false);
+    assert.equal(result.ok, false);
+  });
+
   it("does not let a not-applicable intent result hide another gate failure", () => {
     const result = runCli(
       ["--mode", "pr"],
@@ -387,6 +488,86 @@ describe("runCli", () => {
       true,
     );
     assert.equal(result.ok, false);
+  });
+
+  it("fails G5 in PR mode when the review is missing", () => {
+    const result = runCli(["--mode", "pr"], deps());
+    assert.equal(gate(result, "G5").ok, false);
+    assert.match(gate(result, "G5").reason, /review is missing/i);
+    assert.equal(result.ok, false);
+  });
+
+  it("passes G5 in PR mode with a valid distinct-principal APPROVED review on head", () => {
+    const result = runCli(["--mode", "pr"], deps(connectedOfficial(withValidReview())));
+    assert.equal(gate(result, "G5").ok, true);
+    assert.equal(result.ok, true);
+  });
+
+  it("fails G5 in PR mode when the author reviews their own pull", () => {
+    const result = runCli(
+      ["--mode", "pr"],
+      deps({
+        pull: reviewPull(),
+        review: approvedReview({ userId: 1 }),
+        roster: reviewRoster,
+      }),
+    );
+    assert.equal(gate(result, "G5").ok, false);
+    assert.match(gate(result, "G5").reason, /self-review/i);
+    assert.equal(result.ok, false);
+  });
+
+  it("fails G6 when a proposed override is rejected", () => {
+    const proposedOverride: ProposedOverride = {
+      pullNumber: 3,
+      repositoryId: 7,
+      reviewId: 44,
+      headSha: HEAD_SHA,
+      findings: [
+        {
+          file: "docs/note.md",
+          line: 1,
+          ruleId: "ASD-STE100-5.1",
+          contentSha256: "a".repeat(64),
+          occurrenceAnchor: "docs/note.md:1:ASD-STE100-5.1:0",
+          repairAttemptHashes: ["b".repeat(64)],
+          reason: "proper name cannot be shortened",
+        },
+      ],
+    };
+    for (const mode of ["pr", "release"] as const) {
+      const result = runCli(
+        ["--mode", mode],
+        deps(
+          connectedOfficial(
+            withValidReview({
+              proposedOverride,
+              overrideCurrentFindings: [],
+            }),
+          ),
+        ),
+      );
+      assert.equal(gate(result, "G5").ok, true, `${mode} G5`);
+      assert.equal(gate(result, "G6").ok, false, `${mode} G6`);
+      assert.equal(result.ok, false, `${mode} aggregate`);
+    }
+  });
+
+  it("passes G6 in PR mode when a valid review has no override", () => {
+    const result = runCli(["--mode", "pr"], deps(connectedOfficial(withValidReview())));
+    assert.equal(gate(result, "G6").ok, true);
+    assert.equal(result.ok, true);
+  });
+
+  it("keeps G5 not applicable in fixture and main modes", () => {
+    const fixture = runCli(["--mode", "fixture"], deps());
+    const main = runCli(["--mode", "main"], deps(connectedOfficial()));
+    assert.equal(gate(fixture, "G5").ok, true);
+    assert.equal(gate(fixture, "G5").status, "not_applicable");
+    assert.equal(gate(main, "G5").ok, true);
+    assert.equal(gate(main, "G5").status, "not_applicable");
+    assert.equal(fixture.ok, true);
+    assert.equal(main.ok, true);
   });
 
   it("fails intent applicability when governed system text has no trace evidence", () => {
@@ -447,7 +628,21 @@ describe("loadScanLexicon", () => {
     writeFileSync(
       path.join(dir, "t2.asd-ste100.terms.json"),
       `${JSON.stringify({
-        terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+        subjectFields: {
+          "asd-enforcement": { admittedTerms: ["Forgejo"] },
+        },
+        terms: [
+          {
+            term: "Forgejo",
+            kind: "noun",
+            reviewed: true,
+            concept: "The self-hosted git forge that admits T2 work.",
+            canonical: true,
+            technicalTermClass: "product-name",
+            subjectFields: ["asd-enforcement"],
+            asdBasis: ["1.5"],
+          },
+        ],
       })}\n`,
     );
     const syntheticDir = path.join(dir, "scripts/asd-ste100/test/fixtures/vocab");

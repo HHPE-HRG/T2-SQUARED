@@ -17,9 +17,49 @@ export interface MappingIdentity {
   kind: "human" | "agent";
 }
 
+export type MappingProviderKind = "git-host" | "network" | "review-portal";
+
+export interface MappingProvider {
+  id: string;
+  kind: MappingProviderKind;
+}
+
+export interface MappingCredential {
+  id: string;
+  provider: string;
+  subject: string;
+}
+
+export interface MappingProfile {
+  id: string;
+  kind: "human" | "agent";
+  principal: string;
+  credentials: Array<MappingCredential>;
+}
+
+export interface MappingPrincipalsFile {
+  selfSignWhenHumanCountBelow?: number;
+  selfSignWhenHumanProfileCountBelow?: number;
+  providers?: Array<MappingProvider>;
+  profiles?: Array<MappingProfile>;
+  identities: Array<MappingIdentity>;
+}
+
 export const MAPPING_PRINCIPALS_PATH = "scripts/asd-ste100/mapping/records/principals.json";
 export const DEFAULT_SELF_SIGN_HUMAN_THRESHOLD = 2;
 export const SELF_SIGN_REVIEW_NOTE = "KTD28 self-sign: single operator";
+const PROVIDER_KINDS = new Set<MappingProviderKind>(["git-host", "network", "review-portal"]);
+const CREDENTIAL_KEYS = new Set(["id", "provider", "subject"]);
+const SECRET_CREDENTIAL_KEYS = new Set([
+  "password",
+  "token",
+  "pat",
+  "secret",
+  "privateKey",
+  "private_key",
+  "apiKey",
+  "api_key",
+]);
 
 export interface PrivateLexiconCoverage {
   class: "private_lexicon";
@@ -93,32 +133,129 @@ function identityById(
   return identities.find((entry) => entry.id === id);
 }
 
-export function loadMappingPrincipals(root: string): Array<MappingIdentity> {
+export function loadMappingPrincipalsFile(root: string): MappingPrincipalsFile {
   const filePath = path.join(root, MAPPING_PRINCIPALS_PATH);
   if (!existsSync(filePath)) {
-    return [];
+    return { identities: [] };
   }
-  const parsed = JSON.parse(readFileSync(filePath, "utf8")) as {
-    identities?: Array<MappingIdentity>;
+  const parsed = JSON.parse(readFileSync(filePath, "utf8")) as MappingPrincipalsFile;
+  return {
+    selfSignWhenHumanCountBelow: parsed.selfSignWhenHumanCountBelow,
+    selfSignWhenHumanProfileCountBelow: parsed.selfSignWhenHumanProfileCountBelow,
+    providers: parsed.providers ?? [],
+    profiles: parsed.profiles ?? [],
+    identities: parsed.identities ?? [],
   };
-  return parsed.identities ?? [];
+}
+
+export function loadMappingPrincipals(root: string): Array<MappingIdentity> {
+  return loadMappingPrincipalsFile(root).identities;
 }
 
 export function humanIdentityCount(identities: ReadonlyArray<MappingIdentity>): number {
   return identities.filter((entry) => entry.kind === "human").length;
 }
 
+export function humanProfileCount(file: MappingPrincipalsFile): number {
+  if (file.profiles !== undefined && file.profiles.length > 0) {
+    return file.profiles.filter((entry) => entry.kind === "human").length;
+  }
+  return humanIdentityCount(file.identities);
+}
+
 export function selfSignAllowed(
   identities: ReadonlyArray<MappingIdentity>,
   humanCountBelow: number = DEFAULT_SELF_SIGN_HUMAN_THRESHOLD,
+  profiles?: ReadonlyArray<MappingProfile>,
 ): boolean {
+  if (profiles !== undefined && profiles.length > 0) {
+    return profiles.filter((entry) => entry.kind === "human").length < humanCountBelow;
+  }
   return humanIdentityCount(identities) < humanCountBelow;
+}
+
+export function selfSignMode(file: MappingPrincipalsFile): "self-sign" | "co-sign" {
+  const threshold =
+    file.selfSignWhenHumanProfileCountBelow ??
+    file.selfSignWhenHumanCountBelow ??
+    DEFAULT_SELF_SIGN_HUMAN_THRESHOLD;
+  return selfSignAllowed(file.identities, threshold, file.profiles) ? "self-sign" : "co-sign";
+}
+
+export function validateMappingPrincipals(file: MappingPrincipalsFile): void {
+  const providers = file.providers ?? [];
+  const profiles = file.profiles ?? [];
+  const providerIds = new Set<string>();
+  for (const provider of providers) {
+    if (typeof provider.id !== "string" || provider.id.length === 0) {
+      throw new Error("provider id is required");
+    }
+    if (!PROVIDER_KINDS.has(provider.kind)) {
+      throw new Error(`unknown provider kind: ${provider.kind}`);
+    }
+    if (providerIds.has(provider.id)) {
+      throw new Error(`duplicate provider id: ${provider.id}`);
+    }
+    providerIds.add(provider.id);
+  }
+  const profileIds = new Set<string>();
+  const credentialIds = new Set<string>();
+  for (const profile of profiles) {
+    if (typeof profile.id !== "string" || profile.id.length === 0) {
+      throw new Error("profile id is required");
+    }
+    if (profile.kind !== "human" && profile.kind !== "agent") {
+      throw new Error(`unknown profile kind: ${profile.kind}`);
+    }
+    if (typeof profile.principal !== "string" || profile.principal.length === 0) {
+      throw new Error("profile principal is required");
+    }
+    if (profileIds.has(profile.id)) {
+      throw new Error(`duplicate profile id: ${profile.id}`);
+    }
+    profileIds.add(profile.id);
+    const credentials = profile.credentials ?? [];
+    if (profile.kind === "human" && credentials.length === 0) {
+      throw new Error("human profile needs a credential");
+    }
+    for (const credential of credentials as Array<Record<string, unknown>>) {
+      const extraKeys = Object.keys(credential);
+      for (const key of extraKeys) {
+        if (SECRET_CREDENTIAL_KEYS.has(key)) {
+          throw new Error(`credential secret field is not permitted: ${key}`);
+        }
+        if (!CREDENTIAL_KEYS.has(key)) {
+          throw new Error(`unknown credential field: ${key}`);
+        }
+      }
+      const id = credential.id;
+      const provider = credential.provider;
+      const subject = credential.subject;
+      if (typeof id !== "string" || id.length === 0) {
+        throw new Error("credential id is required");
+      }
+      if (typeof provider !== "string" || provider.length === 0) {
+        throw new Error("credential provider is required");
+      }
+      if (typeof subject !== "string" || subject.length === 0) {
+        throw new Error("credential subject is required");
+      }
+      if (!providerIds.has(provider)) {
+        throw new Error(`unknown credential provider: ${provider}`);
+      }
+      if (credentialIds.has(id)) {
+        throw new Error(`duplicate credential id: ${id}`);
+      }
+      credentialIds.add(id);
+    }
+  }
 }
 
 export function reviewOfficialMappingRows(
   rows: ReadonlyArray<MappingRow>,
   review: MappingReview,
   identities: ReadonlyArray<MappingIdentity>,
+  profiles?: ReadonlyArray<MappingProfile>,
 ): Array<MappingRow> {
   const author = identityById(identities, review.authorId);
   const reviewer = identityById(identities, review.reviewerId);
@@ -131,7 +268,7 @@ export function reviewOfficialMappingRows(
   if (reviewer.kind !== "human") {
     throw new Error("KTD28 reviewer must be human");
   }
-  const allowSelfSign = selfSignAllowed(identities);
+  const allowSelfSign = selfSignAllowed(identities, DEFAULT_SELF_SIGN_HUMAN_THRESHOLD, profiles);
   if (author.principal === reviewer.principal && !allowSelfSign) {
     throw new Error("author principal must differ from reviewer principal");
   }

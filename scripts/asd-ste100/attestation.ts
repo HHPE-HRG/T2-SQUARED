@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Finding } from "./rules.ts";
+import { parseApprovedWordsFromOfficialBytes } from "./vocabulary.ts";
 
 export interface RuleSubsetAttestation {
   kind: "rule-subset attestation";
@@ -12,6 +13,8 @@ export interface RuleSubsetAttestation {
   vocabularySha256: string;
   profileIssue: string;
   ruleCoverage: Array<string>;
+  identifierPolicy: "T2-IDENTIFIER-projection";
+  termCanonical: "T2-TERM-canonical";
   authorIds: Array<number>;
   reviewerIds: Array<number>;
   findings: Array<unknown>;
@@ -72,6 +75,8 @@ export function buildAttestation(input: {
     vocabularySha256: input.vocabularySha256,
     profileIssue: input.profileIssue,
     ruleCoverage: [...input.ruleCoverage],
+    identifierPolicy: "T2-IDENTIFIER-projection",
+    termCanonical: "T2-TERM-canonical",
     authorIds: [...input.authorIds],
     reviewerIds: [...input.reviewerIds],
     findings: [...input.findings],
@@ -79,6 +84,25 @@ export function buildAttestation(input: {
     aggregateOk: input.aggregateOk,
     generatedAt: input.generatedAt,
   };
+}
+
+/** Whole-file dumps only. One official lemma in source text is not a leak. */
+function dumpNeedles(official: string): Array<string> {
+  const needles = new Set<string>();
+  needles.add(official);
+  const trimmed = official.trim();
+  if (trimmed.length > 0) {
+    needles.add(trimmed);
+  }
+  try {
+    const words = parseApprovedWordsFromOfficialBytes(Buffer.from(official, "utf8"));
+    needles.add(JSON.stringify({ words }));
+    needles.add(`${JSON.stringify({ words })}\n`);
+    needles.add(JSON.stringify(words));
+  } catch {
+    // Opaque bytes still use the whole-file needle.
+  }
+  return [...needles].filter((needle) => needle.length > 0);
 }
 
 export function scanForVocabularyLeak(input: {
@@ -92,27 +116,13 @@ export function scanForVocabularyLeak(input: {
     typeof input.officialBytes === "string"
       ? input.officialBytes
       : input.officialBytes.toString("utf8");
-  const needle = official.trim();
-  if (needle.length === 0) {
+  if (official.trim().length === 0) {
     return { ok: false, reason: "leak scan unavailable" };
   }
-  const lemmas = [
-    ...new Set(needle.toLowerCase().match(/[a-z][a-z'-]{5,}/g) ?? []),
-  ];
-  if (lemmas.length === 0) {
-    if (input.texts.some((text) => text.includes(needle))) {
-      return { ok: false, reason: "vocabulary leak in result output" };
-    }
-    return { ok: true, reason: "" };
-  }
+  const needles = dumpNeedles(official);
   for (const text of input.texts) {
-    const lower = text.toLowerCase();
-    if (text.includes(needle)) {
-      return { ok: false, reason: "vocabulary leak in result output" };
-    }
-    for (const lemma of lemmas) {
-      const pattern = new RegExp(`(?:^|[^a-z])${lemma}(?:[^a-z]|$)`, "i");
-      if (pattern.test(lower)) {
+    for (const needle of needles) {
+      if (text.includes(needle)) {
         return { ok: false, reason: "vocabulary leak in result output" };
       }
     }

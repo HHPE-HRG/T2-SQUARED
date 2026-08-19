@@ -1,0 +1,42 @@
+{
+  "product": "T2_Squared-Work-Registry",
+  "campaign": "registry-yaml-write",
+  "terms": [
+    {
+      "term": "campaign",
+      "kind": "noun"
+    },
+    {
+      "term": "compile",
+      "kind": "verb"
+    },
+    {
+      "term": "dump",
+      "kind": "verb"
+    },
+    {
+      "term": "Forgejo-review",
+      "kind": "noun"
+    },
+    {
+      "term": "genesis",
+      "kind": "noun"
+    },
+    {
+      "term": "lookup",
+      "kind": "verb"
+    },
+    {
+      "term": "proposal",
+      "kind": "noun"
+    },
+    {
+      "term": "schema",
+      "kind": "noun"
+    },
+    {
+      "term": "work-registry",
+      "kind": "noun"
+    }
+  ]
+}

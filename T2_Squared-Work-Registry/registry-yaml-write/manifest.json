@@ -1,0 +1,9 @@
+{
+  "product": "T2_Squared-Work-Registry",
+  "campaign": "registry-yaml-write",
+  "proposal": "proposal.md",
+  "schema": "schema.json",
+  "forgejoApproved": true,
+  "humanApproved": true,
+  "humanOverride": false
+}

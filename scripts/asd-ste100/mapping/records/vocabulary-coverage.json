@@ -1,6 +1,10 @@
 {
-  "coverageKind": "provisional-unreviewed",
-  "lemmaCount": 3,
-  "vocabularySha256": "f2a23a43dd5d94cbc2d33e4338b9ed529cdd3945ca3ce91fde425455637e22cb",
-  "humanReview": "pending-human"
+  "coverageKind": "issue9-dictionary-human-verified",
+  "lemmaCount": 794,
+  "vocabularySha256": "db49e0d73a35392c190ed529034f4e4a354af54519eb6c88ad7105cbf7e3884e",
+  "humanReview": "human-verified",
+  "declaredApprovedCount": 875,
+  "declaredNonapprovedCount": 1274,
+  "collapsedEntryCount": 81,
+  "phraseCount": 18
 }

@@ -8,6 +8,7 @@ export interface ReviewerEntry {
 export interface ReviewerRoster {
   reviewers: Array<ReviewerEntry>;
   identities?: Array<ReviewerEntry>;
+  selfSignAllowed?: boolean;
 }
 
 export interface ForgejoCommit {

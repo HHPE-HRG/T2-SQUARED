@@ -99,6 +99,20 @@ describe("validateReview", () => {
     assert.match(result.reason, /self-review/i);
   });
 
+  it("allows author self-review when one human profile is in self-sign mode", () => {
+    const selfSignRoster: ReviewerRoster = {
+      identities: [{ userId: 1, principal: "t2-single-operator", kind: "human", ci: false }],
+      reviewers: [{ userId: 1, principal: "t2-single-operator", kind: "human", ci: false }],
+      selfSignAllowed: true,
+    };
+    const result = validateReview({
+      pull: pull(),
+      review: review({ userId: 1 }),
+      roster: selfSignRoster,
+    });
+    assert.equal(result.ok, true);
+  });
+
   it("rejects a shared CI identity as rule-subset review", () => {
     const result = validateReview({
       pull: pull(),

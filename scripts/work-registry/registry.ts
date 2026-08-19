@@ -71,11 +71,240 @@ function listFiles(dir: string, acc: Array<string> = []): Array<string> {
   return acc;
 }
 
-function parseDocument(filePath: string): unknown {
-  return JSON.parse(readFileSync(filePath, "utf8"));
+interface YamlLine {
+  indent: number;
+  text: string;
 }
 
-function encodeDocument(value: unknown): string {
+function parseScalar(raw: string): unknown {
+  if (raw === "" || raw === "null" || raw === "~") {
+    return null;
+  }
+  if (raw === "true") {
+    return true;
+  }
+  if (raw === "false") {
+    return false;
+  }
+  if (
+    raw.length >= 2 &&
+    ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))
+  ) {
+    return raw.slice(1, -1);
+  }
+  if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(raw)) {
+    return Number(raw);
+  }
+  return raw;
+}
+
+function yamlLines(source: string): Array<YamlLine> {
+  const out: Array<YamlLine> = [];
+  for (const raw of source.split(/\r?\n/)) {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0 || trimmed.startsWith("#")) {
+      continue;
+    }
+    out.push({ indent: raw.length - raw.trimStart().length, text: trimmed });
+  }
+  return out;
+}
+
+function parseYamlMap(
+  lines: Array<YamlLine>,
+  start: number,
+  indent: number,
+): { value: Record<string, unknown>; next: number } {
+  const obj: Record<string, unknown> = {};
+  let index = start;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (line === undefined || line.indent !== indent || line.text.startsWith("- ")) {
+      break;
+    }
+    const colon = line.text.indexOf(":");
+    if (colon < 1) {
+      throw new WorkRegistryError("the document is not valid.");
+    }
+    const key = line.text.slice(0, colon).trim();
+    const rest = line.text.slice(colon + 1).trim();
+    if (rest.length > 0) {
+      obj[key] = parseScalar(rest);
+      index += 1;
+      continue;
+    }
+    const nested = lines[index + 1];
+    if (nested === undefined || nested.indent <= indent) {
+      obj[key] = null;
+      index += 1;
+      continue;
+    }
+    const child = parseYamlBlock(lines, index + 1, nested.indent);
+    obj[key] = child.value;
+    index = child.next;
+  }
+  return { value: obj, next: index };
+}
+
+function parseYamlSeq(
+  lines: Array<YamlLine>,
+  start: number,
+  indent: number,
+): { value: Array<unknown>; next: number } {
+  const items: Array<unknown> = [];
+  let index = start;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (line === undefined || line.indent !== indent || !line.text.startsWith("- ")) {
+      break;
+    }
+    const rest = line.text.slice(2).trim();
+    const nested = lines[index + 1];
+    if (rest.length === 0) {
+      if (nested === undefined || nested.indent <= indent) {
+        items.push(null);
+        index += 1;
+        continue;
+      }
+      const child = parseYamlBlock(lines, index + 1, nested.indent);
+      items.push(child.value);
+      index = child.next;
+      continue;
+    }
+    if (rest.includes(":")) {
+      const saved = lines[index];
+      lines[index] = { indent: indent + 2, text: rest };
+      const child = parseYamlMap(lines, index, indent + 2);
+      lines[index] = saved;
+      items.push(child.value);
+      index = child.next;
+      continue;
+    }
+    items.push(parseScalar(rest));
+    index += 1;
+  }
+  return { value: items, next: index };
+}
+
+function parseYamlBlock(
+  lines: Array<YamlLine>,
+  start: number,
+  indent: number,
+): { value: unknown; next: number } {
+  const first = lines[start];
+  if (first === undefined || first.indent !== indent) {
+    throw new WorkRegistryError("the document is not valid.");
+  }
+  if (first.text.startsWith("- ")) {
+    return parseYamlSeq(lines, start, indent);
+  }
+  return parseYamlMap(lines, start, indent);
+}
+
+/** JSON form or a small YAML subset. One stem still names one document. */
+function parseYamlDocument(source: string): unknown {
+  const lines = yamlLines(source);
+  if (lines.length === 0) {
+    throw new WorkRegistryError("the document is not valid.");
+  }
+  const parsed = parseYamlBlock(lines, 0, lines[0]?.indent ?? 0);
+  if (parsed.next !== lines.length) {
+    throw new WorkRegistryError("the document is not valid.");
+  }
+  return parsed.value;
+}
+
+function parseDocument(filePath: string): unknown {
+  const text = readFileSync(filePath, "utf8");
+  if (filePath.endsWith(".json")) {
+    return JSON.parse(text);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return parseYamlDocument(text);
+  }
+}
+
+function yamlQuoteNeeded(value: string): boolean {
+  if (value === "" || value === "true" || value === "false" || value === "null" || value === "~") {
+    return true;
+  }
+  if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) {
+    return true;
+  }
+  return /[:#\n\r]|\s/.test(value) || value.startsWith("-");
+}
+
+function yamlScalar(value: unknown): string {
+  if (value === null) {
+    return "null";
+  }
+  if (value === true) {
+    return "true";
+  }
+  if (value === false) {
+    return "false";
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (typeof value === "string") {
+    return yamlQuoteNeeded(value) ? JSON.stringify(value) : value;
+  }
+  throw new WorkRegistryError("the document is not valid.");
+}
+
+function formatYamlField(key: string, nested: unknown, indent: number): string {
+  const pad = " ".repeat(indent);
+  if (nested !== null && typeof nested === "object") {
+    if (Array.isArray(nested) && nested.length === 0) {
+      return `${pad}${key}: []`;
+    }
+    return `${pad}${key}:\n${formatYaml(nested, indent + 2)}`;
+  }
+  return `${pad}${key}: ${yamlScalar(nested)}`;
+}
+
+function formatYaml(value: unknown, indent: number): string {
+  if (value === null || typeof value !== "object") {
+    return yamlScalar(value);
+  }
+  const pad = " ".repeat(indent);
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return `${pad}[]`;
+    }
+    return value
+      .map((item) => {
+        if (item !== null && typeof item === "object" && !Array.isArray(item)) {
+          const entries = Object.entries(item as Record<string, unknown>);
+          if (entries.length === 0) {
+            return `${pad}- {}`;
+          }
+          return entries
+            .map(([key, nested], index) => {
+              const rendered = formatYamlField(key, nested, indent + 2);
+              if (index === 0) {
+                return `${pad}- ${rendered.trimStart()}`;
+              }
+              return rendered;
+            })
+            .join("\n");
+        }
+        return `${pad}- ${yamlScalar(item)}`;
+      })
+      .join("\n");
+  }
+  return Object.entries(value as Record<string, unknown>)
+    .map(([key, nested]) => formatYamlField(key, nested, indent))
+    .join("\n");
+}
+
+function encodeDocument(value: unknown, filePath: string): string {
+  if (filePath.toLowerCase().endsWith(".yaml")) {
+    return `${formatYaml(value, 0)}\n`;
+  }
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
@@ -92,6 +321,10 @@ export function campaignIsApproved(manifest: CampaignManifest): boolean {
     return false;
   }
   return manifest.forgejoApproved || manifest.humanOverride;
+}
+
+export function campaignIsForgejoClosed(manifest: CampaignManifest): boolean {
+  return manifest.forgejoApproved && manifest.humanApproved && !manifest.humanOverride;
 }
 
 export function loadManifest(campaignDir: string): CampaignManifest {
@@ -324,7 +557,7 @@ function compiledFromProposal(campaignDir: string): CompiledSchema {
 export function compileCampaign(campaignDir: string): CompiledSchema {
   const manifest = loadManifest(campaignDir);
   const schema = compiledFromProposal(campaignDir);
-  writeFileSync(path.join(campaignDir, manifest.schema), encodeDocument(schema));
+  writeFileSync(path.join(campaignDir, manifest.schema), encodeDocument(schema, manifest.schema));
   return schema;
 }
 
@@ -340,7 +573,7 @@ export function lookupSchema(campaignDir: string): CompiledSchema {
 export function checkDrift(campaignDir: string): void {
   const manifest = loadManifest(campaignDir);
   const schemaPath = path.join(campaignDir, manifest.schema);
-  const expected = encodeDocument(compiledFromProposal(campaignDir));
+  const expected = encodeDocument(compiledFromProposal(campaignDir), schemaPath);
   if (!existsSync(schemaPath) || readFileSync(schemaPath, "utf8") !== expected) {
     throw new WorkRegistryError("the schema has drift.");
   }
@@ -383,8 +616,47 @@ export function appendEpoch(
     commitSha: input.commitSha,
   };
   rows.push(row);
-  writeFileSync(filePath, encodeDocument(rows));
+  writeFileSync(filePath, encodeDocument(rows, filePath));
   return row;
+}
+
+export interface CampaignDump {
+  campaign: string;
+  schema: string;
+  approved: boolean;
+  forgejoClosed: boolean;
+  forgejoApproved: boolean;
+  humanApproved: boolean;
+  humanOverride: boolean;
+}
+
+export function dumpWorkRegistry(root: string): Array<CampaignDump> {
+  const base = path.join(root, PRODUCT_NAME);
+  if (!existsSync(base) || !statSync(base).isDirectory()) {
+    return [];
+  }
+  const rows: Array<CampaignDump> = [];
+  for (const name of readdirSync(base)) {
+    const campaignDir = path.join(base, name);
+    if (!statSync(campaignDir).isDirectory()) {
+      continue;
+    }
+    try {
+      const manifest = loadManifest(campaignDir);
+      rows.push({
+        campaign: manifest.campaign,
+        schema: manifest.schema,
+        approved: campaignIsApproved(manifest),
+        forgejoClosed: campaignIsForgejoClosed(manifest),
+        forgejoApproved: manifest.forgejoApproved,
+        humanApproved: manifest.humanApproved,
+        humanOverride: manifest.humanOverride,
+      });
+    } catch {
+      continue;
+    }
+  }
+  return rows.sort((left, right) => left.campaign.localeCompare(right.campaign));
 }
 
 export function checkWorkRegistry(root: string): void {

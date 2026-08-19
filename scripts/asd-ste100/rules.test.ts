@@ -175,6 +175,62 @@ describe("checkMechanicalRules", () => {
       false,
     );
   });
+
+  it("reports a question mark in governed prose", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "Is the runner ready?",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-question"),
+      true,
+    );
+    assert.equal(
+      findings.some((finding) => finding.ruleId.startsWith("ASD-STE100-")),
+      false,
+    );
+  });
+
+  it("does not report T2-HEURISTIC-question when the sentence has no question mark", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "The runner is ready.",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-question"),
+      false,
+    );
+  });
+
+  it("reports a spaced slash used as a word joiner", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "Use the runner / helper for this job.",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-slash"),
+      true,
+    );
+    assert.equal(
+      findings.some((finding) => finding.ruleId.startsWith("ASD-STE100-")),
+      false,
+    );
+  });
+
+  it("does not report T2-HEURISTIC-slash for a path slash", () => {
+    const findings = checkMechanicalRules({
+      ...loc,
+      text: "See docs/note.md for the path.",
+      kind: "descriptive",
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-slash"),
+      false,
+    );
+  });
 });
 
 describe("checkClaims", () => {

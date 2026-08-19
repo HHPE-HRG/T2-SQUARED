@@ -44,19 +44,59 @@ The trusted runner reads `ASD_STE100_VOCABULARY` as a filesystem path.
 
 That path must match the SHA-256 pin in `t2.asd-ste100.json`.
 
+Reach the runner host with `ssh orchestration-vm`.
+
+Host name `oldmac-vm` does not resolve from this Mac.
+
+The live secret path is `/home/oldmac-vm/forgejo-runner-t2-trusted/vocab/synthetic.json`.
+
 The committed test fixture is `scripts/asd-ste100/test/fixtures/vocab/synthetic.json`.
 
-Copy those bytes onto `t2-trusted`. Do not commit a private official word list.
+The live pin is an Issue 9-derived lemma export.
 
-Vocabulary review stays `pending-human` until an operator checks the word list.
+Copy `approved-words.json` from the private lexicon store onto `t2-trusted`.
 
-G2 ignores Rule 1.1 and Rule 4.5 until that review.
+Do not mount the raw extraction.
+
+Do not commit that file.
+
+The live lemma export is human-verified.
+
+G2 does not apply Rule 1.1 or Rule 4.5 while review is pending-human.
 
 G2 still applies sentence length rules and claim rules.
 
-Run `npm run asd-ste100:provision-vocab -- --dest <vocab-dir>` to mount the test fixture and refresh the pin.
+A remount of the fixture still writes `pending-human`.
 
-Do not provision enforcement PATs yet.
+The leak scan rejects a dump of the private file.
+
+The leak scan does not reject one source token.
+
+G5 calls the review check.
+
+G6 calls the override check.
+
+PR and release fail when the review is missing.
+
+Run `npm run asd-ste100:provision-vocab -- --mount-source <approved-words.json> --dest <vocab-dir>` to copy the Issue 9 export.
+
+Run `npm run asd-ste100:provision-vocab -- --verify-only --dest <vocab-dir>` to check the pin.
+
+Default provision refuses to replace an Issue 9 pin with the fixture.
+
+A human inspects the private file before any pin change off the fixture.
+
+Rule 1.1 and Rule 4.5 fail G2 after that approve.
+
+Pipeline tokens live on the VM under the agent state directory.
+
+Those tokens do not live in git.
+
+Reviewer PATs never enter CI.
+
+The operator SSH key is on the maxholden account.
+
+The hhpe-ci user is a write collaborator.
 
 Do not provision the release identity yet.
 
@@ -207,7 +247,11 @@ Remaining proofs are one Actions job, one package round-trip, and a restore dril
 
 ## Distinct accounts
 
-Use distinct Forgejo users for author, reviewer, CI, and release.
+One human profile may self-sign.
+
+Two human profiles need distinct Forgejo users.
+
+Keep CI and release identities separate.
 
 Human and agent reviewers need distinct identities.
 
@@ -264,13 +308,15 @@ Do not run pull-request lifecycle scripts.
 
 ## Bootstrap
 
-`t2.asd-ste100.anchor.json` stays bootstrap-pending until review.
+`t2.asd-ste100.anchor.json` records the pin-landed checker SHA.
 
-Record the reviewed checker SHA.
+The live file records status reviewed.
 
-Record the reviewer principal.
+A pin-landed-pending-review status has no reviewer.
 
-Record the fixture result.
+The file records a reviewer principal.
+
+Fixture result records `npm run ci:asd-ste100`.
 
 Activate protections after workflow-dispatch validation.
 

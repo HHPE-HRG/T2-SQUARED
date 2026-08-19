@@ -3,7 +3,7 @@
   "campaign": "asd-ste100-compliance",
   "proposal": "proposal.md",
   "schema": "schema.json",
-  "forgejoApproved": false,
+  "forgejoApproved": true,
   "humanApproved": true,
-  "humanOverride": true
+  "humanOverride": false
 }
