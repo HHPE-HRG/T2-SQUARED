@@ -63,6 +63,7 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /pending-human/);
     assert.match(text, /verify-only/);
     assert.match(text, /inspects the private file/);
+    assert.match(text, /pin-landed-pending-review/);
   });
 
   it("does not copy official dictionary entries or ASD examples", () => {
@@ -95,6 +96,13 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /fail G2 after that approve/i);
     assert.match(text, /heuristic/i);
     assert.match(text, /do not fail G2/i);
+    assert.match(text, /identifier[- ]policy/i);
+    assert.match(text, /canonical human term/i);
+    assert.match(text, /T2-TERM-canonical/);
+    assert.match(text, /same lemma/i);
+    assert.match(text, /pin-landed-pending-review/);
+    assert.match(text, /self-sign/);
+    assert.match(text, /co-sign/);
   });
 });
 

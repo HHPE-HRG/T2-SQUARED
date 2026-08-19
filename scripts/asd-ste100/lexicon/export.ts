@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { appendEvent } from "./events.ts";
 import { LexiconError, listEntities } from "./import.ts";
+import { stripT2Surfaces } from "./normalize.ts";
 import { openLexiconDb } from "./schema.ts";
 import type { AsdProfile, TechnicalTerm } from "../vocabulary.ts";
 import { parseApprovedWordsFromOfficialBytes } from "../vocabulary.ts";
@@ -28,9 +29,11 @@ export function exportWordsJson(
   destFile: string,
   actorId: string,
 ): { sha256: string; lemmaCount: number } {
-  const words = listEntities(dbPath)
-    .filter((row) => !row.noT2Function)
-    .map((row) => row.originalText);
+  const words = stripT2Surfaces(
+    listEntities(dbPath)
+      .filter((row) => !row.noT2Function)
+      .map((row) => row.originalText),
+  );
   mkdirSync(path.dirname(destFile), { recursive: true });
   const body = `${JSON.stringify({ words })}\n`;
   writeFileSync(destFile, body);

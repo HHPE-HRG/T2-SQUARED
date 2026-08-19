@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import type { Finding } from "./rules.ts";
 import { parseApprovedWordsFromOfficialBytes } from "./vocabulary.ts";
 
 export interface RuleSubsetAttestation {
@@ -12,6 +13,8 @@ export interface RuleSubsetAttestation {
   vocabularySha256: string;
   profileIssue: string;
   ruleCoverage: Array<string>;
+  identifierPolicy: "T2-IDENTIFIER-projection";
+  termCanonical: "T2-TERM-canonical";
   authorIds: Array<number>;
   reviewerIds: Array<number>;
   findings: Array<unknown>;
@@ -72,6 +75,8 @@ export function buildAttestation(input: {
     vocabularySha256: input.vocabularySha256,
     profileIssue: input.profileIssue,
     ruleCoverage: [...input.ruleCoverage],
+    identifierPolicy: "T2-IDENTIFIER-projection",
+    termCanonical: "T2-TERM-canonical",
     authorIds: [...input.authorIds],
     reviewerIds: [...input.reviewerIds],
     findings: [...input.findings],

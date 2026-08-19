@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { enforcementClassFor, ENFORCEMENT_CLASSES } from "./enforcement-class.ts";
 import type { CheckerClass, MappingRow } from "./merge.ts";
-import { scanCoverageLeak } from "./promote.ts";
+import { loadLiveMappingRecords, scanCoverageLeak } from "./promote.ts";
 
 const recordsPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -52,5 +52,28 @@ describe("enforcement-classes overlay", () => {
     }
     assert.equal(overlay.classes.length, source.rows.length);
     assert.equal(scanCoverageLeak(overlay).ok, true);
+  });
+
+  it("keeps overlay-only classes out of live G2 mapping records", () => {
+    const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+    const overlay = JSON.parse(readFileSync(overlayPath, "utf8")) as {
+      classes: Array<{ id: string; enforcementClass: string }>;
+    };
+    const profile = JSON.parse(readFileSync(path.join(repoRoot, "t2.asd-ste100.json"), "utf8")) as {
+      rules: Array<{ id: string }>;
+    };
+    const liveIds = new Set(profile.rules.map((rule) => rule.id));
+    const liveRecords = loadLiveMappingRecords(repoRoot);
+    const liveRecordIds = new Set(liveRecords.map((row) => row.id));
+    for (const row of overlay.classes) {
+      const mechanical =
+        row.enforcementClass === "deterministic" || row.enforcementClass === "parser-mechanical";
+      assert.equal(liveIds.has(row.id), mechanical, row.id);
+      assert.equal(liveRecordIds.has(row.id), mechanical, row.id);
+    }
+    assert.equal(
+      liveRecords.every((row) => row.class !== "fail_closed_uncheckable"),
+      true,
+    );
   });
 });

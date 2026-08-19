@@ -26,7 +26,14 @@ import {
   loadLiveMappingRecords,
 } from "./mapping/promote.ts";
 import { collectScopeRecords, loadOwnershipManifest } from "./ownership.ts";
-import { approvedWordSet, knownNounsFromTerms } from "./membership.ts";
+import {
+  approvedWordSet,
+  checkCanonicalTermForm,
+  checkIdentifierPolicy,
+  IDENTIFIER_POLICY_RULE_ID,
+  knownNounsFromTerms,
+  TERM_CANONICAL_RULE_ID,
+} from "./membership.ts";
 import { ASD_RULE_PREFIX, enforcedChecker } from "./registry.ts";
 import { inferMechanicalKind } from "./rules.ts";
 import type { Finding } from "./rules.ts";
@@ -40,6 +47,7 @@ import {
 } from "./override.ts";
 import {
   parseApprovedWordsFromOfficialBytes,
+  validateAnchor,
   validateProfile,
   validateTechnicalTerms,
   VocabularyChecksumMismatchError,
@@ -47,7 +55,7 @@ import {
   VocabularyMissingError,
   VocabularyOpaqueError,
 } from "./vocabulary.ts";
-import type { AsdProfile, TechnicalTerm } from "./vocabulary.ts";
+import type { AsdAnchor, AsdProfile, SubjectFieldRegistry, TechnicalTerm } from "./vocabulary.ts";
 
 export const EXIT = {
   ok: 0,
@@ -165,9 +173,14 @@ export function runFixtureSelfTest(root = process.cwd()): void {
   const profile = loadJson<AsdProfile>(root, "t2.asd-ste100.json");
   validateProfile(profile);
   assertReviewedRulesHaveMappingRecords(profile.rules ?? [], loadLiveMappingRecords(root));
-  const termsFile = loadJson<{ terms: Array<TechnicalTerm> }>(root, "t2.asd-ste100.terms.json");
-  validateTechnicalTerms(termsFile.terms);
+  const termsFile = loadJson<{
+    subjectFields?: SubjectFieldRegistry;
+    terms: Array<TechnicalTerm>;
+  }>(root, "t2.asd-ste100.terms.json");
+  validateTechnicalTerms(termsFile.terms, termsFile.subjectFields ?? {});
   loadOwnershipManifest(path.join(root, "t2.asd-ste100.ownership.json"));
+  const anchor = loadJson<AsdAnchor>(root, "t2.asd-ste100.anchor.json");
+  validateAnchor(anchor);
 }
 
 function connected(mode: CliMode): boolean {
@@ -175,7 +188,11 @@ function connected(mode: CliMode): boolean {
 }
 
 function countsTowardG2(finding: Finding, profile: AsdProfile): boolean {
-  if (finding.ruleId === "T10") {
+  if (
+    finding.ruleId === "T10" ||
+    finding.ruleId === IDENTIFIER_POLICY_RULE_ID ||
+    finding.ruleId === TERM_CANONICAL_RULE_ID
+  ) {
     return true;
   }
   if (finding.ruleId === `${ASD_RULE_PREFIX}1.1` || finding.ruleId === `${ASD_RULE_PREFIX}4.5`) {
@@ -521,8 +538,11 @@ export function loadScanLexicon(
   approvedWords: Set<string>;
   technicalTerms: Array<TechnicalTerm>;
 } {
-  const termsFile = loadJson<{ terms: Array<TechnicalTerm> }>(cwd, "t2.asd-ste100.terms.json");
-  validateTechnicalTerms(termsFile.terms);
+  const termsFile = loadJson<{
+    subjectFields?: SubjectFieldRegistry;
+    terms: Array<TechnicalTerm>;
+  }>(cwd, "t2.asd-ste100.terms.json");
+  validateTechnicalTerms(termsFile.terms, termsFile.subjectFields ?? {});
   const officialWords =
     officialBytes === null ? [] : parseApprovedWordsFromOfficialBytes(officialBytes);
   return {
@@ -574,6 +594,22 @@ export function scanGovernedFindings(input: {
     }
     for (const extracted of extractOwned(record.path, source)) {
       findings.push(...checkClaims(extracted));
+      findings.push(
+        ...checkIdentifierPolicy({
+          path: extracted.path,
+          line: extracted.line,
+          column: extracted.column,
+          text: extracted.text,
+          technicalTerms: lexicon.technicalTerms,
+        }),
+        ...checkCanonicalTermForm({
+          path: extracted.path,
+          line: extracted.line,
+          column: extracted.column,
+          text: extracted.text,
+          technicalTerms: lexicon.technicalTerms,
+        }),
+      );
       for (const rule of liveRules) {
         if (rule.checker === undefined || rule.checker.length === 0) {
           throw new Error(`unregistered checker: (missing)`);

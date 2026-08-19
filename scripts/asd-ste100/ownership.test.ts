@@ -306,6 +306,19 @@ describe("repo ownership admission exclusions", () => {
     assert.equal(plan.className, "owned");
   });
 
+  it("owns fill-sandbox, honesty, and lexicon-bridge campaign plans", () => {
+    const plans = [
+      "docs/plans/2026-08-13-001-feat-asd-ste100-enforcement-plan.md",
+      "docs/plans/2026-08-16-001-fix-human-gate-honesty-plan.md",
+      "docs/plans/2026-08-16-002-feat-asd-lexicon-bridge-plan.md",
+      "docs/plans/2026-08-17-001-feat-fill-asd-ste-sandbox-plan.md",
+    ];
+    for (const filePath of plans) {
+      const result = classifyPath(filePath, manifest);
+      assert.equal(result.className, "owned", filePath);
+    }
+  });
+
   it("classifies lockfiles, images, and binaries as machine text", () => {
     const paths = [
       "pnpm-lock.yaml",
@@ -330,7 +343,21 @@ describe("repo ownership admission exclusions", () => {
       root,
       "t2.asd-ste100.terms.json",
       JSON.stringify({
-        terms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+        subjectFields: {
+          "asd-enforcement": { admittedTerms: ["Forgejo"] },
+        },
+        terms: [
+          {
+            term: "Forgejo",
+            kind: "noun",
+            reviewed: true,
+            concept: "The self-hosted git forge that admits T2 work.",
+            canonical: true,
+            technicalTermClass: "product-name",
+            subjectFields: ["asd-enforcement"],
+            asdBasis: ["1.5"],
+          },
+        ],
       }),
     );
     write(

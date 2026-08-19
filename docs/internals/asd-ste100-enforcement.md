@@ -66,11 +66,37 @@ A pin check can run without flipping review.
 
 A human inspects the private file before any pin change off the fixture.
 
-The live pin is an Issue 9-derived export.
+The live pin is an Issue 9-derived lemma export.
 
-Review stays pending-human until a human inspects that export.
+The live file records status reviewed.
+
+A pin-landed-pending-review status has no reviewer.
+
+The live lemma export is human-verified.
 
 Rule 1.1 and Rule 4.5 fail G2 after that approve.
+
+Rule 1.1 qualifies the canonical human term.
+
+ASD lexical membership is case-folded.
+
+Rule 1.1 matches the longest approved phrase first.
+
+Then the checker tests each leftover token.
+
+A unique lemma count is not the source entry count.
+
+The private export writes a reconciliation record.
+
+Work-Registry and work-registry are the same lemma.
+
+A T2-TERM-canonical check requires one human form.
+
+Sentence-initial capitalization may change the first letter.
+
+A T2 identifier-policy check binds software forms to that concept.
+
+Those software forms are not ASD dictionary rows.
 
 U10 membership and identification checks are in the public suite.
 
@@ -79,6 +105,18 @@ A prohibited language-authority claim fails.
 Private vocabulary stays off Git.
 
 The lexicon bridge writes a private words file.
+
+That file is an extraction of Issue 9.
+
+The extraction is not the Rule 1.1 lemma set.
+
+The bridge writes a second private lemma export.
+
+The export keeps uppercase headwords with a part of speech mark.
+
+Lowercase headwords stay out of that export.
+
+T2 surfaces stay in the terms file.
 
 Git stores the pin.
 
@@ -104,7 +142,9 @@ The leak scan does not reject one source token.
 
 ## Review and overrides
 
-Author and reviewer must be different Forgejo users.
+One human profile may self-sign.
+
+Two human profiles need human co-sign.
 
 Human and agent reviewers use the same checks.
 

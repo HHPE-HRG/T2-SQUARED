@@ -77,7 +77,8 @@ export function validateReview(input: {
   if (input.review.commitId !== input.pull.headSha) {
     return fail("review commit SHA does not match the current head");
   }
-  if (input.review.userId === input.pull.authorId) {
+  const selfSign = input.roster.selfSignAllowed === true;
+  if (input.review.userId === input.pull.authorId && !selfSign) {
     return fail("author self-review is not permitted");
   }
   const author = findIdentity(input.roster, input.pull.authorId);
@@ -88,7 +89,7 @@ export function validateReview(input: {
   if (reviewer === undefined) {
     return fail("reviewer is not in the authorized roster");
   }
-  if (author.principal === reviewer.principal) {
+  if (author.principal === reviewer.principal && !selfSign) {
     return fail("author principal must differ from reviewer principal");
   }
   if (reviewer.ci) {
@@ -98,7 +99,8 @@ export function validateReview(input: {
     if (commit.authorId === null) {
       return fail("commit identity cannot resolve to an immutable Forgejo user ID");
     }
-    if (commit.authorId === input.review.userId) {
+    const authorReviewingOwnCommit = selfSign && input.review.userId === input.pull.authorId;
+    if (commit.authorId === input.review.userId && !authorReviewingOwnCommit) {
       return fail("reviewer committed governed content");
     }
   }

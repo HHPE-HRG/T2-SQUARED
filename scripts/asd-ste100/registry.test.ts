@@ -53,7 +53,7 @@ describe("live profile matches enforced checkers", () => {
     assert.equal(liveProfile().claim, "ASD-STE100 mechanical rule-subset result");
   });
 
-  it("records pending-human on an Issue 9-derived pin, not the synthetic fixture", () => {
+  it("records human-verified on an Issue 9-derived pin, not the synthetic fixture", () => {
     const profile = liveProfile() as { vocabularyReview?: string; vocabularySha256: string };
     const coverage = JSON.parse(
       readFileSync(
@@ -71,14 +71,34 @@ describe("live profile matches enforced checkers", () => {
       path.join(repoRoot, "scripts/asd-ste100/test/fixtures/vocab/synthetic.json"),
     );
     const fixtureDigest = createHash("sha256").update(fixture).digest("hex");
-    assert.equal(profile.vocabularyReview, "pending-human");
-    assert.equal(coverage.humanReview, "pending-human");
-    assert.equal(coverage.coverageKind, "issue9-derived-unreviewed");
+    assert.equal(profile.vocabularyReview, "human-verified");
+    assert.equal(coverage.humanReview, "human-verified");
+    assert.equal(coverage.coverageKind, "issue9-dictionary-human-verified");
     assert.equal(coverage.words, undefined);
     assert.equal(profile.vocabularySha256, coverage.vocabularySha256);
     assert.notEqual(profile.vocabularySha256, fixtureDigest);
     assert.equal(coverage.lemmaCount > 3, true);
+    assert.equal(coverage.lemmaCount < 2000, true);
     assert.equal(scanCoverageLeak(coverage).ok, true);
+  });
+
+  it("records a reviewed anchor with a reviewer principal", () => {
+    const anchor = JSON.parse(
+      readFileSync(path.join(repoRoot, "t2.asd-ste100.anchor.json"), "utf8"),
+    ) as {
+      checkerSha: string | null;
+      status: string;
+      reviewerPrincipal: string | null;
+      fixtureResult: { ok: boolean; command: string } | null;
+      protectionActivation: string;
+    };
+    assert.equal(anchor.status, "reviewed");
+    assert.equal(anchor.reviewerPrincipal, "t2-single-operator");
+    assert.equal(anchor.protectionActivation, "after-workflow-dispatch-validation");
+    assert.equal(typeof anchor.checkerSha, "string");
+    assert.match(anchor.checkerSha ?? "", /^[0-9a-f]{40}$/);
+    assert.equal(anchor.fixtureResult?.ok, true);
+    assert.equal(anchor.fixtureResult?.command, "npm run ci:asd-ste100");
   });
 
   it("pins connected G3 to the coverage digest, not the committed test fixture", () => {

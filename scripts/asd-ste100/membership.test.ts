@@ -9,8 +9,12 @@ import { scanForVocabularyLeak } from "./attestation.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
 import {
   checkArticleBeforeNoun,
+  checkCanonicalTermForm,
+  checkIdentifierPolicy,
   checkMembershipAndIdentification,
   checkVocabularyMembership,
+  IDENTIFIER_POLICY_RULE_ID,
+  TERM_CANONICAL_RULE_ID,
   knownNounsFromTerms,
   unapprovedTokenMessage,
 } from "./membership.ts";
@@ -22,10 +26,22 @@ import {
 } from "./vocabulary.ts";
 
 const loc = { path: "docs/note.md", line: 1, column: 1 };
-const terms: Array<TechnicalTerm> = [
-  { term: "Forgejo", kind: "noun", reviewed: true },
-  { term: "attestation", kind: "noun", reviewed: true },
-];
+
+function qt(term: string, extra: Partial<TechnicalTerm> = {}): TechnicalTerm {
+  return {
+    kind: "noun",
+    reviewed: true,
+    concept: `The ${term} concept.`,
+    canonical: true,
+    subjectFields: ["asd-enforcement"],
+    asdBasis: ["1.5"],
+    technicalTermClass: "subject-field-noun",
+    ...extra,
+    term,
+  };
+}
+
+const terms: Array<TechnicalTerm> = [qt("Forgejo"), qt("attestation")];
 const approved = new Set(["install", "the", "runner", "attestation", "and", "open"]);
 
 describe("checkVocabularyMembership", () => {
@@ -60,7 +76,7 @@ describe("checkVocabularyMembership", () => {
       ...loc,
       text: "Install the qzvste-lemma-one runner.",
       approvedWords: approved,
-      technicalTerms: [{ term: "qzvste-lemma-one", kind: "noun", reviewed: true }],
+      technicalTerms: [qt("qzvste-lemma-one")],
     });
     assert.equal(
       findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
@@ -77,6 +93,163 @@ describe("checkVocabularyMembership", () => {
     });
     assert.equal(
       findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("accepts a multi-word approved phrase before checking the leftover tokens", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Move away from the unit.",
+      approvedWords: new Set(["move", "the", "unit", "away from"]),
+      technicalTerms: [],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("still rejects a leftover token that is not part of an approved phrase", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Move away the unit.",
+      approvedWords: new Set(["move", "the", "unit", "away from"]),
+      technicalTerms: [],
+    });
+    const hit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
+    assert.ok(hit);
+    assert.equal(hit.message, unapprovedTokenMessage("away"));
+  });
+
+  it("prefers the longest approved phrase when a shorter lemma also exists", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Keep the work in progress.",
+      approvedWords: new Set(["keep", "the", "work", "in", "in progress"]),
+      technicalTerms: [],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("rejects a reviewed term that is not a qualified canonical concept", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Install the Forgejo runner.",
+      approvedWords: approved,
+      technicalTerms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+    });
+    const hit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
+    assert.ok(hit);
+    assert.equal(hit.message, unapprovedTokenMessage("Forgejo"));
+  });
+
+  it("does not treat a software projection as an ASD Rule 1.1 lemma", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Install the WorkRegistry runner.",
+      approvedWords: approved,
+      technicalTerms: [
+        qt("work-registry", {
+          softwareForms: {
+            typescriptType: "WorkRegistry",
+            typescriptValue: "workRegistry",
+          },
+        }),
+      ],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("accepts Work-Registry as the canonical lemma, not a separate ASD word", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Install the Work-Registry runner.",
+      approvedWords: approved,
+      technicalTerms: [qt("work-registry")],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+});
+
+describe("checkCanonicalTermForm", () => {
+  const bound = [qt("work-registry")];
+
+  it("rejects Work-Registry in prose as a T2 canonical-form finding, not Rule 1.1", () => {
+    const findings = checkMembershipAndIdentification({
+      ...loc,
+      text: "Install the Work-Registry runner.",
+      approvedWords: approved,
+      technicalTerms: bound,
+      knownNouns: knownNounsFromTerms(bound),
+    });
+    const hit = findings.find((finding) => finding.ruleId === TERM_CANONICAL_RULE_ID);
+    assert.ok(hit);
+    assert.match(hit.message, /canonical human form/);
+    assert.match(hit.message, /work-registry/);
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+    assert.equal(
+      findings.some((finding) => finding.ruleId === IDENTIFIER_POLICY_RULE_ID),
+      false,
+    );
+  });
+
+  it("accepts the exact canonical human form", () => {
+    const findings = checkCanonicalTermForm({
+      ...loc,
+      text: "Install the work-registry runner.",
+      technicalTerms: bound,
+    });
+    assert.equal(findings.length, 0);
+  });
+
+  it("accepts sentence-initial first-letter capitalization of a lowercase canonical form", () => {
+    const findings = checkCanonicalTermForm({
+      ...loc,
+      text: "Work-registry is the store.",
+      technicalTerms: bound,
+    });
+    assert.equal(findings.length, 0);
+  });
+
+  it("rejects title case even at sentence start", () => {
+    const findings = checkCanonicalTermForm({
+      ...loc,
+      text: "Work-Registry is the store.",
+      technicalTerms: bound,
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === TERM_CANONICAL_RULE_ID),
+      true,
+    );
+  });
+
+  it("does not treat a software projection as a canonical-form finding", () => {
+    const findings = checkCanonicalTermForm({
+      ...loc,
+      text: "Install the WorkRegistry runner.",
+      technicalTerms: [
+        qt("work-registry", {
+          softwareForms: {
+            typescriptType: "WorkRegistry",
+          },
+        }),
+      ],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === TERM_CANONICAL_RULE_ID),
       false,
     );
   });
@@ -103,6 +276,73 @@ describe("checkArticleBeforeNoun", () => {
     });
     assert.equal(findings.length, 0);
   });
+
+  it("does not treat software forms as Rule 4.5 known nouns", () => {
+    const nouns = knownNounsFromTerms([
+      qt("work-registry", {
+        softwareForms: {
+          typescriptType: "WorkRegistry",
+          typescriptValue: "workRegistry",
+        },
+      }),
+    ]);
+    assert.equal(nouns.has("work-registry"), true);
+    assert.equal(nouns.has("workregistry"), false);
+    const findings = checkArticleBeforeNoun({
+      ...loc,
+      text: "Install workRegistry.",
+      knownNouns: nouns,
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-4.5"),
+      false,
+    );
+  });
+});
+
+describe("checkIdentifierPolicy", () => {
+  const bound = [
+    qt("work-registry", {
+      softwareForms: {
+        typescriptType: "WorkRegistry",
+        typescriptValue: "workRegistry",
+      },
+    }),
+  ];
+
+  it("binds WorkRegistry to a qualified concept under T2 identifier policy", () => {
+    const findings = checkIdentifierPolicy({
+      ...loc,
+      text: "Install the WorkRegistry runner.",
+      technicalTerms: bound,
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === IDENTIFIER_POLICY_RULE_ID),
+      false,
+    );
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("rejects an unbound software projection without using Rule 1.1", () => {
+    const findings = checkMembershipAndIdentification({
+      ...loc,
+      text: "Install the xyzzyGate runner.",
+      approvedWords: approved,
+      technicalTerms: bound,
+      knownNouns: knownNounsFromTerms(bound),
+    });
+    const hit = findings.find((finding) => finding.ruleId === IDENTIFIER_POLICY_RULE_ID);
+    assert.ok(hit);
+    assert.match(hit.message, /T2 identifier/);
+    assert.match(hit.message, /qualified concept/);
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
 });
 
 describe("checkMembershipAndIdentification", () => {
@@ -112,7 +352,7 @@ describe("checkMembershipAndIdentification", () => {
       text: "Install xyzzy runner.",
       approvedWords: approved,
       technicalTerms: terms,
-      knownNouns: knownNounsFromTerms([...terms, { term: "runner", kind: "noun", reviewed: true }]),
+      knownNouns: knownNounsFromTerms([...terms, qt("runner")]),
     });
     assert.equal(
       findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
@@ -237,7 +477,7 @@ describe("trusted-runner lexicon proof", () => {
       column: 1,
       text: "Forgejo",
       approvedWords: new Set(),
-      technicalTerms: [{ term: "Forgejo", kind: "noun", reviewed: true }],
+      technicalTerms: [qt("Forgejo")],
     });
     assert.equal(findings.length, 0);
   });
