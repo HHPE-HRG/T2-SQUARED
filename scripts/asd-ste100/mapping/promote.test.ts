@@ -16,7 +16,9 @@ import {
   humanIdentityCount,
   loadLiveMappingRecords,
   loadMappingPrincipals,
+  loadMappingPrincipalsFile,
   markMappingReviewed,
+  validateMappingPrincipals,
   promoteMappingToProfile,
   reviewOfficialMappingRows,
   scanCoverageLeak,
@@ -241,6 +243,77 @@ describe("reviewOfficialMappingRows", () => {
         ),
       /principal/i,
     );
+  });
+
+  it("uses human profile count, not agent identities, to choose self-sign or co-sign", () => {
+    const identities = [
+      { id: "u12-wave-author", principal: "t2-single-operator", kind: "agent" as const },
+      { id: "operator-self-sign", principal: "t2-single-operator", kind: "human" as const },
+    ];
+    const oneProfile = [
+      {
+        id: "operator",
+        kind: "human" as const,
+        principal: "t2-single-operator",
+        credentials: [{ id: "forgejo-operator", provider: "forgejo", subject: "operator" }],
+      },
+    ];
+    assert.equal(selfSignAllowed(identities, 2, oneProfile), true);
+    const twoProfiles = [
+      ...oneProfile,
+      {
+        id: "second-human",
+        kind: "human" as const,
+        principal: "t2-second-human",
+        credentials: [{ id: "forgejo-second", provider: "forgejo", subject: "second" }],
+      },
+    ];
+    assert.equal(selfSignAllowed(identities, 2, twoProfiles), false);
+  });
+
+  it("rejects unknown credential providers and secret fields", () => {
+    const file = {
+      identities: [
+        { id: "operator-self-sign", principal: "t2-single-operator", kind: "human" as const },
+      ],
+      providers: [{ id: "forgejo", kind: "git-host" as const }],
+      profiles: [
+        {
+          id: "operator",
+          kind: "human" as const,
+          principal: "t2-single-operator",
+          credentials: [{ id: "forgejo-operator", provider: "missing-host", subject: "operator" }],
+        },
+      ],
+    };
+    assert.throws(() => validateMappingPrincipals(file), /provider/i);
+    assert.throws(
+      () =>
+        validateMappingPrincipals({
+          ...file,
+          profiles: [
+            {
+              ...file.profiles[0],
+              credentials: [
+                {
+                  id: "forgejo-operator",
+                  provider: "forgejo",
+                  subject: "operator",
+                  token: "not-a-secret-in-git",
+                },
+              ],
+            },
+          ],
+        }),
+      /secret|token/i,
+    );
+  });
+
+  it("accepts the live principals file with one human profile", () => {
+    const file = loadMappingPrincipalsFile(repoRoot);
+    validateMappingPrincipals(file);
+    assert.equal(file.profiles?.length, 1);
+    assert.equal(file.profiles?.[0]?.kind, "human");
   });
 
   it("keeps committed official wave rows unreviewed as the merge artifact", () => {

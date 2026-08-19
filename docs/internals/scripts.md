@@ -61,7 +61,7 @@ authenticated.
 - `vp run typecheck`: Strict TypeScript checks for all packages.
 - `vp run test`: Runs workspace tests.
 - `npm run ci:asd-ste100`: T2 mechanical rule-subset checker. Default is fixture self-test. See [asd-ste100-enforcement.md](./asd-ste100-enforcement.md).
-- `npm run asd-ste100:lexicon-scan`: Private lexicon scan or pin apply. Dest stays off Git. Pin apply needs `--git-merge`.
+- `npm run asd-ste100:lexicon-scan`: Private lexicon scan or pin apply. Default dest is `T2-SQUARED-References/lexicon-private`. Dest stays off Git. Pin apply needs `--git-merge`. `--from-words` builds the lemma export from the private extract.
 - `npm run ci:work-registry`: T2_Squared-Work-Registry gate. See [t2-squared-work-registry.md](./t2-squared-work-registry.md).
 - `vp run lint:mobile`: Mobile native static analysis (`scripts/mobile-native-static-check.ts`).
 - `node apps/server/scripts/t3-sqlite-state.ts <query|exec> --base-dir <path> ...`: Inspects or seeds

@@ -52,13 +52,15 @@ The live secret path is `/home/oldmac-vm/forgejo-runner-t2-trusted/vocab/synthet
 
 The committed test fixture is `scripts/asd-ste100/test/fixtures/vocab/synthetic.json`.
 
-The live pin is an Issue 9-derived export.
+The live pin is an Issue 9-derived lemma export.
 
 Copy `approved-words.json` from the private lexicon store onto `t2-trusted`.
 
+Do not mount the raw extraction.
+
 Do not commit that file.
 
-Vocabulary review is `pending-human`.
+The live lemma export is human-verified.
 
 G2 does not apply Rule 1.1 or Rule 4.5 while review is pending-human.
 
@@ -245,7 +247,11 @@ Remaining proofs are one Actions job, one package round-trip, and a restore dril
 
 ## Distinct accounts
 
-Use distinct Forgejo users for author, reviewer, CI, and release.
+One human profile may self-sign.
+
+Two human profiles need distinct Forgejo users.
+
+Keep CI and release identities separate.
 
 Human and agent reviewers need distinct identities.
 
@@ -304,9 +310,11 @@ Do not run pull-request lifecycle scripts.
 
 `t2.asd-ste100.anchor.json` records the pin-landed checker SHA.
 
-Status is pin-landed-pending-review.
+The live file records status reviewed.
 
-Reviewer principal stays empty until a human inspects the private file.
+A pin-landed-pending-review status has no reviewer.
+
+The file records a reviewer principal.
 
 Fixture result records `npm run ci:asd-ste100`.
 

@@ -1,7 +1,7 @@
 {
   "checkerSha": "7a45fee06b639c234e6e2b6d8e43647e9a71f3a6",
-  "status": "pin-landed-pending-review",
-  "reviewerPrincipal": null,
+  "status": "reviewed",
+  "reviewerPrincipal": "t2-single-operator",
   "fixtureResult": {
     "ok": true,
     "mode": "fixture",

@@ -97,6 +97,44 @@ describe("checkVocabularyMembership", () => {
     );
   });
 
+  it("accepts a multi-word approved phrase before checking the leftover tokens", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Move away from the unit.",
+      approvedWords: new Set(["move", "the", "unit", "away from"]),
+      technicalTerms: [],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("still rejects a leftover token that is not part of an approved phrase", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Move away the unit.",
+      approvedWords: new Set(["move", "the", "unit", "away from"]),
+      technicalTerms: [],
+    });
+    const hit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
+    assert.ok(hit);
+    assert.equal(hit.message, unapprovedTokenMessage("away"));
+  });
+
+  it("prefers the longest approved phrase when a shorter lemma also exists", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Keep the work in progress.",
+      approvedWords: new Set(["keep", "the", "work", "in", "in progress"]),
+      technicalTerms: [],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
   it("rejects a reviewed term that is not a qualified canonical concept", () => {
     const findings = checkVocabularyMembership({
       ...loc,

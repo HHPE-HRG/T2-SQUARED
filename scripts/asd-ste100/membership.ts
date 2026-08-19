@@ -142,13 +142,45 @@ export function checkVocabularyMembership(input: MembershipInput): Array<Finding
     ),
   );
   const bindings = identifierBindings(input.technicalTerms);
+  const parts = tokenize(input.text);
+  let maxPhrase = 1;
+  for (const word of allowed) {
+    const length = word.split(/\s+/).filter((part) => part.length > 0).length;
+    if (length > maxPhrase) {
+      maxPhrase = length;
+    }
+  }
   const findings: Array<Finding> = [];
-  for (const token of tokens(input.text)) {
+  let index = 0;
+  while (index < parts.length) {
+    const token = parts[index]?.token;
+    if (token === undefined) {
+      break;
+    }
     if (isIdentifierToken(token, bindings)) {
+      index += 1;
+      continue;
+    }
+    let consumed = 0;
+    const available = Math.min(maxPhrase, parts.length - index);
+    for (let length = available; length >= 2; length -= 1) {
+      const span = parts.slice(index, index + length);
+      if (span.some((part) => isIdentifierToken(part.token, bindings))) {
+        continue;
+      }
+      const phrase = span.map((part) => part.token.toLowerCase()).join(" ");
+      if (allowed.has(phrase)) {
+        consumed = length;
+        break;
+      }
+    }
+    if (consumed > 0) {
+      index += consumed;
       continue;
     }
     const key = token.toLowerCase();
     if (allowed.has(key)) {
+      index += 1;
       continue;
     }
     findings.push({
@@ -158,6 +190,7 @@ export function checkVocabularyMembership(input: MembershipInput): Array<Finding
       ruleId: "ASD-STE100-1.1",
       message: unapprovedTokenMessage(token),
     });
+    index += 1;
   }
   return findings;
 }

@@ -46,7 +46,7 @@ describe("exportWordsJson", () => {
     const parsed = JSON.parse(readFileSync(out, "utf8")) as { words: Array<string> };
     assert.equal(parsed.words.includes("qzvstelemmatwo"), false);
     assert.equal(parsed.words.includes("qzvstelemmaone"), true);
-    assert.equal(parsed.words.includes("t2"), true);
+    assert.equal(parsed.words.includes("t2"), false);
     const second = exportWordsJson(dest, out, "agent-test");
     assert.equal(first.sha256, second.sha256);
     assert.equal(first.sha256, createHash("sha256").update(readFileSync(out)).digest("hex"));

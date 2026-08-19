@@ -33,9 +33,9 @@ describe("runLexiconScan", () => {
   it("accepts dest under tmpdir with synthetic images", () => {
     const src = tempDir();
     writeFileSync(path.join(src, "page_0001.jpg"), EMPTY_JPEG);
-    writeFileSync(path.join(src, "page_0001.txt"), "qzvstelemmaone");
+    writeFileSync(path.join(src, "page_0001.txt"), "QZVSTELEMMAONE (n)");
     writeFileSync(path.join(src, "page_0002.jpg"), EMPTY_JPEG);
-    writeFileSync(path.join(src, "page_0002.txt"), "- qzvstelemmatwo");
+    writeFileSync(path.join(src, "page_0002.txt"), "- qzvstelemmatwo (v)");
     const dest = path.join(tempDir(), "bridge.sqlite");
     assert.equal(destInsideGitWorkTree(dest), false);
     runLexiconScan({ src, dest, actorId: "agent-test" });
@@ -59,12 +59,13 @@ describe("runLexiconScan", () => {
     ) as {
       words: Array<string>;
     };
-    assert.equal(exported.words.includes("t2"), true);
-    assert.equal(exported.words.includes("canBus"), true);
+    assert.equal(exported.words.includes("t2"), false);
+    assert.equal(exported.words.includes("canBus"), false);
     const approved = JSON.parse(
       readFileSync(path.join(path.dirname(dest), "approved-words.json"), "utf8"),
     ) as { words: Array<string> };
     assert.equal(approved.words.includes("qzvstelemmaone"), true);
+    assert.equal(approved.words.includes("qzvstelemmatwo"), false);
     assert.equal(approved.words.includes("t2"), false);
     assert.equal(approved.words.includes("canbus"), false);
   });
@@ -101,8 +102,21 @@ describe("runLexiconScan", () => {
   });
 });
 
-describe("main --git-merge", () => {
-  it("returns nonzero without words profile and terms", () => {
-    assert.equal(main(["--git-merge"]), 1);
+describe("main --from-words", () => {
+  it("writes approved lemmas and removes T2 surfaces from the extract", () => {
+    const dir = tempDir();
+    const wordsPath = path.join(dir, "words.json");
+    const approvedPath = path.join(dir, "approved-words.json");
+    writeFileSync(
+      wordsPath,
+      `${JSON.stringify({ words: ["FLUMBO (v)", "quarble (adj)", "t2", "canBus"] })}\n`,
+    );
+    assert.equal(main(["--from-words", wordsPath, "--approved", approvedPath]), 0);
+    const approved = JSON.parse(readFileSync(approvedPath, "utf8")) as { words: Array<string> };
+    const extract = JSON.parse(readFileSync(wordsPath, "utf8")) as { words: Array<string> };
+    assert.deepEqual(approved.words, ["flumbo"]);
+    assert.equal(extract.words.includes("t2"), false);
+    assert.equal(extract.words.includes("canBus"), false);
+    assert.equal(extract.words.includes("FLUMBO (v)"), true);
   });
 });

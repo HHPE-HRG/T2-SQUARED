@@ -1,5 +1,39 @@
 {
   "selfSignWhenHumanCountBelow": 2,
+  "selfSignWhenHumanProfileCountBelow": 2,
+  "providers": [
+    {
+      "id": "forgejo",
+      "kind": "git-host"
+    },
+    {
+      "id": "tailscale",
+      "kind": "network"
+    },
+    {
+      "id": "github",
+      "kind": "review-portal"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "operator",
+      "kind": "human",
+      "principal": "t2-single-operator",
+      "credentials": [
+        {
+          "id": "forgejo-ssh",
+          "provider": "forgejo",
+          "subject": "maxholden"
+        },
+        {
+          "id": "tailscale-node",
+          "provider": "tailscale",
+          "subject": "mac-server-cli"
+        }
+      ]
+    }
+  ],
   "identities": [
     {
       "id": "u12-wave-author",

@@ -101,6 +101,8 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /T2-TERM-canonical/);
     assert.match(text, /same lemma/i);
     assert.match(text, /pin-landed-pending-review/);
+    assert.match(text, /self-sign/);
+    assert.match(text, /co-sign/);
   });
 });
 

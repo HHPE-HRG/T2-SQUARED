@@ -7,7 +7,11 @@ import { applyPinAtGitMerge, exportWordsJson } from "./export.ts";
 import { importOriginals, LexiconError, listEntities, type OriginalItem } from "./import.ts";
 import { applyLayoutAutomation, guessLayoutKind } from "./layout.ts";
 import { mutateFrozenLexicon } from "./mutate.ts";
-import { exportApprovedWordsJson } from "./normalize.ts";
+import {
+  exportApprovedWordsFromExtraction,
+  exportApprovedWordsJson,
+  stripT2SurfacesFromWordsFile,
+} from "./normalize.ts";
 import { ocrJpgToSidecar } from "./ocr.ts";
 
 export const DEFAULT_SRC = "/Users/maxholden/Downloads/ASD-STE100_Issue9_JPG_Ordered_Set/pages";
@@ -147,6 +151,15 @@ export function main(argv: Array<string> = process.argv.slice(2)): number {
         termsPath,
         surfaces,
       });
+      return 0;
+    }
+    const fromWords = flagValue(argv, "--from-words");
+    if (fromWords !== undefined) {
+      const actorId = flagValue(argv, "--actor") ?? "operator";
+      const approvedPath =
+        flagValue(argv, "--approved") ?? path.join(path.dirname(fromWords), "approved-words.json");
+      stripT2SurfacesFromWordsFile(fromWords);
+      exportApprovedWordsFromExtraction(fromWords, approvedPath, actorId);
       return 0;
     }
     const src = flagValue(argv, "--src") ?? DEFAULT_SRC;
