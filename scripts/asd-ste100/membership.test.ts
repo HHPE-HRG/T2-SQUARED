@@ -13,6 +13,7 @@ import {
   checkIdentifierPolicy,
   checkMembershipAndIdentification,
   checkVocabularyMembership,
+  classifyUnapprovedToken,
   IDENTIFIER_POLICY_RULE_ID,
   TERM_CANONICAL_RULE_ID,
   knownNounsFromTerms,
@@ -480,5 +481,37 @@ describe("trusted-runner lexicon proof", () => {
       technicalTerms: [qt("Forgejo")],
     });
     assert.equal(findings.length, 0);
+  });
+});
+
+describe("classifyUnapprovedToken", () => {
+  it("classifies a leftover letter from T2 as a tokenizer split, not a missing technical name", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "T2 owns this checker.",
+      approvedWords: new Set(["owns", "this", "checker"]),
+      technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
+    });
+    const leftover = findings.find((finding) => finding.message.includes('"T"'));
+    assert.ok(leftover);
+    assert.equal(
+      classifyUnapprovedToken({
+        token: "T",
+        sourceText: "T2 owns this checker.",
+        technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
+      }),
+      "tokenizer-split",
+    );
+  });
+
+  it("classifies a content word absent from the approved set as rewrite-or-export", () => {
+    assert.equal(
+      classifyUnapprovedToken({
+        token: "xyzzy",
+        sourceText: "This is xyzzy guidance.",
+        technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
+      }),
+      "rewrite-or-export",
+    );
   });
 });

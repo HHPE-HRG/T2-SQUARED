@@ -286,6 +286,46 @@ export function approvedWordSet(words: ReadonlyArray<string>): Set<string> {
   return new Set(words.map((word) => word.toLowerCase()));
 }
 
+export type UnapprovedTokenClass = "tokenizer-split" | "rewrite-or-export";
+
+function qualifiedSurfaceForms(terms: ReadonlyArray<TechnicalTerm>): Array<string> {
+  const forms: Array<string> = [];
+  for (const term of terms) {
+    if (!isQualifiedTerm(term)) {
+      continue;
+    }
+    forms.push(term.term, ...derivedIdentifierForms(term.term));
+    const software = term.softwareForms;
+    if (software === undefined) {
+      continue;
+    }
+    for (const value of [software.typescriptType, software.typescriptValue, software.cli]) {
+      if (value !== undefined && value.length > 0) {
+        forms.push(value);
+      }
+    }
+  }
+  return forms;
+}
+
+export function classifyUnapprovedToken(input: {
+  token: string;
+  sourceText: string;
+  technicalTerms: ReadonlyArray<TechnicalTerm>;
+}): UnapprovedTokenClass {
+  const token = input.token;
+  for (const form of qualifiedSurfaceForms(input.technicalTerms)) {
+    if (!input.sourceText.includes(form) || form === token) {
+      continue;
+    }
+    const parts = tokenize(form).map((part) => part.token);
+    if (parts.includes(token)) {
+      return "tokenizer-split";
+    }
+  }
+  return "rewrite-or-export";
+}
+
 export function checkMembershipAndIdentification(
   input: MembershipInput & ArticleInput,
 ): Array<Finding> {
