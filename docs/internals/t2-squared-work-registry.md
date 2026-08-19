@@ -1,85 +1,85 @@
-# T2_Squared-Work-Registry
+# `T2_Squared-Work-Registry`
 
-This is architecture guidance for T2.
+The T2 keep this `guidance`.
 
-The public command is `npm run ci:work-registry`.
+The `public` `command` `is` `npm run ci:work-registry`.
 
-STE prose uses the work-registry.
+`STE` `prose` use the work-registry.
 
-Call the product T2_Squared-Work-Registry.
+`Call` the `product` `T2_Squared-Work-Registry`.
 
-## Scope
+## `Scope`
 
-The work-registry holds work on the T2 codebase.
+The work-registry hold work on the T2 `codebase`.
 
-A campaign lives under T2_Squared-Work-Registry.
+A campaign live `under` `T2_Squared-Work-Registry`.
 
-Each campaign has one proposal.
+A campaign `has` a proposal.
 
-The proposal is markdown.
+The proposal `is` `markdown`.
 
-Other files use json or yaml.
+Other `files` use `json` or `yaml`.
 
-Json and yaml name one document.
+`Json` and `yaml` name one `document`.
 
-Yaml form is valid for one document.
+`Yaml` `form` `is` `valid` for one `document`.
 
-Do not add a second markdown file.
+Do not add a `second` `markdown` `file`.
 
 ## Approve
 
-A campaign needs the Forgejo-review.
+A campaign `needs` the Forgejo-review.
 
-A campaign also needs a human who can approve.
+A campaign also `needs` a `human` who can approve.
 
-The human may use the override of the Forgejo-review.
+The `human` `may` use the override of the Forgejo-review.
 
-## Records
+## `Records`
 
-The genesis names the root of the campaign.
+The genesis name the `root` of the campaign.
 
-The progeny is extra json.
+The progeny `is` `extra` `json`.
 
-The epoch appends when the genesis is complete.
+The epoch `appends` when the genesis `is` complete.
 
-The epoch also appends when the progeny is complete.
+The epoch also `appends` when the progeny `is` complete.
 
-The schema is a compile of glossary terms in the proposal.
+The schema `is` a compile of `glossary` `terms` in the proposal.
 
-CI fails when the schema has drift.
+`CI` `fails` when the schema `has` a drift.
 
-Lookup reads the schema.
+The lookup read the schema.
 
-Lookup does not run ASD CI.
+The lookup do not `run` `ASD` `CI`.
 
-The dump flag is `--dump`.
+The dump `flag` `is` `--dump`.
 
-The lookup flag is `--lookup`.
+The lookup `flag` `is` `--lookup`.
 
-The dump lists the schema path.
+The dump `lists` the schema `path`.
 
-The dump lists the approved boolean.
+The dump `lists` the approved `boolean`.
 
-The dump field forgejoClosed is true when Forgejo and the human both approve without the override.
+The dump `field` `forgejoClosed` `is` `true` when the Forgejo and the `human` `both` approve without the override.
 
-Compile writes yaml when the schema path ends in yaml.
+The compile write `yaml` when the schema `path` `ends` in `yaml`.
 
-Compile writes json when the schema path ends in json.
+The compile write `json` when the schema `path` `ends` in `json`.
 
-The check flag can name one campaign.
+The check `flag` can name a campaign.
 
-## Live campaign
+## `Live campaign`
 
-The live campaign is asd-ste100-compliance.
+The campaign `is` `asd-ste100-compliance`.
 
-The later campaign is registry-yaml-write.
+The `later` campaign `is` `registry-yaml-write`.
 
-Both live campaigns are Forgejo-closed.
+`Both` live `campaigns` `are` `Forgejo-closed`.
 
-The Forgejo-review id is synthetic because this host has one user.
+The Forgejo-review `id` `is` `synthetic` because this `host` `has` one `user`.
 
-## Later work
+## `Later` work
 
-Issue 9 rows stay out of git.
+`Issue 9` `rows` stay out of `git`.
 
-This slice does not start CAN campaign work.
+This `slice` `does not start CAN campaign` work.

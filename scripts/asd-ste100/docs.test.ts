@@ -65,6 +65,7 @@ describe("owned enforcement documentation", () => {
       text,
       /live secret path is `\/home\/oldmac-vm\/forgejo-runner-t2-trusted\/vocab\/synthetic\.json`/,
     );
+    assert.match(text, /human-verified/);
     assert.match(text, /pending-human/);
     assert.match(text, /verify-only/);
     assert.match(text, /inspects the private file/);
