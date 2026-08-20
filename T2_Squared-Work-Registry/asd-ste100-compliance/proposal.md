@@ -14,7 +14,9 @@ G3 still pins those words.
 
 Rule 1.1 and Rule 4.5 fail G2.
 
-The Forgejo-review is synthetic because this host has one user.
+The Forgejo-review `is` `synthetic-1`.
+
+The progeny `is` `asd-ste100-compliance`.
 
 A human approved this campaign.
 

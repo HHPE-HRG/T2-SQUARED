@@ -20,6 +20,7 @@ const QUALIFIED_FORGEJO: TechnicalTerm = {
   technicalTermClass: "product-name",
   subjectFields: ["asd-enforcement"],
   asdBasis: ["1.5"],
+  softwareForms: { typescriptType: "ForgejoHost" },
 };
 
 const QUALIFIED_RUNNER: TechnicalTerm = {
@@ -31,6 +32,7 @@ const QUALIFIED_RUNNER: TechnicalTerm = {
   technicalTermClass: "subject-field-noun",
   subjectFields: ["asd-enforcement"],
   asdBasis: ["1.5"],
+  softwareForms: { typescriptType: "RunnerHost" },
 };
 
 const QUALIFIED_WORK_REGISTRY: TechnicalTerm = {
@@ -42,6 +44,7 @@ const QUALIFIED_WORK_REGISTRY: TechnicalTerm = {
   technicalTermClass: "subject-field-noun",
   subjectFields: ["work-registry"],
   asdBasis: ["1.5"],
+  softwareForms: { typescriptType: "WorkRegistry" },
 };
 
 const LEAK_UNSAFE = /did you mean|dictionary|approved alternative|lemma list|for example/i;

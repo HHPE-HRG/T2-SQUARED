@@ -10,7 +10,9 @@ The dump lists the campaign.
 
 The lookup reads the schema.
 
-The Forgejo-review is synthetic because this host has one user.
+The Forgejo-review `is` `synthetic-1`.
+
+The progeny `is` `registry-yaml-write`.
 
 A human approved this campaign.
 

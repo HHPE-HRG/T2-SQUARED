@@ -27,6 +27,10 @@
       "kind": "verb"
     },
     {
+      "term": "progeny",
+      "kind": "noun"
+    },
+    {
       "term": "proposal",
       "kind": "noun"
     },
@@ -38,5 +42,21 @@
       "term": "work-registry",
       "kind": "noun"
     }
-  ]
+  ],
+  "work": {
+    "kind": "work",
+    "campaign": "registry-yaml-write",
+    "id": "registry-yaml-write"
+  },
+  "pull": {
+    "kind": "pull",
+    "campaign": "registry-yaml-write",
+    "id": "synthetic-1"
+  },
+  "event": {
+    "kind": "event",
+    "campaign": "registry-yaml-write",
+    "workId": "registry-yaml-write",
+    "pullId": "synthetic-1"
+  }
 }

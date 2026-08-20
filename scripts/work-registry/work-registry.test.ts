@@ -20,12 +20,23 @@ import {
   checkWorkRegistry,
   compileCampaign,
   dumpWorkRegistry,
+  identityFromProposal,
   lookupSchema,
   registerCampaign,
   WorkRegistryError,
 } from "./registry.ts";
 
 const SAMPLE_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+function identityLines(input: { workId?: string; pullId?: string } = {}): string {
+  const workId = input.workId ?? "sample";
+  const pullId = input.pullId ?? "41";
+  return `The progeny \`is\` \`${workId}\`. The Forgejo-review \`is\` \`${pullId}\`.\n`;
+}
+
+function withIdentity(proposal: string, identity?: { workId?: string; pullId?: string }): string {
+  return `${proposal.trim()}\n${identityLines(identity)}`;
+}
 
 function writeCampaign(input: {
   forgejoApproved?: boolean;
@@ -233,23 +244,25 @@ describe("registerCampaign", () => {
 describe("compileCampaign", () => {
   it("writes schema terms found in the proposal from the glossary grep", () => {
     const dir = writeCampaign({
-      proposal:
-        "The campaign uses the work-registry. Agents compile the schema. The genesis has progeny in the epoch.\n",
+      proposal: withIdentity(
+        "The campaign uses the work-registry. Agents compile the schema. The genesis has progeny in the epoch.",
+      ),
     });
     const schema = compileCampaign(dir);
     assert.equal(schema.campaign, "sample");
     assert.equal(schema.product, PRODUCT_NAME);
     assert.deepEqual(
       schema.terms.map((term) => term.term),
-      ["campaign", "compile", "epoch", "genesis", "progeny", "schema", "work-registry"],
+      ["campaign", "compile", "epoch", "Forgejo-review", "genesis", "progeny", "schema", "work-registry"],
     );
     assert.deepEqual(lookupSchema(dir), schema);
   });
 
   it("records the Forgejo-review as a glossary noun in the schema", () => {
     const dir = writeCampaign({
-      proposal:
-        "The campaign needs the Forgejo-review before the work-registry can register the genesis.\n",
+      proposal: withIdentity(
+        "The campaign needs the Forgejo-review before the work-registry can register the genesis.",
+      ),
     });
     const schema = compileCampaign(dir);
     assert.equal(
@@ -258,20 +271,81 @@ describe("compileCampaign", () => {
     );
   });
 
-  it("does not write undefined work, pull, or event records", () => {
+  it("AE1: compile writes work, pull, and event from identity sentences", () => {
     const dir = writeCampaign({
-      proposal: "The campaign uses the work-registry.\n",
+      proposal: withIdentity("The campaign uses the work-registry."),
     });
-    compileCampaign(dir);
-    const schema = lookupSchema(dir);
-    assert.equal("work" in schema, false);
-    assert.equal("pull" in schema, false);
-    assert.equal("event" in schema, false);
+    const schema = compileCampaign(dir);
+    assert.deepEqual(schema.work, { kind: "work", campaign: "sample", id: "sample" });
+    assert.deepEqual(schema.pull, { kind: "pull", campaign: "sample", id: "41" });
+    assert.deepEqual(schema.event, {
+      kind: "event",
+      campaign: "sample",
+      workId: "sample",
+      pullId: "41",
+    });
+  });
+
+  it("AE2: missing Forgejo-review sentence fails with the pull is missing.", () => {
+    const dir = writeCampaign({
+      proposal: "The campaign uses the work-registry. The progeny `is` `sample`.\n",
+    });
+    assert.throws(
+      () => compileCampaign(dir),
+      (error: unknown) =>
+        error instanceof WorkRegistryError && error.message === "the pull is missing.",
+    );
+  });
+
+  it("AE3: Forgejo-approved genesis forgejoReviewId must equal compiled pull id", () => {
+    const dir = writeCampaign({
+      proposal: withIdentity("The campaign uses the work-registry.", { pullId: "7" }),
+    });
+    assert.throws(
+      () => compileCampaign(dir),
+      (error: unknown) =>
+        error instanceof WorkRegistryError &&
+        error.message === "the genesis review does not match the pull.",
+    );
+  });
+
+  it("AE4: drift fails when schema terms exist but work, pull, and event are absent", () => {
+    const dir = writeCampaign({
+      proposal: withIdentity("The campaign uses the work-registry."),
+      schema: `${JSON.stringify({ product: PRODUCT_NAME, campaign: "sample", terms: [] }, null, 2)}\n`,
+    });
+    assert.throws(
+      () => checkDrift(dir),
+      (error: unknown) =>
+        error instanceof WorkRegistryError && error.message === "the schema has drift.",
+    );
+  });
+
+  it("AE5: compile does not require a second principal", () => {
+    const dir = writeCampaign({
+      forgejoApproved: true,
+      humanApproved: true,
+      humanOverride: false,
+      proposal: withIdentity("The campaign uses the work-registry."),
+    });
+    const schema = compileCampaign(dir);
+    assert.equal(schema.pull.id, "41");
+    const manifest = JSON.parse(readFileSync(path.join(dir, "manifest.json"), "utf8")) as {
+      forgejoApproved: boolean;
+      humanApproved: boolean;
+    };
+    assert.equal(manifest.forgejoApproved, true);
+    assert.equal(manifest.humanApproved, true);
+  });
+
+  it("does not call a model and does not read CAN", () => {
+    assert.equal(identityFromProposal.toString().includes("openai"), false);
+    assert.equal(identityFromProposal.toString().includes("campaigns/"), false);
   });
 
   it("loads one schema document from a yaml path using yaml form", () => {
     const dir = writeCampaign({
-      proposal: "The campaign uses the work-registry.\n",
+      proposal: withIdentity("The campaign uses the work-registry."),
       schemaName: "schema.yaml",
     });
     const schema = compileCampaign(dir);
@@ -430,7 +504,7 @@ describe("dumpWorkRegistry", () => {
 describe("checkDrift", () => {
   it("fails when the schema does not match a compile of the proposal", () => {
     const dir = writeCampaign({
-      proposal: "The campaign uses the work-registry.\n",
+      proposal: withIdentity("The campaign uses the work-registry."),
       schema: `${JSON.stringify({ campaign: "sample", terms: [] }, null, 2)}\n`,
     });
     assert.throws(
@@ -442,7 +516,7 @@ describe("checkDrift", () => {
 
   it("passes when the schema matches the proposal compile", () => {
     const dir = writeCampaign({
-      proposal: "The campaign uses the work-registry.\n",
+      proposal: withIdentity("The campaign uses the work-registry."),
     });
     compileCampaign(dir);
     checkDrift(dir);

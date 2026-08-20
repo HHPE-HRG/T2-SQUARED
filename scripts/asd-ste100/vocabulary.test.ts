@@ -35,6 +35,7 @@ function subjectFieldNoun(
     technicalTermClass: "subject-field-noun",
     subjectFields: [subjectField],
     asdBasis: ["1.5"],
+    softwareForms: { typescriptType: `${term}Type` },
     ...extra,
   };
 }
@@ -151,6 +152,16 @@ describe("validateTechnicalTerms", () => {
     assert.throws(
       () => validateTechnicalTerms([{ term: "Forgejo", kind: "noun", reviewed: true }]),
       (error: unknown) => error instanceof Error && /qualified/i.test(error.message),
+    );
+  });
+
+  it("rejects a reviewed term that lacks software forms", () => {
+    assert.throws(
+      () =>
+        validateTechnicalTerms([
+          subjectFieldNoun("runner", "asd-enforcement", { softwareForms: undefined }),
+        ]),
+      (error: unknown) => error instanceof Error && /software forms/i.test(error.message),
     );
   });
 

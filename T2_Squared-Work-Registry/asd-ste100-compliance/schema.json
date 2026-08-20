@@ -23,6 +23,10 @@
       "kind": "verb"
     },
     {
+      "term": "progeny",
+      "kind": "noun"
+    },
+    {
       "term": "proposal",
       "kind": "noun"
     },
@@ -34,5 +38,21 @@
       "term": "work-registry",
       "kind": "noun"
     }
-  ]
+  ],
+  "work": {
+    "kind": "work",
+    "campaign": "asd-ste100-compliance",
+    "id": "asd-ste100-compliance"
+  },
+  "pull": {
+    "kind": "pull",
+    "campaign": "asd-ste100-compliance",
+    "id": "synthetic-1"
+  },
+  "event": {
+    "kind": "event",
+    "campaign": "asd-ste100-compliance",
+    "workId": "asd-ste100-compliance",
+    "pullId": "synthetic-1"
+  }
 }

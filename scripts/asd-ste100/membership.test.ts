@@ -36,6 +36,7 @@ function qt(term: string, extra: Partial<TechnicalTerm> = {}): TechnicalTerm {
     subjectFields: ["asd-enforcement"],
     asdBasis: ["1.5"],
     technicalTermClass: "subject-field-noun",
+    softwareForms: { typescriptType: `${term}Type` },
     ...extra,
     term,
   };

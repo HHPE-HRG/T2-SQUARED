@@ -20,10 +20,32 @@ export interface CampaignManifest {
   humanOverride: boolean;
 }
 
+export interface WorkRecord {
+  kind: "work";
+  campaign: string;
+  id: string;
+}
+
+export interface PullRecord {
+  kind: "pull";
+  campaign: string;
+  id: string;
+}
+
+export interface EventRecord {
+  kind: "event";
+  campaign: string;
+  workId: string;
+  pullId: string;
+}
+
 export interface CompiledSchema {
   product: string;
   campaign: string;
   terms: Array<WorkRegistryTerm>;
+  work: WorkRecord;
+  pull: PullRecord;
+  event: EventRecord;
 }
 
 export interface EpochRow {
@@ -544,13 +566,41 @@ export function registerCampaign(campaignDir: string): CampaignManifest {
   return manifest;
 }
 
+const PROGENY_IDENTITY = /The progeny (?:is|`is`) `([^`]+)`\./;
+const FORGEJO_REVIEW_IDENTITY = /The Forgejo-review (?:is|`is`) `([^`]+)`\./;
+
+export function identityFromProposal(text: string): { workId: string; pullId: string } {
+  const progeny = text.match(PROGENY_IDENTITY);
+  const review = text.match(FORGEJO_REVIEW_IDENTITY);
+  if (progeny === null || progeny[1] === undefined || progeny[1].length === 0) {
+    throw new WorkRegistryError("the pull is missing.");
+  }
+  if (review === null || review[1] === undefined || review[1].length === 0) {
+    throw new WorkRegistryError("the pull is missing.");
+  }
+  return { workId: progeny[1], pullId: review[1] };
+}
+
 function compiledFromProposal(campaignDir: string): CompiledSchema {
   const manifest = registerCampaign(campaignDir);
   const text = readFileSync(path.join(campaignDir, manifest.proposal), "utf8");
+  const identity = identityFromProposal(text);
+  const genesis = validateGenesis(manifest, campaignDir);
+  if (manifest.forgejoApproved && genesis.forgejoReviewId !== identity.pullId) {
+    throw new WorkRegistryError("the genesis review does not match the pull.");
+  }
   return {
     product: PRODUCT_NAME,
     campaign: manifest.campaign,
     terms: termsFromProposal(text),
+    work: { kind: "work", campaign: manifest.campaign, id: identity.workId },
+    pull: { kind: "pull", campaign: manifest.campaign, id: identity.pullId },
+    event: {
+      kind: "event",
+      campaign: manifest.campaign,
+      workId: identity.workId,
+      pullId: identity.pullId,
+    },
   };
 }
 
