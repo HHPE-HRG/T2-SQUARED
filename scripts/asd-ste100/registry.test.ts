@@ -111,7 +111,7 @@ describe("live profile matches enforced checkers", () => {
     };
     assert.equal(anchor.status, "reviewed");
     assert.equal(anchor.reviewerPrincipal, "t2-single-operator");
-    assert.equal(anchor.protectionActivation, "after-workflow-dispatch-validation");
+    assert.equal(anchor.protectionActivation, "active");
     assert.equal(typeof anchor.checkerSha, "string");
     assert.match(anchor.checkerSha ?? "", /^[0-9a-f]{40}$/);
     assert.equal(anchor.fixtureResult?.ok, true);
