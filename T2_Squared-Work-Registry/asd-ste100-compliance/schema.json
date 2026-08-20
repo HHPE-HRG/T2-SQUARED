@@ -34,5 +34,34 @@
       "term": "work-registry",
       "kind": "noun"
     }
+  ],
+  "work": [
+    {
+      "kind": "work",
+      "id": "asd-ste100-compliance",
+      "campaign": "asd-ste100-compliance",
+      "parent": null
+    }
+  ],
+  "pull": [
+    {
+      "kind": "pull",
+      "campaign": "asd-ste100-compliance",
+      "reviewId": "7"
+    }
+  ],
+  "event": [
+    {
+      "kind": "event",
+      "campaign": "asd-ste100-compliance",
+      "subject": "work",
+      "id": "asd-ste100-compliance"
+    },
+    {
+      "kind": "event",
+      "campaign": "asd-ste100-compliance",
+      "subject": "pull",
+      "id": "7"
+    }
   ]
 }

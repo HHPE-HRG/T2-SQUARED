@@ -84,7 +84,7 @@ The `later` campaign `is` `registry-yaml-write`.
 
 `Both` live `campaigns` `are` `Forgejo-closed`.
 
-The Forgejo-review `id` `is` `synthetic` because this `host` `has` one `user`.
+The Forgejo-review `id` `is` `7`.
 
 ## `Later` work
 
