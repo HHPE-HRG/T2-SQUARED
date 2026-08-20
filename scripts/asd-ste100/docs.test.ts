@@ -59,7 +59,13 @@ describe("owned enforcement documentation", () => {
     assert.match(text, /distinct/i);
     assert.match(text, /t2-trusted/);
     assert.match(text, /orchestration-vm/);
-    assert.match(text, /forgejo-runner-t2-trusted\/vocab\/synthetic\.json/);
+    assert.match(text, /forgejo-runner-t2-trusted\/vocab\/approved-words\.json/);
+    assert.match(text, /scripts\/asd-ste100\/test\/fixtures\/vocab\/synthetic\.json/);
+    assert.doesNotMatch(
+      text,
+      /live secret path is `\/home\/oldmac-vm\/forgejo-runner-t2-trusted\/vocab\/synthetic\.json`/,
+    );
+    assert.match(text, /human-verified/);
     assert.match(text, /pending-human/);
     assert.match(text, /verify-only/);
     assert.match(text, /inspects the private file/);

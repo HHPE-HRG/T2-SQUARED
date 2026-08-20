@@ -13,7 +13,7 @@ export function ocrJpgToSidecar(jpgPath: string, txtPath: string): void {
       timeout: 120_000,
     });
   } catch (error) {
-    const detail = error instanceof Error ? error.message : "tesseract failed.";
+    const detail = error instanceof Error ? error.message : "`tesseract` `failed`.";
     throw new LexiconError(`ocr failed for ${path.basename(jpgPath)}: ${detail}`);
   }
 }

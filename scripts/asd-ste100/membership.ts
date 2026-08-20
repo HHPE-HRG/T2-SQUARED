@@ -1,7 +1,7 @@
 import type { Finding } from "./rules.ts";
 import { isQualifiedTerm, type TechnicalTerm } from "./vocabulary.ts";
 
-const TOKEN = /[A-Za-z][A-Za-z'-]*/g;
+const TOKEN = /[A-Za-z][A-Za-z0-9'-]*/g;
 const DETERMINERS = new Set(["the", "a", "an", "this", "these"]);
 
 export const IDENTIFIER_POLICY_RULE_ID = "T2-IDENTIFIER-projection";
@@ -124,15 +124,15 @@ function isIdentifierToken(token: string, bindings: ReadonlyMap<string, Technica
 }
 
 export function unapprovedTokenMessage(token: string): string {
-  return `word "${token}" is not in the approved set.`;
+  return `keep "${token}" out of the approved set.`;
 }
 
 export function unboundIdentifierMessage(token: string): string {
-  return `T2 identifier "${token}" is not bound to a qualified concept.`;
+  return `The T2 keep "${token}" off this name.`;
 }
 
 export function noncanonicalTermMessage(token: string, canonical: string): string {
-  return `prose "${token}" is not the canonical human form "${canonical}".`;
+  return `Keep "${token}" as the ${canonical}.`;
 }
 
 export function checkVocabularyMembership(input: MembershipInput): Array<Finding> {
@@ -268,7 +268,7 @@ export function checkArticleBeforeNoun(input: ArticleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "ASD-STE100-4.5",
-      message: `known noun "${parts[index]}" needs an article or demonstrative.`,
+      message: `Keep the name "${parts[index]}" with a or this.`,
     });
   }
   return findings;
@@ -284,6 +284,54 @@ export function knownNounsFromTerms(terms: ReadonlyArray<TechnicalTerm>): Set<st
 
 export function approvedWordSet(words: ReadonlyArray<string>): Set<string> {
   return new Set(words.map((word) => word.toLowerCase()));
+}
+
+export type UnapprovedTokenClass = "tokenizer-split" | "rewrite-or-export";
+
+function qualifiedSurfaceForms(terms: ReadonlyArray<TechnicalTerm>): Array<string> {
+  const forms: Array<string> = [];
+  for (const term of terms) {
+    if (!isQualifiedTerm(term)) {
+      continue;
+    }
+    forms.push(term.term, ...derivedIdentifierForms(term.term));
+    const software = term.softwareForms;
+    if (software === undefined) {
+      continue;
+    }
+    for (const value of [software.typescriptType, software.typescriptValue, software.cli]) {
+      if (value !== undefined && value.length > 0) {
+        forms.push(value);
+      }
+    }
+  }
+  return forms;
+}
+
+export function classifyUnapprovedToken(input: {
+  token: string;
+  sourceText: string;
+  technicalTerms: ReadonlyArray<TechnicalTerm>;
+}): UnapprovedTokenClass {
+  const token = input.token;
+  for (const form of qualifiedSurfaceForms(input.technicalTerms)) {
+    if (!input.sourceText.includes(form) || form === token) {
+      continue;
+    }
+    const parts = tokenize(form).map((part) => part.token);
+    if (parts.includes(token)) {
+      return "tokenizer-split";
+    }
+    const rest = form.slice(token.length);
+    if (
+      form.toLowerCase().startsWith(token.toLowerCase()) &&
+      rest.length > 0 &&
+      /^[0-9]/.test(rest)
+    ) {
+      return "tokenizer-split";
+    }
+  }
+  return "rewrite-or-export";
 }
 
 export function checkMembershipAndIdentification(

@@ -1,25 +1,25 @@
-# asd-ste100-compliance
+# `asd-ste100-compliance`
 
-This campaign tests the work-registry with ASD-STE100.
+This campaign `tests` the work-registry with `ASD-STE100`.
 
-The proposal is the only markdown file.
+The proposal `is` the only `markdown` `file`.
 
-The genesis is this campaign.
+The genesis `is` this campaign.
 
-A human approved the pinned vocabulary.
+A `human` approved the `pinned` `vocabulary`.
 
-The private words stay off git.
+The `private` `words` stay off `git`.
 
-G3 still pins those words.
+`G3` `still` `pins` those `words`.
 
-Rule 1.1 and Rule 4.5 fail G2.
+`Rule` 1.1 and `Rule` 4.5 `fail` `G2`.
 
-The Forgejo-review is synthetic because this host has one user.
+The Forgejo-review `is` `synthetic` because this `host` `has` one `user`.
 
-A human approved this campaign.
+A `human` approved this campaign.
 
 Compile the schema from this proposal.
 
-Lookup reads the schema.
+Lookup `reads` the schema.
 
-This campaign does not copy Issue 9 rows into git.
+This campaign `does` not copy `Issue` 9 `rows` into `git`.

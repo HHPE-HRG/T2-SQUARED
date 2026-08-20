@@ -1,167 +1,167 @@
-# T2 ASD-STE100 mechanical rule-subset
+# The `T2` `ASD-STE100 mechanical rule-subset`
 
-This is architecture guidance for T2.
+The `T2` keep this `guidance`.
 
-This document is not a language-authority certificate.
+This `document` `is` not a `language-authority` `certificate`.
 
-The public command is `npm run ci:asd-ste100`.
+The `public` `command` `is` `npm run ci:asd-ste100`.
 
-Results use the claim "ASD-STE100 mechanical rule-subset result".
+`Results` use the `claim` `"ASD-STE100 mechanical rule-subset result"`.
 
-## Ownership boundary
+## `Ownership boundary`
 
-Upstream T3 text stays outside the governed set when T2 did not change it.
+`Upstream` `T3` `text` stay `outside` the `governed` set when the `T2` `did` not change it.
 
-T2-owned text must match a closed ownership glob.
+`T2-owned` `text` must `match` a `closed` `ownership` `glob`.
 
-Unclassified new T2 text fails.
+`Unclassified` new `T2` `text` `fails`.
 
-Privileged control files need a distinct reviewer.
+`Privileged` `control` `files` `need` a `distinct` `reviewer`.
 
-## Raw conversation exception
+## `Raw conversation` `exception`
 
-Raw prompts stay byte-identical.
+`Raw` `prompts` stay `byte-identical`.
 
-Raw conversation fixtures stay byte-identical.
+`Raw conversation` `fixtures` stay `byte-identical`.
 
-Files under transcripts stay excluded.
+The `files` `under` `transcripts` stay `excluded`.
 
-The suite stores origin hashes.
+The `suite` `stores` `origin` `hashes`.
 
-It does not rewrite user language.
+It do not `rewrite` `user` `language`.
 
-## Admission scope
+## `Admission` `scope`
 
-The suite is a Forgejo admission gate.
+The `suite` `is` a `Forgejo admission` `gate`.
 
-It is not a local commit typecheck.
+It `is` `not a local commit typecheck`.
 
-Lockfiles, images, binaries, and other machine text stay excluded.
+`Lockfiles`, `images`, `binaries`, and other `machine text` stay `excluded`.
 
-The work-registry lives in Git.
+The `work-registry lives in Git`.
 
 See `docs/internals/t2-squared-work-registry.md`.
 
-This slice does not start CAN campaign work.
+This `slice` `does not start CAN campaign` work.
 
-## Checks
+## `Checks`
 
-Extraction finds Markdown prose and source strings.
+`Extraction` find `Markdown` `prose` and `source` `strings`.
 
-Extraction also finds comments and JSON descriptive fields.
+`Extraction` also find `comments` and `JSON` `descriptive` `fields`.
 
-Mechanical Issue 9 checks cover sentence length and paragraph length.
+The mechanical `Issue 9` check `cover` `sentence` length and `paragraph` length.
 
-Live checks cover vocabulary membership and articles before known nouns.
+The live check `cover` `vocabulary` `membership` and `articles` before `known` `nouns`.
 
-Heuristic checks cover contractions, semicolons, passive constructions, verb forms, and American spelling.
+`Heuristic` check `cover` `contractions`, `semicolons`, `passive` `constructions`, `verb` `forms`, and `American` `spelling`.
 
-Heuristic checks also cover question marks and spaced slashes.
+`Heuristic` check also `cover` `question` `marks` and `spaced` `slashes`.
 
-Heuristic findings do not fail G2.
+`Heuristic` `findings` `do not fail G2`.
 
-Provision mounts the committed fixture.
+`Provision mounts the` `committed` `fixture`.
 
-A pin check can run without flipping review.
+A `pin check` can `run` `without flipping review`.
 
-A human inspects the private file before any pin change off the fixture.
+A `human` `inspects the private file` before `any` `pin` change off the `fixture`.
 
-The live pin is an Issue 9-derived lemma export.
+The live `pin` `is` an `Issue 9-derived` `lemma` `export`.
 
-The live file records status reviewed.
+The live `file` `record` `status` `reviewed`.
 
-A pin-landed-pending-review status has no reviewer.
+A `pin-landed-pending-review` `status` `has` no `reviewer`.
 
-The live lemma export is human-verified.
+The live `lemma` `export` `is` `human-verified`.
 
-Rule 1.1 and Rule 4.5 fail G2 after that approve.
+`Rule 1.1` and `Rule 4.5` `fail G2 after that approve`.
 
-Rule 1.1 qualifies the canonical human term.
+`Rule 1.1` `qualifies` the `canonical human term`.
 
-ASD lexical membership is case-folded.
+`ASD` `lexical` `membership` `is` `case-folded`.
 
-Rule 1.1 matches the longest approved phrase first.
+`Rule 1.1` `matches` the `longest` `approved` `phrase` first.
 
-Then the checker tests each leftover token.
+Then the `checker` `test` each `leftover` `token`.
 
-A unique lemma count is not the source entry count.
+A `unique` `lemma` count `is` not the source entry count.
 
-The private export writes a reconciliation record.
+The `private` `export` write a `reconciliation` record.
 
-Work-Registry and work-registry are the same lemma.
+`Work-Registry` and the `work-registry` `are` the `same lemma`.
 
-A T2-TERM-canonical check requires one human form.
+A `T2-TERM-canonical` check `requires` one `human` `form`.
 
-Sentence-initial capitalization may change the first letter.
+`Sentence-initial` `capitalization` `may` change the first `letter`.
 
-A T2 identifier-policy check binds software forms to that concept.
+A `T2` `identifier-policy` check `binds` `software` `forms` to that `concept`.
 
-Those software forms are not ASD dictionary rows.
+Those `software` `forms` `are` not `ASD` `dictionary` `rows`.
 
-U10 membership and identification checks are in the public suite.
+`U10` `membership` and `identification` check `are` in the `public` `suite`.
 
-A prohibited language-authority claim fails.
+A `prohibited` `language-authority` `claim` `fails`.
 
-Private vocabulary stays off Git.
+`Private` `vocabulary` stay off `Git`.
 
-The lexicon bridge writes a private words file.
+The `lexicon bridge` write a `private` `words` `file`.
 
-That file is an extraction of Issue 9.
+That `file` `is` an `extraction` of `Issue 9`.
 
-The extraction is not the Rule 1.1 lemma set.
+The `extraction` `is` not the `Rule 1.1` `lemma` set.
 
-The bridge writes a second private lemma export.
+The `bridge` write a `second` `private` `lemma` `export`.
 
-The export keeps uppercase headwords with a part of speech mark.
+The `export` keep `uppercase` `headwords` with a part of `speech` mark.
 
-Lowercase headwords stay out of that export.
+`Lowercase` `headwords` stay out of that `export`.
 
-T2 surfaces stay in the terms file.
+The `T2` `surfaces` stay in the `terms` `file`.
 
-Git stores the pin.
+`Git` `stores` the `pin`.
 
-A git merge is the human gate.
+A `git merge is the human gate`.
 
-The operator scan writes a private lexicon store.
+The `operator` `scan` write a `private lexicon store`.
 
-The dest path must stay off Git.
+The `dest` `path` must stay off `Git`.
 
-A jpg sidecar holds scan text.
+A `jpg sidecar` hold `scan` `text`.
 
-The private lexicon store lives under T2-SQUARED-References.
+The `private lexicon store` live `under` `T2-SQUARED-References`.
 
-Pin apply needs an explicit git-merge flag.
+The `pin` apply `needs` an `explicit git-merge flag`.
 
-A frozen page splits into line rows.
+A `frozen page splits` into `line` `rows`.
 
-Product-class forks from the first header.
+`Product-class forks` from the first `header`.
 
-The leak scan rejects a dump of the private file.
+The leak `scan` reject a `dump of the private file`.
 
-The leak scan does not reject one source token.
+The leak `scan` do not reject one source `token`.
 
-## Review and overrides
+## `Review` and `overrides`
 
-One human profile may self-sign.
+One `human` `profile` `may` `self-sign`.
 
-Two human profiles need human co-sign.
+`Two` `human` `profiles` `need` `human` `co-sign`.
 
-Human and agent reviewers use the same checks.
+The `human` and the agent `reviewers` use the same check.
 
-An override binds one finding.
+An override `binds` one `finding`.
 
-It names file, line, rule, content hash, and repair hashes.
+It name `file`, `line`, `rule`, `content` `hash`, and repair `hashes`.
 
-A new head commit invalidates the override.
+A new head `commit` `invalidates` the override.
 
-## Modes
+## `Modes`
 
-PR mode checks the T2 delta.
+The `PR` mode check the `T2` `delta`.
 
-Main mode scans the owned corpus.
+The `Main` mode `scans` the `owned` `corpus`.
 
-Release mode needs a current main baseline.
+The release mode `needs` a `current` `main` `baseline`.
 
-Release mode needs a rule-subset attestation.
+The release mode `needs` a `rule-subset` attestation.
 
-GitHub Actions must stay disabled for connected runs.
+`GitHub Actions` must stay `disabled` for `connected` `runs`.

@@ -13,6 +13,7 @@ import {
   checkIdentifierPolicy,
   checkMembershipAndIdentification,
   checkVocabularyMembership,
+  classifyUnapprovedToken,
   IDENTIFIER_POLICY_RULE_ID,
   TERM_CANONICAL_RULE_ID,
   knownNounsFromTerms,
@@ -117,9 +118,36 @@ describe("checkVocabularyMembership", () => {
       approvedWords: new Set(["move", "the", "unit", "away from"]),
       technicalTerms: [],
     });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      true,
+    );
+  });
+
+  it("accepts an irreducible product name that is not an approved lemma", () => {
+    const product = qt("QzvSteGate", { technicalTermClass: "product-name" });
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "Install the QzvSteGate runner.",
+      approvedWords: approved,
+      technicalTerms: [product],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("still reports Rule 1.1 for a function-word leftover", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "The runner is ready.",
+      approvedWords: new Set(["the", "runner", "ready"]),
+      technicalTerms: terms,
+    });
     const hit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
     assert.ok(hit);
-    assert.equal(hit.message, unapprovedTokenMessage("away"));
+    assert.equal(hit.message, unapprovedTokenMessage("is"));
   });
 
   it("prefers the longest approved phrase when a shorter lemma also exists", () => {
@@ -194,7 +222,7 @@ describe("checkCanonicalTermForm", () => {
     });
     const hit = findings.find((finding) => finding.ruleId === TERM_CANONICAL_RULE_ID);
     assert.ok(hit);
-    assert.match(hit.message, /canonical human form/);
+    assert.match(hit.message, /as the work-registry/);
     assert.match(hit.message, /work-registry/);
     assert.equal(
       findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
@@ -213,6 +241,18 @@ describe("checkCanonicalTermForm", () => {
       technicalTerms: bound,
     });
     assert.equal(findings.length, 0);
+  });
+
+  it("rejects a canonical-form misspell of an irreducible product name", () => {
+    const product = qt("QzvSteGate", { technicalTermClass: "product-name" });
+    const findings = checkCanonicalTermForm({
+      ...loc,
+      text: "Install the qzvstegate runner.",
+      technicalTerms: [product],
+    });
+    const hit = findings.find((finding) => finding.ruleId === TERM_CANONICAL_RULE_ID);
+    assert.ok(hit);
+    assert.match(hit.message, /QzvSteGate/);
   });
 
   it("accepts sentence-initial first-letter capitalization of a lowercase canonical form", () => {
@@ -336,8 +376,8 @@ describe("checkIdentifierPolicy", () => {
     });
     const hit = findings.find((finding) => finding.ruleId === IDENTIFIER_POLICY_RULE_ID);
     assert.ok(hit);
-    assert.match(hit.message, /T2 identifier/);
-    assert.match(hit.message, /qualified concept/);
+    assert.match(hit.message, /The T2 keep/);
+    assert.match(hit.message, /off this name/);
     assert.equal(
       findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
       false,
@@ -394,7 +434,7 @@ function assertLeakSafeMembershipDiagnostic(
 describe("unapprovedTokenMessage", () => {
   it("locks the Rule 1.1 message without alternatives, dictionary rows, or examples", () => {
     const message = unapprovedTokenMessage("xyzzy");
-    assert.equal(message, 'word "xyzzy" is not in the approved set.');
+    assert.equal(message, 'keep "xyzzy" out of the approved set.');
     assertLeakSafeMembershipDiagnostic(message, ["install", "runner", "attestation"]);
   });
 });
@@ -480,5 +520,69 @@ describe("trusted-runner lexicon proof", () => {
       technicalTerms: [qt("Forgejo")],
     });
     assert.equal(findings.length, 0);
+  });
+});
+
+describe("classifyUnapprovedToken", () => {
+  it("classifies a leftover letter from T2 as a tokenizer split, not a missing technical name", () => {
+    assert.equal(
+      classifyUnapprovedToken({
+        token: "T",
+        sourceText: "T2 owns this checker.",
+        technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
+      }),
+      "tokenizer-split",
+    );
+  });
+
+  it("classifies a content word absent from the approved set as rewrite-or-export", () => {
+    assert.equal(
+      classifyUnapprovedToken({
+        token: "xyzzy",
+        sourceText: "This is xyzzy guidance.",
+        technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
+      }),
+      "rewrite-or-export",
+    );
+  });
+});
+
+describe("product token boundaries", () => {
+  it("keeps T2 as one token so leftover T is not a Rule 1.1 finding", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "T2 owns this checker.",
+      approvedWords: new Set(["owns", "this", "checker"]),
+      technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("keeps ASD-STE100 as one token when that product name is bound", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "ASD-STE100 owns this checker.",
+      approvedWords: new Set(["owns", "this", "checker"]),
+      technicalTerms: [qt("ASD-STE100", { technicalTermClass: "product-name" })],
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "ASD-STE100-1.1"),
+      false,
+    );
+  });
+
+  it("still rejects unrelated letter-digit junk that is not bound", () => {
+    const findings = checkVocabularyMembership({
+      ...loc,
+      text: "X9 leftover",
+      approvedWords: new Set(["leftover"]),
+      technicalTerms: [qt("T2", { technicalTermClass: "product-name" })],
+    });
+    const hit = findings.find((finding) => finding.ruleId === "ASD-STE100-1.1");
+    assert.ok(hit);
+    assert.equal(hit.message, unapprovedTokenMessage("X9"));
   });
 });

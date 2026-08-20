@@ -17,7 +17,7 @@ export function checkClaims(input: {
       line: input.line,
       column: input.column,
       ruleId: "T10",
-      message: "prohibited ASD approval or certification claim.",
+      message: "The T2 reject this approval or this name.",
     },
   ];
 }

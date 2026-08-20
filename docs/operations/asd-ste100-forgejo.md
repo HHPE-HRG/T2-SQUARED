@@ -1,126 +1,126 @@
-# Forgejo host for T2 enforcement
+# `Forgejo` `host` for `T2` `enforcement`
 
-This runbook is for operators.
+This `runbook` `is` for `operators`.
 
-This runbook is not a language-authority certificate.
+This `runbook` `is` not a `language-authority` `certificate`.
 
-Activate branch protection only after workflow dispatch succeeds.
+Activate `branch` protection only after `workflow` `dispatch` `succeeds`.
 
-## Host facts
+## `Host` `facts`
 
-Host name is `hhpe-forge`.
+`Host` name `is` `hhpe-forge`.
 
-The container name is `forgejo`.
+The container name `is` `forgejo`.
 
-The image family is `codeberg.org/forgejo/forgejo`.
+The `image` `family` `is` `codeberg.org/forgejo/forgejo`.
 
-Data lives at `/home/oldmac-vm/forgejo/data`.
+Data `lives` at `/home/oldmac-vm/forgejo/data`.
 
-The database is SQLite at `/data/gitea.db`.
+The `database` `is` `SQLite` at `/data/gitea.db`.
 
-HTTP uses host port 3000.
+`HTTP` `uses` `host` `port` 3000.
 
-SSH uses host port 2222.
+`SSH` `uses` `host` `port` 2222.
 
-ROOT_URL is `http://hhpe-forge.local:3000/`.
+`ROOT_URL` `is` `http://hhpe-forge.local:3000/`.
 
-The untrusted runner unit is `forgejo-runner.service`.
+The `untrusted` `runner` unit `is` `forgejo-runner.service`.
 
-The trusted runner unit is `forgejo-runner-t2-trusted.service`.
+The `trusted` `runner` unit `is` `forgejo-runner-t2-trusted.service`.
 
-Runner version is v13.0.0.
+`Runner` `version` `is` `v13.0.0`.
 
-Untrusted label is `hhpe-ci`.
+`Untrusted` `label` `is` `hhpe-ci`.
 
-Trusted label is `t2-trusted`.
+`Trusted` `label` `is` `t2-trusted`.
 
-The trusted runner is repo-scoped to `maxholden/T2-SQUARED`.
+The `trusted` `runner` `is` `repo-scoped` to `maxholden/T2-SQUARED`.
 
-Live image is Forgejo 15.0.6.
+Live `image` `is` `Forgejo` 15.0.6.
 
-Set `GITEA_WORK_DIR=/data` on recreate.
+Set `GITEA_WORK_DIR=/data` on `recreate`.
 
-The trusted runner reads `ASD_STE100_VOCABULARY` as a filesystem path.
+The `trusted` `runner` `reads` `ASD_STE100_VOCABULARY` as a `filesystem` `path`.
 
-That path must match the SHA-256 pin in `t2.asd-ste100.json`.
+That `path` must `match` the `SHA-256` `pin` in `t2.asd-ste100.json`.
 
-Reach the runner host with `ssh orchestration-vm`.
+`Reach` the runner `host` with `ssh orchestration-vm`.
 
-Host name `oldmac-vm` does not resolve from this Mac.
+`Host` name `oldmac-vm` `does` not `resolve` from this `Mac`.
 
-The live secret path is `/home/oldmac-vm/forgejo-runner-t2-trusted/vocab/synthetic.json`.
+The live `secret` `path` `is` `/home/oldmac-vm/forgejo-runner-t2-trusted/vocab/approved-words.json`.
 
-The committed test fixture is `scripts/asd-ste100/test/fixtures/vocab/synthetic.json`.
+The `committed` test `fixture` `is` `scripts/asd-ste100/test/fixtures/vocab/synthetic.json`.
 
-The live pin is an Issue 9-derived lemma export.
+The live `pin` `is` an `Issue` 9-`derived` `lemma` `export`.
 
-Copy `approved-words.json` from the private lexicon store onto `t2-trusted`.
+Copy `approved-words.json` from the `private` `lexicon` `store` onto `t2-trusted`.
 
-Do not mount the raw extraction.
+Do not `mount` the `raw` `extraction`.
 
-Do not commit that file.
+Do not `commit` that `file`.
 
-The live lemma export is human-verified.
+The live `lemma` `export` `is` `human-verified`.
 
-G2 does not apply Rule 1.1 or Rule 4.5 while review is pending-human.
+`G2` `does` not apply `Rule` 1.1 or `Rule` 4.5 while `review` `is` `pending-human`.
 
-G2 still applies sentence length rules and claim rules.
+`G2` `still` `applies` `sentence` length `rules` and `claim` `rules`.
 
-A remount of the fixture still writes `pending-human`.
+A `remount` of the `fixture` `still` `writes` `pending-human`.
 
-The leak scan rejects a dump of the private file.
+The leak `scan` `rejects` a dump of the `private` `file`.
 
-The leak scan does not reject one source token.
+The leak `scan` `does` not reject one source `token`.
 
-G5 calls the review check.
+`G5` `calls` the `review` check.
 
-G6 calls the override check.
+`G6` `calls` the override check.
 
-PR and release fail when the review is missing.
+`PR` and release `fail` when the `review` `is` missing.
 
-Run `npm run asd-ste100:provision-vocab -- --mount-source <approved-words.json> --dest <vocab-dir>` to copy the Issue 9 export.
+`Run` `npm run asd-ste100:provision-vocab -- --mount-source <approved-words.json> --dest <vocab-dir>` to copy the `Issue` 9 `export`.
 
-Run `npm run asd-ste100:provision-vocab -- --verify-only --dest <vocab-dir>` to check the pin.
+`Run` `npm run asd-ste100:provision-vocab -- --verify-only --dest <vocab-dir>` to check the `pin`.
 
-Default provision refuses to replace an Issue 9 pin with the fixture.
+`Default` `provision` `refuses` to replace an `Issue` 9 `pin` with the `fixture`.
 
-A human inspects the private file before any pin change off the fixture.
+A `human` `inspects the private file` before `any` `pin` change off the `fixture`.
 
-Rule 1.1 and Rule 4.5 fail G2 after that approve.
+`Rule` 1.1 and `Rule` 4.5 `fail` `G2` after that approve.
 
-Pipeline tokens live on the VM under the agent state directory.
+`Pipeline` `tokens` live on the `VM` `under` the agent `state` `directory`.
 
-Those tokens do not live in git.
+Those `tokens` do not live in `git`.
 
-Reviewer PATs never enter CI.
+`Reviewer` `PATs` `never` `enter` `CI`.
 
-The operator SSH key is on the maxholden account.
+The `operator` `SSH` `key` `is` on the `maxholden` `account`.
 
-The hhpe-ci user is a write collaborator.
+The `hhpe-ci` `user` `is` a write `collaborator`.
 
-Do not provision the release identity yet.
+Do not `provision` the release `identity` `yet`.
 
-## Upgrade path
+## `Upgrade` `path`
 
-The staged path was 9.0.3 to 10.0.3.
+The `staged` `path` `was` 9.0.3 to 10.0.3.
 
-The next waypoint was 10.0.3 to 11.0.16.
+The next `waypoint` `was` 10.0.3 to 11.0.16.
 
-Hold on 11 ended after qualification stayed clean.
+Hold on 11 `ended` after `qualification` `stayed` clean.
 
-The later jump was 11.0.16 to 15.0.6.
+The `later` `jump` `was` 11.0.16 to 15.0.6.
 
-That jump succeeded.
+That `jump` `succeeded`.
 
-Versions 12, 13, and 14 remain rollback only.
+`Versions` 12, 13, and 14 `remain` `rollback` only.
 
-Pinned 10 image is 10.0.3.
+`Pinned` 10 `image` `is` 10.0.3.
 
-Pinned 11 image is 11.0.16.
+`Pinned` 11 `image` `is` 11.0.16.
 
-Pinned 15 image is 15.0.6.
+`Pinned` 15 `image` `is` 15.0.6.
 
-## Recreate command
+## `Recreate` `command`
 
 ```sh
 docker run -d \
@@ -135,217 +135,217 @@ docker run -d \
   codeberg.org/forgejo/forgejo:<tag>
 ```
 
-Forgejo 15 refuses an unexpected SSH key file.
+`Forgejo` 15 `refuses` an `unexpected` `SSH` `key` `file`.
 
 Copy `/data/git/.ssh/authorized_keys` first.
 
-Then delete that file.
+Then `delete` that `file`.
 
-Let Forgejo rewrite it.
+Let `Forgejo` `rewrite` it.
 
-Cookie names changed in 15.
+`Cookie` `names` `changed` in 15.
 
-Users must sign in again.
+`Users` must sign in again.
 
-Keep the previous stopped container.
+Keep the previous `stopped` container.
 
-## Stop and backup
+## Stop and `backup`
 
-Create `/data/log` if it is missing.
+`Create` `/data/log` if it `is` missing.
 
 Stop `forgejo-runner.service`.
 
 Stop `forgejo-runner-t2-trusted.service`.
 
-Flush queues as UID 1000.
+Flush `queues` as `UID` 1000.
 
 Stop the `forgejo` container.
 
-Copy the data directory to a dated backup.
+Copy the data `directory` to a `dated` `backup`.
 
-Save `docker inspect forgejo` next to that backup.
+`Save` `docker inspect forgejo` next to that `backup`.
 
-Restore is a stop, data replace, and start.
+`Restore` `is` a stop, data replace, and start.
 
-## Qualification
+## `Qualification`
 
-Record `/api/v1/version` after each waypoint.
+Record `/api/v1/version` after each `waypoint`.
 
-Record `forgejo doctor check --all` as UID 1000.
+Record `forgejo doctor check --all` as `UID` 1000.
 
-Record SQLite `PRAGMA integrity_check`.
+Record `SQLite` `PRAGMA integrity_check`.
 
-Record `git ls-remote` for a known repository.
+Record `git ls-remote` for a `known` `repository`.
 
-Record runner labels `hhpe-ci` and `self-hosted`.
+Record `runner` `labels` `hhpe-ci` and `self-hosted`.
 
-Record one Actions job when a safe workflow exists.
+Record one `Actions` `job` when a safe `workflow` `exists`.
 
-A failed check stops the next upgrade.
+A `failed` check `stops` the next `upgrade`.
 
-## Qualification record
+## `Qualification` record
 
-### 9.0.3 baseline
+### 9.0.3 `baseline`
 
-Date is 2026-08-13.
+Date `is` 2026-08-13.
 
-API version is 9.0.3.
+`API` `version` `is` 9.0.3.
 
-Stopped container is `forgejo-9-20260813`.
+`Stopped` container `is` `forgejo-9-20260813`.
 
 ### 10.0.3
 
-Status is a migration waypoint.
+`Status` `is` a `migration` `waypoint`.
 
-Date is 2026-08-13.
+Date `is` 2026-08-13.
 
-API version is 10.0.3.
+`API` `version` `is` 10.0.3.
 
-Stopped container is `forgejo-10-20260813`.
+`Stopped` container `is` `forgejo-10-20260813`.
 
-SQLite check was ok.
+`SQLite` check `was` `ok`.
 
-Runner v13.0.0 declared `hhpe-ci`.
+`Runner` `v13.0.0` `declared` `hhpe-ci`.
 
 ### 11.0.16
 
-Status is waypoint complete.
+`Status` `is` `waypoint` complete.
 
-Date is 2026-08-13.
+Date `is` 2026-08-13.
 
-API version is 11.0.16.
+`API` `version` `is` 11.0.16.
 
-Stopped container is `forgejo-11-20260813`.
+`Stopped` container `is` `forgejo-11-20260813`.
 
-Pre-jump backup is `20260813T155536Z-pre-v15`.
+`Pre-jump` `backup` `is` `20260813T155536Z-pre-v15`.
 
-SQLite check was ok.
+`SQLite` check `was` `ok`.
 
-Runner pairing stayed on v13.0.0.
+`Runner` `pairing` `stayed` on `v13.0.0`.
 
-### 15.0.6 LTS
+### 15.0.6 `LTS`
 
-Status is the live trust root.
+`Status` `is` the live `trust` `root`.
 
-Date is 2026-08-13.
+Date `is` 2026-08-13.
 
-API version is 15.0.6.
+`API` `version` `is` 15.0.6.
 
-Qualified backup is `20260813T155959Z-v15-qualified`.
+`Qualified` `backup` `is` `20260813T155959Z-v15-qualified`.
 
-First 15 start failed on an unexpected SSH key.
+First 15 start `failed` on an `unexpected` `SSH` `key`.
 
-An operator copied the key file then removed it.
+An `operator` `copied` the `key` `file` then `removed` it.
 
-Forgejo rewrote the file.
+`Forgejo` `rewrote` the `file`.
 
-SQLite check was ok.
+`SQLite` check `was` `ok`.
 
-Runner pairing for U6 is v13.0.0 with `hhpe-ci`.
+`Runner` `pairing` for `U6` `is` `v13.0.0` with `hhpe-ci`.
 
-Remaining proofs are one Actions job, one package round-trip, and a restore drill.
+Remaining `proofs` `are` one `Actions` `job`, one `package` `round-trip`, and a `restore` `drill`.
 
-## Distinct accounts
+## `Distinct` `accounts`
 
-One human profile may self-sign.
+One `human` `profile` `may` `self-sign`.
 
-Two human profiles need distinct Forgejo users.
+`Two` `human` `profiles` `need` `distinct` `Forgejo` `users`.
 
-Keep CI and release identities separate.
+Keep `CI` and release `identities` `separate`.
 
-Human and agent reviewers need distinct identities.
+`Human` and agent `reviewers` `need` `distinct` `identities`.
 
-Do not share reviewer credentials.
+Do not `share` `reviewer` `credentials`.
 
-Reviewer PATs never enter CI.
+`Reviewer` `PATs` `never` `enter` `CI`.
 
-The trusted runner serves only this repository.
+The `trusted` `runner` `serves` only this `repository`.
 
-Its systemd unit is `forgejo-runner-t2-trusted.service`.
+Its `systemd` unit `is` `forgejo-runner-t2-trusted.service`.
 
-Its work directory is `/home/oldmac-vm/forgejo-runner-t2-trusted/work`.
+Its work `directory` `is` `/home/oldmac-vm/forgejo-runner-t2-trusted/work`.
 
-## Branch and tag protection
+## `Branch` and tag protection
 
-Required PR contexts are:
+`Required` `PR` `contexts` `are`:
 
 ```text
 asd-ste100 / advisory
 asd-ste100 / trusted-pr
 ```
 
-Required main context is `asd-ste100 / trusted-main`.
+`Required` `main` `context` `is` `asd-ste100 / trusted-main`.
 
-Protect tags that match `t2-v*`.
+`Protect` `tags` that `match` `t2-v*`.
 
-Only the release identity may create those tags.
+Only the release `identity` `may` `create` those `tags`.
 
-Do not protect upstream `v*` tags as T2 releases.
+Do not `protect` upstream `v*` `tags` as `T2` `releases`.
 
-GitHub Actions must stay disabled on the fork.
+`GitHub` `Actions` must stay `disabled` on the `fork`.
 
-## Workflow stages
+## `Workflow` `stages`
 
-The untrusted job runs on `hhpe-ci`.
+The `untrusted` `job` `runs` on `hhpe-ci`.
 
-It has no vocabulary secret.
+It `has` no `vocabulary` `secret`.
 
-It has no API token.
+It `has` no `API` `token`.
 
-The trusted job runs on `t2-trusted`.
+The `trusted` `job` `runs` on `t2-trusted`.
 
-It loads checker code from the merge base.
+It `loads` `checker` code from the `merge` `base`.
 
-It loads pull-request bytes from the head tree.
+It `loads` `pull-request` `bytes` from the head `tree`.
 
-It maps `GITHUB_TOKEN` and `PACKAGE_TOKEN` from secrets.
+It `maps` `GITHUB_TOKEN` and `PACKAGE_TOKEN` from `secrets`.
 
-It mounts `ASD_STE100_VOCABULARY` from secrets on trusted jobs.
+It `mounts` `ASD_STE100_VOCABULARY` from `secrets` on `trusted` `jobs`.
 
-The pull-request tree is data only.
+The `pull-request` `tree` `is` data only.
 
-Do not run pull-request lifecycle scripts.
+Do not `run` `pull-request` `lifecycle` `scripts`.
 
-## Bootstrap
+## `Bootstrap`
 
-`t2.asd-ste100.anchor.json` records the pin-landed checker SHA.
+`t2.asd-ste100.anchor.json` `records` the `pin-landed` `checker` `SHA`.
 
-The live file records status reviewed.
+The live `file` `records` `status` `reviewed`.
 
-A pin-landed-pending-review status has no reviewer.
+A `pin-landed-pending-review` `status` `has` no `reviewer`.
 
-The file records a reviewer principal.
+The `file` `records` a `reviewer` `principal`.
 
-Fixture result records `npm run ci:asd-ste100`.
+`Fixture` result `records` `npm run ci:asd-ste100`.
 
-Activate protections after workflow-dispatch validation.
+Activate `protections` after `workflow-dispatch` `validation`.
 
-Rerun the full corpus from that SHA.
+`Rerun` the full `corpus` from that `SHA`.
 
-Mount the test vocabulary path on `t2-trusted` after leak tests pass.
+`Mount` the test `vocabulary` `path` on `t2-trusted` after leak `tests` `pass`.
 
-Use a private official extract only when those bytes exist off git.
+Use a `private` `official` `extract` only when those `bytes` `exist` off `git`.
 
-## Secrets and rotation
+## `Secrets` and `rotation`
 
-Name an owner for each token.
+Name an `owner` for each `token`.
 
-Give each token minimum scope.
+Give each `token` minimum `scope`.
 
-Set an expiration date.
+Set an `expiration` date.
 
-Record a revocation step.
+Record a `revocation` step.
 
-Unmount secrets at job end.
+`Unmount` `secrets` at `job` end.
 
-Start each trusted job from an empty workspace.
+Start each `trusted` `job` from an empty `workspace`.
 
-## Rollback
+## `Rollback`
 
 Stop the live container.
 
-Replace data with a qualified backup.
+Replace data with a `qualified` `backup`.
 
-Start the prior image tag.
+Start the `prior` `image` tag.
 
-Keep runner 13.0.0 unless a protocol error appears.
+Keep `runner` 13.0.0 unless a `protocol` error `appears`.

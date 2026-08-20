@@ -124,7 +124,7 @@ function parseYamlMap(
     }
     const colon = line.text.indexOf(":");
     if (colon < 1) {
-      throw new WorkRegistryError("the document is not valid.");
+      throw new WorkRegistryError("the `document` `is` not `valid`.");
     }
     const key = line.text.slice(0, colon).trim();
     const rest = line.text.slice(colon + 1).trim();
@@ -193,7 +193,7 @@ function parseYamlBlock(
 ): { value: unknown; next: number } {
   const first = lines[start];
   if (first === undefined || first.indent !== indent) {
-    throw new WorkRegistryError("the document is not valid.");
+    throw new WorkRegistryError("the `document` `is` not `valid`.");
   }
   if (first.text.startsWith("- ")) {
     return parseYamlSeq(lines, start, indent);
@@ -201,15 +201,15 @@ function parseYamlBlock(
   return parseYamlMap(lines, start, indent);
 }
 
-/** JSON form or a small YAML subset. One stem still names one document. */
+/** `JSON` `form` or a small `YAML` `subset`. One `stem` `still` `names` one `document`. */
 function parseYamlDocument(source: string): unknown {
   const lines = yamlLines(source);
   if (lines.length === 0) {
-    throw new WorkRegistryError("the document is not valid.");
+    throw new WorkRegistryError("the `document` `is` not `valid`.");
   }
   const parsed = parseYamlBlock(lines, 0, lines[0]?.indent ?? 0);
   if (parsed.next !== lines.length) {
-    throw new WorkRegistryError("the document is not valid.");
+    throw new WorkRegistryError("the `document` `is` not `valid`.");
   }
   return parsed.value;
 }
@@ -252,7 +252,7 @@ function yamlScalar(value: unknown): string {
   if (typeof value === "string") {
     return yamlQuoteNeeded(value) ? JSON.stringify(value) : value;
   }
-  throw new WorkRegistryError("the document is not valid.");
+  throw new WorkRegistryError("the `document` `is` not `valid`.");
 }
 
 function formatYamlField(key: string, nested: unknown, indent: number): string {
@@ -331,11 +331,11 @@ export function loadManifest(campaignDir: string): CampaignManifest {
   const jsonPath = path.join(campaignDir, "manifest.json");
   const yamlPath = path.join(campaignDir, "manifest.yaml");
   if (existsSync(jsonPath) && existsSync(yamlPath)) {
-    throw new WorkRegistryError("the campaign has two documents.");
+    throw new WorkRegistryError("the campaign `has` `two` `documents`.");
   }
   const filePath = existsSync(jsonPath) ? jsonPath : yamlPath;
   if (!existsSync(filePath)) {
-    throw new WorkRegistryError("the manifest is not valid.");
+    throw new WorkRegistryError("the manifest `is` not `valid`.");
   }
   const payload = parseDocument(filePath) as CampaignManifest;
   if (
@@ -347,7 +347,7 @@ export function loadManifest(campaignDir: string): CampaignManifest {
     typeof payload.humanApproved !== "boolean" ||
     typeof payload.humanOverride !== "boolean"
   ) {
-    throw new WorkRegistryError("the manifest is not valid.");
+    throw new WorkRegistryError("the manifest `is` not `valid`.");
   }
   return payload;
 }
@@ -385,7 +385,7 @@ export function assertNounTranslation(text: string): void {
         (term) => term.kind === "noun" && termHit(sentence, term.term),
       );
     if (!translated) {
-      throw new WorkRegistryError("the proposal must translate the new noun.");
+      throw new WorkRegistryError("the proposal must `translate` the new `noun`.");
     }
   }
 }
@@ -398,7 +398,7 @@ function findNamedDocument(campaignDir: string, name: string): string | undefine
   const jsonPath = path.join(campaignDir, `${name}.json`);
   const yamlPath = path.join(campaignDir, `${name}.yaml`);
   if (existsSync(jsonPath) && existsSync(yamlPath)) {
-    throw new WorkRegistryError("the campaign has two documents.");
+    throw new WorkRegistryError("the campaign `has` `two` `documents`.");
   }
   if (existsSync(jsonPath)) {
     return jsonPath;
@@ -412,7 +412,7 @@ function findNamedDocument(campaignDir: string, name: string): string | undefine
 function validateGenesis(manifest: CampaignManifest, campaignDir: string): GenesisRecord {
   const filePath = findNamedDocument(campaignDir, "genesis");
   if (filePath === undefined) {
-    throw new WorkRegistryError("the genesis is missing.");
+    throw new WorkRegistryError("the genesis `is` missing.");
   }
   const payload = parseDocument(filePath) as GenesisRecord;
   const reviewOk =
@@ -425,7 +425,7 @@ function validateGenesis(manifest: CampaignManifest, campaignDir: string): Genes
     !isCommitSha(payload.commitSha) ||
     !reviewOk
   ) {
-    throw new WorkRegistryError("the genesis is not valid.");
+    throw new WorkRegistryError("the genesis `is` not `valid`.");
   }
   return payload;
 }
@@ -449,7 +449,7 @@ function validateProgeny(manifest: CampaignManifest, campaignDir: string): void 
       payload.id.length === 0 ||
       !isCommitSha(payload.commitSha)
     ) {
-      throw new WorkRegistryError("the progeny is not valid.");
+      throw new WorkRegistryError("the progeny `is` not `valid`.");
     }
   }
 }
@@ -461,7 +461,7 @@ function validateEpoch(manifest: CampaignManifest, campaignDir: string): void {
   }
   const parsed = parseDocument(filePath);
   if (!Array.isArray(parsed)) {
-    throw new WorkRegistryError("the epoch is not valid.");
+    throw new WorkRegistryError("the epoch `is` not `valid`.");
   }
   for (const row of parsed as Array<EpochRow>) {
     if (
@@ -472,7 +472,7 @@ function validateEpoch(manifest: CampaignManifest, campaignDir: string): void {
       row.id.length === 0 ||
       !isCommitSha(row.commitSha)
     ) {
-      throw new WorkRegistryError("the epoch is not valid.");
+      throw new WorkRegistryError("the epoch `is` not `valid`.");
     }
   }
 }
@@ -502,7 +502,7 @@ function assertOneDocumentPerStem(rels: ReadonlyArray<string>): void {
     const key = stem(rel);
     const prior = seen.get(key);
     if (prior !== undefined && prior !== rel) {
-      throw new WorkRegistryError("the campaign has two documents.");
+      throw new WorkRegistryError("the campaign `has` `two` `documents`.");
     }
     seen.set(key, rel);
   }
@@ -511,11 +511,11 @@ function assertOneDocumentPerStem(rels: ReadonlyArray<string>): void {
 export function registerCampaign(campaignDir: string): CampaignManifest {
   const manifest = loadManifest(campaignDir);
   if (!campaignIsApproved(manifest)) {
-    throw new WorkRegistryError("the campaign is not approved.");
+    throw new WorkRegistryError("the campaign `is` not approved.");
   }
   const proposalPath = path.join(campaignDir, manifest.proposal);
   if (!existsSync(proposalPath) || !manifest.proposal.endsWith(".md")) {
-    throw new WorkRegistryError("the manifest must name one proposal.");
+    throw new WorkRegistryError("the manifest must name one `proposal`.");
   }
   const rels = listFiles(campaignDir).map((filePath) => posixRel(campaignDir, filePath));
   assertOneDocumentPerStem(rels);
@@ -527,15 +527,15 @@ export function registerCampaign(campaignDir: string): CampaignManifest {
   ]);
   for (const rel of rels) {
     if (rel.split("/").includes("ideation")) {
-      throw new WorkRegistryError("ideation is not a campaign.");
+      throw new WorkRegistryError("`ideation` `is` not a campaign.");
     }
     if (rel.endsWith(".md") && rel !== posixRel(campaignDir, proposalPath)) {
-      throw new WorkRegistryError("the campaign has extra markdown.");
+      throw new WorkRegistryError("the campaign `has` `extra` `markdown`.");
     }
     if (allowed.has(rel) || extraStructuredAllowed(rel)) {
       continue;
     }
-    throw new WorkRegistryError("the campaign has extra files.");
+    throw new WorkRegistryError("the campaign `has` `extra` `files`.");
   }
   assertNounTranslation(readFileSync(proposalPath, "utf8"));
   validateGenesis(manifest, campaignDir);
@@ -565,7 +565,7 @@ export function lookupSchema(campaignDir: string): CompiledSchema {
   const manifest = loadManifest(campaignDir);
   const schemaPath = path.join(campaignDir, manifest.schema);
   if (!existsSync(schemaPath)) {
-    throw new WorkRegistryError("the schema is missing.");
+    throw new WorkRegistryError("the schema `is` missing.");
   }
   return parseDocument(schemaPath) as CompiledSchema;
 }
@@ -575,7 +575,7 @@ export function checkDrift(campaignDir: string): void {
   const schemaPath = path.join(campaignDir, manifest.schema);
   const expected = encodeDocument(compiledFromProposal(campaignDir), schemaPath);
   if (!existsSync(schemaPath) || readFileSync(schemaPath, "utf8") !== expected) {
-    throw new WorkRegistryError("the schema has drift.");
+    throw new WorkRegistryError("the schema `has` `drift`.");
   }
 }
 
@@ -583,7 +583,7 @@ function epochPath(campaignDir: string): string {
   const jsonPath = path.join(campaignDir, "epoch.json");
   const yamlPath = path.join(campaignDir, "epoch.yaml");
   if (existsSync(jsonPath) && existsSync(yamlPath)) {
-    throw new WorkRegistryError("the campaign has two documents.");
+    throw new WorkRegistryError("the campaign `has` `two` `documents`.");
   }
   if (existsSync(yamlPath)) {
     return yamlPath;
@@ -597,14 +597,14 @@ export function appendEpoch(
 ): EpochRow {
   const manifest = registerCampaign(campaignDir);
   if (!isCommitSha(input.commitSha)) {
-    throw new WorkRegistryError("the epoch is not valid.");
+    throw new WorkRegistryError("the epoch `is` not `valid`.");
   }
   const filePath = epochPath(campaignDir);
   let rows: Array<EpochRow> = [];
   if (existsSync(filePath)) {
     const parsed = parseDocument(filePath);
     if (!Array.isArray(parsed)) {
-      throw new WorkRegistryError("the epoch is not valid.");
+      throw new WorkRegistryError("the epoch `is` not `valid`.");
     }
     rows = parsed as Array<EpochRow>;
   }

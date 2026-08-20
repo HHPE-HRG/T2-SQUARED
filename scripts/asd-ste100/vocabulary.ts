@@ -49,7 +49,7 @@ export const REGISTERED_SUBJECT_FIELD_IDS = [
   "t2-platform",
 ] as const;
 
-// 1.5 classifies the technical-name category. It stays overlay-only, not live G2.
+// 1.5 `classifies` the `technical-name` `category`. It `stays` `overlay-only`, not live `G2`.
 export const TECHNICAL_TERM_CLASSES = {
   "company-name": { kind: "noun", requiredAsdBasis: ["1.5"] },
   "product-name": { kind: "noun", requiredAsdBasis: ["1.5"] },
@@ -88,14 +88,14 @@ export interface LoadedVocabulary {
 export class VocabularyMissingError extends Error {
   override readonly name = "VocabularyMissingError";
   constructor() {
-    super("private vocabulary file is missing");
+    super("`private` `vocabulary` `file` `is` missing");
   }
 }
 
 export class VocabularyChecksumMismatchError extends Error {
   override readonly name = "VocabularyChecksumMismatchError";
   constructor() {
-    super("private vocabulary checksum does not match the pinned digest");
+    super("`private` `vocabulary` `checksum` `does` not `match` the `pinned` `digest`");
   }
 }
 
@@ -109,28 +109,28 @@ export class ProfileValidationError extends Error {
 export class VocabularyOpaqueError extends Error {
   override readonly name = "VocabularyOpaqueError";
   constructor() {
-    super("official vocabulary is opaque and cannot be parsed as a words JSON list");
+    super("`official` `vocabulary` `is` `opaque` and cannot be `parsed` as a `words` `JSON` `list`");
   }
 }
 
 export class VocabularyEmptyError extends Error {
   override readonly name = "VocabularyEmptyError";
   constructor() {
-    super("official vocabulary words array is empty");
+    super("`official` `vocabulary` `words` `array` `is` empty");
   }
 }
 
 export class VocabularyExtractDigestMismatchError extends Error {
   override readonly name = "VocabularyExtractDigestMismatchError";
   constructor() {
-    super("private extract digest does not match coverage");
+    super("`private` `extract` `digest` `does` not `match` `coverage`");
   }
 }
 
 export class VocabularyLemmaCountMismatchError extends Error {
   override readonly name = "VocabularyLemmaCountMismatchError";
   constructor() {
-    super("private extract lemma count does not match coverage");
+    super("`private` `extract` `lemma` count `does` not `match` `coverage`");
   }
 }
 
@@ -165,7 +165,7 @@ export function loadVocabulary(input: {
       words?: Array<string>;
     };
     if (!Array.isArray(parsed.words) || parsed.words.some((word) => typeof word !== "string")) {
-      throw new ProfileValidationError("synthetic vocabulary words must be an array of strings");
+      throw new ProfileValidationError("`synthetic` `vocabulary` `words` must be an `array` of `strings`");
     }
     syntheticWords = [...parsed.words];
   }
@@ -236,37 +236,37 @@ function technicalTermQualificationError(term: TechnicalTerm): string | null {
     term.subjectFields.length === 0 ||
     !term.subjectFields.every((field) => typeof field === "string" && field.trim().length > 0)
   ) {
-    return `technical term is not a qualified canonical concept: ${term.term}`;
+    return "`technical` `term` `is` not a `qualified` `canonical` `concept`: " + term.term;
   }
   if (typeof term.technicalTermClass !== "string" || term.technicalTermClass.length === 0) {
-    return `technical term is missing a technical-term class: ${term.term}`;
+    return "`technical` `term` `is` missing a `technical-term` `class`: " + term.term;
   }
   const termClass = TECHNICAL_TERM_CLASSES[term.technicalTermClass as TechnicalTermClassId];
   if (termClass === undefined) {
-    return `unknown technical-term class: ${term.technicalTermClass}`;
+    return "`unknown` `technical-term` `class`: " + term.technicalTermClass;
   }
   if (termClass.kind !== term.kind) {
-    return `technical-term class does not match kind: ${term.term}`;
+    return "`technical-term` `class` `does` not `match` `kind`: " + term.term;
   }
   if (
     !Array.isArray(term.asdBasis) ||
     term.asdBasis.length === 0 ||
     !term.asdBasis.every((id) => typeof id === "string" && id.trim().length > 0)
   ) {
-    return `technical term is not a qualified canonical concept: ${term.term}`;
+    return "`technical` `term` `is` not a `qualified` `canonical` `concept`: " + term.term;
   }
   const allowed = new Set(termClass.requiredAsdBasis);
   const impossible = term.asdBasis.some(
     (id) => LIVE_MECHANICAL_ASD_IDS.has(id) || (!allowed.has(id) && id !== MEMBERSHIP_ASD_ID),
   );
   if (impossible) {
-    return `impossible asdBasis for ${term.term}`;
+    return "`impossible` `asdBasis` for " + term.term;
   }
   const insufficient =
     term.asdBasis.includes(MEMBERSHIP_ASD_ID) ||
     !termClass.requiredAsdBasis.every((id) => term.asdBasis?.includes(id));
   if (insufficient) {
-    return `insufficient asdBasis for ${term.term}`;
+    return "`insufficient` `asdBasis` for " + term.term;
   }
   return null;
 }
@@ -280,7 +280,7 @@ function validateSubjectFieldAdmission(
   subjectFields: SubjectFieldRegistry,
 ): void {
   if (subjectFields === undefined || typeof subjectFields !== "object" || subjectFields === null) {
-    throw new ProfileValidationError("subject-field registry is required");
+    throw new ProfileValidationError("`subject-field` `registry` `is` `required`");
   }
   const registered = new Set<string>(REGISTERED_SUBJECT_FIELD_IDS);
   for (const field of Object.keys(subjectFields)) {
@@ -358,20 +358,20 @@ export function validateTechnicalTerms(
 
 export function validateProfile(profile: AsdProfile): void {
   if (profile.issue !== "9") {
-    throw new ProfileValidationError("profile issue must be 9");
+    throw new ProfileValidationError("`profile` `issue` must be 9");
   }
   if (!/^[a-f0-9]{64}$/.test(profile.vocabularySha256)) {
-    throw new ProfileValidationError("vocabularySha256 must be a lowercase SHA-256 hex digest");
+    throw new ProfileValidationError("`vocabularySha256` must be a `lowercase` `SHA-256` `hex` `digest`");
   }
   if (profile.claim !== "ASD-STE100 mechanical rule-subset result") {
-    throw new ProfileValidationError("profile claim must use the mechanical rule-subset statement");
+    throw new ProfileValidationError("`profile` `claim` must use the mechanical `rule-subset` `statement`");
   }
   if (
     profile.vocabularyReview !== undefined &&
     profile.vocabularyReview !== "pending-human" &&
     profile.vocabularyReview !== "human-verified"
   ) {
-    throw new ProfileValidationError("vocabularyReview must be pending-human or human-verified");
+    throw new ProfileValidationError("`vocabularyReview` must be `pending-human` or `human-verified`");
   }
   for (const rule of profile.rules ?? []) {
     if (!rule.reviewed) {
@@ -382,36 +382,36 @@ export function validateProfile(profile: AsdProfile): void {
 
 export function validateAnchor(anchor: AsdAnchor): void {
   if (!ANCHOR_STATUSES.includes(anchor.status)) {
-    throw new ProfileValidationError("anchor status is not a known value");
+    throw new ProfileValidationError("`anchor` `status` `is` not a `known` value");
   }
   if (anchor.protectionActivation !== "after-workflow-dispatch-validation") {
     throw new ProfileValidationError(
-      "protection activation stays after-workflow-dispatch-validation",
+      "`protection` `activation` `stays` `after-workflow-dispatch-validation`",
     );
   }
   if (anchor.status === "bootstrap-pending") {
     throw new ProfileValidationError(
-      "anchor must not stay bootstrap-pending after the Issue 9 pin",
+      "`anchor` must not stay `bootstrap-pending` after the `Issue` 9 `pin`",
     );
   }
   if (anchor.checkerSha === null || !/^[0-9a-f]{40}$/.test(anchor.checkerSha)) {
-    throw new ProfileValidationError("anchor checkerSha must be a 40-character lowercase git SHA");
+    throw new ProfileValidationError("`anchor` `checkerSha` must be a 40-`character` `lowercase` `git` `SHA`");
   }
   if (anchor.fixtureResult === null || anchor.fixtureResult.ok !== true) {
-    throw new ProfileValidationError("anchor fixtureResult must record a passing fixture run");
+    throw new ProfileValidationError("`anchor` `fixtureResult` must record a `passing` `fixture` `run`");
   }
   if (anchor.fixtureResult.command !== "npm run ci:asd-ste100") {
-    throw new ProfileValidationError("anchor fixtureResult command must be npm run ci:asd-ste100");
+    throw new ProfileValidationError("`anchor` `fixtureResult` `command` must be `npm` `run` `ci`:`asd-ste100`");
   }
   if (anchor.status === "pin-landed-pending-review" && anchor.reviewerPrincipal !== null) {
     throw new ProfileValidationError(
-      "pin-landed-pending-review must leave reviewer principal empty",
+      "`pin-landed-pending-review` must `leave` `reviewer` `principal` empty",
     );
   }
   if (
     anchor.status === "reviewed" &&
     (anchor.reviewerPrincipal === null || anchor.reviewerPrincipal.length === 0)
   ) {
-    throw new ProfileValidationError("reviewed anchor needs a reviewer principal");
+    throw new ProfileValidationError("`reviewed` `anchor` `needs` a `reviewer` `principal`");
   }
 }

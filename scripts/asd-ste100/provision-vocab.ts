@@ -169,7 +169,7 @@ export function runProvisionCli(argv: Array<string>): number {
     profile.vocabularySha256 !== sha256Bytes(readFileSync(fixturePath)) &&
     !hasFlag("--force-fixture", argv)
   ) {
-    process.stderr.write("refuse to replace an Issue 9 pin with the synthetic fixture.\n");
+    process.stderr.write("`refuse` to replace an `Issue` 9 `pin` with the `synthetic` `fixture`.\n");
     return 1;
   }
   const result = installProvisionalVocabulary({

@@ -60,7 +60,7 @@ describe("classifyPath", () => {
   it("fails a new T2 file that matches no owned pattern", () => {
     const result = classifyPath("docs/new-operator-note.md", emptyManifest());
     assert.equal(result.className, "unclassified");
-    assert.match(result.reason, /no owned pattern/i);
+    assert.match(result.reason, /no[\s`]*owned[\s`]*pattern/i);
   });
 
   it("classifies privileged control files before review validation", () => {
@@ -68,6 +68,7 @@ describe("classifyPath", () => {
     manifest.privilegedGlobs.push("t2.asd-ste100.json");
     const result = classifyPath("t2.asd-ste100.json", manifest);
     assert.equal(result.className, "privileged");
+    assert.equal(result.includeInCorpusFindings, false);
   });
 
   it("classifies a provider error fixture as external evidence that requires redaction", () => {
@@ -236,7 +237,7 @@ describe("resolveUpstreamAncestry", () => {
     };
     assert.throws(
       () => resolveUpstreamAncestry({ cwd: root, lock }),
-      (error: unknown) => error instanceof Error && /upstream URL/i.test(error.message),
+      (error: unknown) => error instanceof Error && /upstream[\s`]*URL/i.test(error.message),
     );
   });
 
@@ -296,6 +297,12 @@ describe("repo ownership admission exclusions", () => {
       manifest,
     );
     assert.equal(evidence.className, "external-evidence");
+  });
+
+  it("holds nested checker TypeScript out of corpus findings", () => {
+    const nested = classifyPath("scripts/asd-ste100/lexicon/refs.ts", manifest);
+    assert.equal(nested.className, "privileged");
+    assert.equal(nested.includeInCorpusFindings, false);
   });
 
   it("owns remediation-wave documents", () => {
