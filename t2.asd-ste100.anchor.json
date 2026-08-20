@@ -7,5 +7,5 @@
     "mode": "fixture",
     "command": "npm run ci:asd-ste100"
   },
-  "protectionActivation": "after-workflow-dispatch-validation"
+  "protectionActivation": "active"
 }
