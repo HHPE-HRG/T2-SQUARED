@@ -1,3 +1,16 @@
 {
-  "reviewers": []
+  "reviewers": [
+    {
+      "userId": 1,
+      "principal": "t2-single-operator",
+      "kind": "human",
+      "ci": false
+    },
+    {
+      "userId": 3,
+      "principal": "t2-reviewer-operator",
+      "kind": "human",
+      "ci": false
+    }
+  ]
 }
