@@ -13,10 +13,16 @@ describe("asd-ste100 workflow wiring", () => {
     assert.match(yaml, /ASD_STE100_VOCABULARY:/);
     assert.match(yaml, /secrets\.GITHUB_TOKEN/);
     assert.match(yaml, /secrets\.PACKAGE_TOKEN/);
+    assert.match(yaml, /secrets\.RELEASE_TOKEN/);
     assert.match(yaml, /^permissions:/m);
     assert.match(yaml, /contents: write/);
     assert.match(yaml, /pull_request\.base\.sha/);
     assert.match(yaml, /pull_request\.head\.sha/);
+    const release = yaml.split("trusted-release:")[1] ?? "";
+    const releaseMainAt = release.indexOf("ci:asd-ste100 -- --mode main");
+    const releaseGateAt = release.indexOf("ci:asd-ste100 -- --mode release");
+    assert.equal(releaseMainAt >= 0, true);
+    assert.equal(releaseGateAt > releaseMainAt, true);
     const advisory = yaml.split("trusted-pr")[0] ?? "";
     assert.equal(advisory.includes("ASD_STE100_VOCABULARY:"), false);
   });
