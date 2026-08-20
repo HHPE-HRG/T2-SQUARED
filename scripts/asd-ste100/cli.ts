@@ -125,6 +125,27 @@ export interface CliRunResult {
 
 export const CACHE_DIR = ".cache/asd-ste100";
 
+export function loadMainBaseline(
+  root: string,
+  headSha: string,
+): { ok: boolean; sourceSha: string; attestationPresent: boolean } {
+  const filePath = path.join(root, CACHE_DIR, "main-result.json");
+  if (!existsSync(filePath)) {
+    return { ok: false, sourceSha: "", attestationPresent: false };
+  }
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, "utf8")) as {
+      ok?: unknown;
+      sourceSha?: unknown;
+    };
+    const sourceSha = typeof parsed.sourceSha === "string" ? parsed.sourceSha : "";
+    const ok = parsed.ok === true && sourceSha === headSha;
+    return { ok, sourceSha, attestationPresent: ok };
+  } catch {
+    return { ok: false, sourceSha: "", attestationPresent: false };
+  }
+}
+
 function loadJson<T>(root: string, relative: string): T {
   return JSON.parse(readFileSync(path.join(root, relative), "utf8")) as T;
 }
@@ -245,6 +266,9 @@ function evaluateG3(mode: CliMode, deps: CliDeps, profile: AsdProfile): GateResu
 
 function evaluateG5(mode: CliMode, deps: CliDeps): GateResult {
   if (mode !== "pr" && mode !== "release") {
+    return { id: "G5", ok: true, status: "not_applicable", reason: "" };
+  }
+  if (mode === "release" && deps.pull === undefined) {
     return { id: "G5", ok: true, status: "not_applicable", reason: "" };
   }
   if (deps.pull === undefined || deps.review === undefined || deps.roster === undefined) {
@@ -683,6 +707,9 @@ export function createDefaultDeps(cwd = process.cwd(), mode: CliMode = "fixture"
   }
   const connected =
     mode === "pr" || mode === "release" ? loadConnectedReviewFromEnv(root) : {};
+  const headSha = gitHead();
+  const loaded =
+    mode === "release" ? loadMainBaseline(root, headSha) : { ok: false, sourceSha: "", attestationPresent: false };
   return {
     cwd: root,
     now: () => new Date().toISOString(),
@@ -698,8 +725,8 @@ export function createDefaultDeps(cwd = process.cwd(), mode: CliMode = "fixture"
     leakScanAvailable: true,
     gitHead,
     gitMergeBase,
-    baseline: { ok: false, sourceSha: "" },
-    attestationPresent: false,
+    baseline: { ok: loaded.ok, sourceSha: loaded.sourceSha },
+    attestationPresent: loaded.attestationPresent,
     changedPaths: mode === "pr" ? scanned.paths : [],
     corpusPaths: mode === "main" || mode === "release" ? scanned.paths : [],
     findings: scanned.findings,
