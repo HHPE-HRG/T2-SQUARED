@@ -42,7 +42,7 @@ describe("work-registry internals doc", () => {
     assert.match(text, /asd-ste100-compliance/);
     assert.match(text, /registry-yaml-write/);
     assert.match(text, /forgejoClosed/);
-    assert.match(text, /synthetic/);
+    assert.match(text, /synthetic-1/);
     assert.match(text, /`work`/);
     assert.match(text, /`pull`/);
     assert.match(text, /`event`/);

@@ -38,5 +38,34 @@
       "term": "work-registry",
       "kind": "noun"
     }
+  ],
+  "work": [
+    {
+      "kind": "work",
+      "id": "registry-yaml-write",
+      "campaign": "registry-yaml-write",
+      "parent": null
+    }
+  ],
+  "pull": [
+    {
+      "kind": "pull",
+      "campaign": "registry-yaml-write",
+      "reviewId": "synthetic-1"
+    }
+  ],
+  "event": [
+    {
+      "kind": "event",
+      "campaign": "registry-yaml-write",
+      "subject": "work",
+      "id": "registry-yaml-write"
+    },
+    {
+      "kind": "event",
+      "campaign": "registry-yaml-write",
+      "subject": "pull",
+      "id": "synthetic-1"
+    }
   ]
 }

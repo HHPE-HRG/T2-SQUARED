@@ -283,15 +283,16 @@ describe("compileCampaign", () => {
     assert.deepEqual(lookupSchema(dir), schema);
   });
 
-  it("omits work, pull, and event when the Forgejo-review identity is missing", () => {
+  it("fails compile when the Forgejo-review identity is missing", () => {
     const dir = writeCampaign({
       proposal: "The campaign uses the work-registry.\n",
       omitIdentity: true,
     });
-    const schema = compileCampaign(dir);
-    assert.equal(schema.work, undefined);
-    assert.equal(schema.pull, undefined);
-    assert.equal(schema.event, undefined);
+    assert.throws(
+      () => compileCampaign(dir),
+      (error: unknown) =>
+        error instanceof WorkRegistryError && error.message === "the pull `is` missing.",
+    );
   });
 
   it("fails compile when the genesis review is not the compiled pull", () => {
@@ -436,13 +437,18 @@ describe("checkWorkRegistry", () => {
     checkWorkRegistry(repoRoot);
   });
 
-  it("keeps live campaign schemas without work, pull, and event until the live bind", () => {
+  it("keeps live campaign schema identity as work, pull, and event", () => {
     const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
     for (const name of ["asd-ste100-compliance", "registry-yaml-write"]) {
-      const schema = lookupSchema(path.join(repoRoot, PRODUCT_NAME, name));
-      assert.equal(schema.work, undefined);
-      assert.equal(schema.pull, undefined);
-      assert.equal(schema.event, undefined);
+      const campaignDir = path.join(repoRoot, PRODUCT_NAME, name);
+      const schema = lookupSchema(campaignDir);
+      const genesis = JSON.parse(readFileSync(path.join(campaignDir, "genesis.json"), "utf8")) as {
+        forgejoReviewId: string;
+      };
+      assert.equal(schema.work.some((row) => row.kind === "work" && row.id === name && row.parent === null), true);
+      assert.equal(schema.pull.some((row) => row.kind === "pull" && row.reviewId === genesis.forgejoReviewId), true);
+      assert.equal(schema.event.some((row) => row.kind === "event" && row.subject === "work"), true);
+      assert.equal(schema.event.some((row) => row.kind === "event" && row.subject === "pull"), true);
     }
   });
 });

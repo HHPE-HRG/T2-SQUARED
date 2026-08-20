@@ -24,9 +24,9 @@ export interface CompiledSchema {
   product: string;
   campaign: string;
   terms: Array<WorkRegistryTerm>;
-  work?: Array<WorkRecord>;
-  pull?: Array<PullRecord>;
-  event?: Array<EventRecord>;
+  work: Array<WorkRecord>;
+  pull: Array<PullRecord>;
+  event: Array<EventRecord>;
 }
 
 export interface WorkRecord {
@@ -400,11 +400,11 @@ function backtickIds(text: string, pattern: RegExp): Array<string> {
 export function identityFromProposal(
   text: string,
   campaign: string,
-): Pick<CompiledSchema, "work" | "pull" | "event"> | null {
+): Pick<CompiledSchema, "work" | "pull" | "event"> {
   const children = backtickIds(text, /The progeny (?:is|`is`) `([^`]+)`\./g);
   const reviews = backtickIds(text, /The Forgejo-review (?:is|`is`) `([^`]+)`\./g);
   if (reviews.length === 0) {
-    return null;
+    throw new WorkRegistryError("the pull `is` missing.");
   }
   const work: Array<WorkRecord> = [
     { kind: "work", id: campaign, campaign, parent: null },
@@ -621,13 +621,6 @@ function compiledFromProposal(campaignDir: string): CompiledSchema {
   const manifest = registerCampaign(campaignDir);
   const text = readFileSync(path.join(campaignDir, manifest.proposal), "utf8");
   const identity = identityFromProposal(text, manifest.campaign);
-  if (identity === null) {
-    return {
-      product: PRODUCT_NAME,
-      campaign: manifest.campaign,
-      terms: termsFromProposal(text),
-    };
-  }
   assertPullMatchesGenesis(campaignDir, identity);
   return {
     product: PRODUCT_NAME,
