@@ -39,6 +39,7 @@ function writeCampaign(input: {
   progeny?: boolean;
   dualSchema?: boolean;
   omitGenesis?: boolean;
+  omitIdentity?: boolean;
 }): string {
   const dir = mkdtempSync(path.join(tmpdir(), "t2-work-registry-"));
   const schemaName = input.schemaName ?? "schema.json";
@@ -58,8 +59,13 @@ function writeCampaign(input: {
       2,
     )}\n`,
   );
-  writeFileSync(path.join(dir, "proposal.md"), input.proposal);
   const forgejoApproved = input.forgejoApproved ?? true;
+  const reviewId = forgejoApproved ? "41" : "none";
+  const proposal =
+    input.omitIdentity === true || /The Forgejo-review is `/.test(input.proposal)
+      ? input.proposal
+      : `${input.proposal.trim()}\nThe genesis is this campaign. The Forgejo-review is \`${reviewId}\`.\n`;
+  writeFileSync(path.join(dir, "proposal.md"), proposal);
   if (input.omitGenesis !== true) {
     writeFileSync(
       path.join(dir, "genesis.json"),
@@ -241,7 +247,7 @@ describe("compileCampaign", () => {
     assert.equal(schema.product, PRODUCT_NAME);
     assert.deepEqual(
       schema.terms.map((term) => term.term),
-      ["campaign", "compile", "epoch", "genesis", "progeny", "schema", "work-registry"],
+      ["campaign", "compile", "epoch", "Forgejo-review", "genesis", "progeny", "schema", "work-registry"],
     );
     assert.deepEqual(lookupSchema(dir), schema);
   });
@@ -258,15 +264,74 @@ describe("compileCampaign", () => {
     );
   });
 
-  it("does not write undefined work, pull, or event records", () => {
+  it("writes work, pull, and event records from the proposal", () => {
+    const dir = writeCampaign({
+      proposal:
+        "The campaign uses the work-registry. The genesis is this campaign. The progeny is `child-one`. The Forgejo-review is `41`.\n",
+    });
+    const schema = compileCampaign(dir);
+    assert.deepEqual(schema.work, [
+      { kind: "work", id: "sample", campaign: "sample", parent: null },
+      { kind: "work", id: "child-one", campaign: "sample", parent: "sample" },
+    ]);
+    assert.deepEqual(schema.pull, [{ kind: "pull", campaign: "sample", reviewId: "41" }]);
+    assert.deepEqual(schema.event, [
+      { kind: "event", campaign: "sample", subject: "work", id: "sample" },
+      { kind: "event", campaign: "sample", subject: "work", id: "child-one" },
+      { kind: "event", campaign: "sample", subject: "pull", id: "41" },
+    ]);
+    assert.deepEqual(lookupSchema(dir), schema);
+  });
+
+  it("omits work, pull, and event when the Forgejo-review identity is missing", () => {
     const dir = writeCampaign({
       proposal: "The campaign uses the work-registry.\n",
+      omitIdentity: true,
     });
-    compileCampaign(dir);
-    const schema = lookupSchema(dir);
-    assert.equal("work" in schema, false);
-    assert.equal("pull" in schema, false);
-    assert.equal("event" in schema, false);
+    const schema = compileCampaign(dir);
+    assert.equal(schema.work, undefined);
+    assert.equal(schema.pull, undefined);
+    assert.equal(schema.event, undefined);
+  });
+
+  it("fails compile when the genesis review is not the compiled pull", () => {
+    const dir = writeCampaign({
+      proposal:
+        "The campaign uses the work-registry. The genesis is this campaign. The Forgejo-review is `41`.\n",
+    });
+    writeFileSync(
+      path.join(dir, "genesis.json"),
+      `${JSON.stringify(
+        {
+          kind: "genesis",
+          campaign: "sample",
+          commitSha: SAMPLE_SHA,
+          forgejoReviewId: "99",
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    assert.throws(
+      () => compileCampaign(dir),
+      (error: unknown) =>
+        error instanceof WorkRegistryError && error.message === "the pull `is` not the genesis.",
+    );
+  });
+
+  it("fails when identity records are edited without a proposal change", () => {
+    const dir = writeCampaign({
+      proposal:
+        "The campaign uses the work-registry. The genesis is this campaign. The Forgejo-review is `41`.\n",
+    });
+    const schema = compileCampaign(dir);
+    schema.pull = [{ kind: "pull", campaign: "sample", reviewId: "99" }];
+    writeFileSync(path.join(dir, "schema.json"), `${JSON.stringify(schema, null, 2)}\n`);
+    assert.throws(
+      () => checkDrift(dir),
+      (error: unknown) =>
+        error instanceof WorkRegistryError && error.message === "the schema `has` `drift`.",
+    );
   });
 
   it("loads one schema document from a yaml path using yaml form", () => {
@@ -370,6 +435,16 @@ describe("checkWorkRegistry", () => {
     assert.equal(existsSync(path.join(repoRoot, PRODUCT_NAME, "asd-ste100-compliance")), true);
     checkWorkRegistry(repoRoot);
   });
+
+  it("keeps live campaign schemas without work, pull, and event until the live bind", () => {
+    const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    for (const name of ["asd-ste100-compliance", "registry-yaml-write"]) {
+      const schema = lookupSchema(path.join(repoRoot, PRODUCT_NAME, name));
+      assert.equal(schema.work, undefined);
+      assert.equal(schema.pull, undefined);
+      assert.equal(schema.event, undefined);
+    }
+  });
 });
 
 describe("dumpWorkRegistry", () => {
@@ -408,7 +483,7 @@ describe("dumpWorkRegistry", () => {
     assert.equal(dump[0]?.forgejoClosed, true);
   });
 
-  it("keeps live campaigns Forgejo-closed after synthetic review", () => {
+  it("keeps live campaigns Forgejo-closed after the Forgejo-review", () => {
     const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
     const dump = dumpWorkRegistry(repoRoot);
     assert.equal(dump.length > 0, true);
@@ -446,5 +521,81 @@ describe("checkDrift", () => {
     });
     compileCampaign(dir);
     checkDrift(dir);
+  });
+});
+
+describe("acceptance examples AE1-AE5", () => {
+  it("AE1 lists one proposal markdown and rejects extra markdown or a CAN ideation path", () => {
+    const extra = writeCampaign({
+      proposal: "The campaign uses the work-registry.\n",
+      extraMarkdown: "bio\n",
+    });
+    assert.throws(
+      () => registerCampaign(extra),
+      (error: unknown) =>
+        error instanceof WorkRegistryError && error.message === "the campaign `has` `extra` `markdown`.",
+    );
+    const ideation = writeCampaign({
+      proposal: "The campaign uses the work-registry.\n",
+      ideationFile: true,
+    });
+    assert.throws(
+      () => registerCampaign(ideation),
+      (error: unknown) =>
+        error instanceof WorkRegistryError && error.message === "`ideation` `is` not a campaign.",
+    );
+  });
+
+  it("AE2 compile writes dictionary plus work, pull, and event, and lookup does not run ASD CI", () => {
+    const dir = writeCampaign({
+      proposal:
+        "The campaign uses the work-registry. The genesis is this campaign. The Forgejo-review is `41`.\n",
+    });
+    const schema = compileCampaign(dir);
+    assert.equal(schema.terms.some((term) => term.term === "work-registry"), true);
+    assert.equal(schema.work.length > 0, true);
+    assert.equal(schema.pull.length > 0, true);
+    assert.equal(schema.event.length > 0, true);
+    assert.deepEqual(lookupSchema(dir), schema);
+  });
+
+  it("AE3 fails when schema is edited without a matching proposal change", () => {
+    const dir = writeCampaign({
+      proposal:
+        "The campaign uses the work-registry. The genesis is this campaign. The Forgejo-review is `41`.\n",
+    });
+    const schema = compileCampaign(dir);
+    schema.work = [];
+    writeFileSync(path.join(dir, "schema.json"), `${JSON.stringify(schema, null, 2)}\n`);
+    assert.throws(
+      () => checkDrift(dir),
+      (error: unknown) =>
+        error instanceof WorkRegistryError && error.message === "the schema `has` `drift`.",
+    );
+  });
+
+  it("AE4 lookup reads structured records and registry scripts do not call a language model", () => {
+    const dir = writeCampaign({
+      proposal: "The campaign uses the work-registry.\n",
+    });
+    compileCampaign(dir);
+    const schema = lookupSchema(dir);
+    assert.equal(schema.work[0]?.kind, "work");
+    const source = readFileSync(fileURLToPath(new URL("./registry.ts", import.meta.url)), "utf8");
+    assert.doesNotMatch(source, /openai|anthropic|language model|completions/i);
+  });
+
+  it("AE5 rejects ideation notes when the campaign is not approved", () => {
+    const dir = writeCampaign({
+      forgejoApproved: false,
+      humanApproved: false,
+      proposal: "The campaign uses the work-registry.\n",
+      ideationFile: true,
+    });
+    assert.throws(
+      () => registerCampaign(dir),
+      (error: unknown) =>
+        error instanceof WorkRegistryError && error.message === "the campaign `is` not approved.",
+    );
   });
 });

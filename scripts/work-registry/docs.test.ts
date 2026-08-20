@@ -43,6 +43,9 @@ describe("work-registry internals doc", () => {
     assert.match(text, /registry-yaml-write/);
     assert.match(text, /forgejoClosed/);
     assert.match(text, /synthetic/);
+    assert.match(text, /`work`/);
+    assert.match(text, /`pull`/);
+    assert.match(text, /`event`/);
     assert.doesNotMatch(text, /first live campaign waits/i);
   });
 });

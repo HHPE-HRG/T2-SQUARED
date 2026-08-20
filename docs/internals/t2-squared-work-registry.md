@@ -46,6 +46,14 @@ The epoch also `appends` when the progeny `is` complete.
 
 The schema `is` a compile of `glossary` `terms` in the proposal.
 
+The compile write `work`, `pull`, and `event` from the proposal.
+
+The `work` record name the genesis and the progeny.
+
+The `pull` record name the Forgejo-review.
+
+The `event` record `appends` from the `work` and the `pull`.
+
 `CI` `fails` when the schema `has` a drift.
 
 The lookup read the schema.

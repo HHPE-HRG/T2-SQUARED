@@ -24,6 +24,29 @@ export interface CompiledSchema {
   product: string;
   campaign: string;
   terms: Array<WorkRegistryTerm>;
+  work?: Array<WorkRecord>;
+  pull?: Array<PullRecord>;
+  event?: Array<EventRecord>;
+}
+
+export interface WorkRecord {
+  kind: "work";
+  id: string;
+  campaign: string;
+  parent: string | null;
+}
+
+export interface PullRecord {
+  kind: "pull";
+  campaign: string;
+  reviewId: string;
+}
+
+export interface EventRecord {
+  kind: "event";
+  campaign: string;
+  subject: "work" | "pull";
+  id: string;
 }
 
 export interface EpochRow {
@@ -363,6 +386,42 @@ export function termsFromProposal(text: string): Array<WorkRegistryTerm> {
   );
 }
 
+function backtickIds(text: string, pattern: RegExp): Array<string> {
+  const ids: Array<string> = [];
+  for (const match of text.matchAll(pattern)) {
+    const id = match[1];
+    if (id !== undefined && id.length > 0 && !ids.includes(id)) {
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+export function identityFromProposal(
+  text: string,
+  campaign: string,
+): Pick<CompiledSchema, "work" | "pull" | "event"> | null {
+  const children = backtickIds(text, /The progeny (?:is|`is`) `([^`]+)`\./g);
+  const reviews = backtickIds(text, /The Forgejo-review (?:is|`is`) `([^`]+)`\./g);
+  if (reviews.length === 0) {
+    return null;
+  }
+  const work: Array<WorkRecord> = [
+    { kind: "work", id: campaign, campaign, parent: null },
+    ...children.map((id) => ({ kind: "work" as const, id, campaign, parent: campaign })),
+  ];
+  const pull: Array<PullRecord> = reviews.map((reviewId) => ({
+    kind: "pull",
+    campaign,
+    reviewId,
+  }));
+  const event: Array<EventRecord> = [
+    ...work.map((row) => ({ kind: "event" as const, campaign, subject: "work" as const, id: row.id })),
+    ...pull.map((row) => ({ kind: "event" as const, campaign, subject: "pull" as const, id: row.reviewId })),
+  ];
+  return { work, pull, event };
+}
+
 function glossaryNames(): Set<string> {
   return new Set(REQUIRED_WORK_REGISTRY_TERMS.map((term) => term.term.toLowerCase()));
 }
@@ -544,13 +603,39 @@ export function registerCampaign(campaignDir: string): CampaignManifest {
   return manifest;
 }
 
+function assertPullMatchesGenesis(
+  campaignDir: string,
+  identity: Pick<CompiledSchema, "pull">,
+): void {
+  const manifest = loadManifest(campaignDir);
+  if (manifest.forgejoApproved !== true) {
+    return;
+  }
+  const genesis = validateGenesis(manifest, campaignDir);
+  if (genesis.forgejoReviewId !== identity.pull[0]?.reviewId) {
+    throw new WorkRegistryError("the pull `is` not the genesis.");
+  }
+}
+
 function compiledFromProposal(campaignDir: string): CompiledSchema {
   const manifest = registerCampaign(campaignDir);
   const text = readFileSync(path.join(campaignDir, manifest.proposal), "utf8");
+  const identity = identityFromProposal(text, manifest.campaign);
+  if (identity === null) {
+    return {
+      product: PRODUCT_NAME,
+      campaign: manifest.campaign,
+      terms: termsFromProposal(text),
+    };
+  }
+  assertPullMatchesGenesis(campaignDir, identity);
   return {
     product: PRODUCT_NAME,
     campaign: manifest.campaign,
     terms: termsFromProposal(text),
+    work: identity.work,
+    pull: identity.pull,
+    event: identity.event,
   };
 }
 
