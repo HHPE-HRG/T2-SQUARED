@@ -46,6 +46,14 @@ The epoch also `appends` when the progeny `is` complete.
 
 The schema `is` a compile of `glossary` `terms` in the proposal.
 
+The compile write `work`, `pull`, and `event` records from the proposal.
+
+The `work` record name the root and the progeny.
+
+The `pull` record name the Forgejo-review.
+
+The `event` record append from those identities.
+
 `CI` `fails` when the schema `has` a drift.
 
 The lookup read the schema.
@@ -76,7 +84,7 @@ The `later` campaign `is` `registry-yaml-write`.
 
 `Both` live `campaigns` `are` `Forgejo-closed`.
 
-The Forgejo-review `id` `is` `synthetic` because this `host` `has` one `user`.
+The Forgejo-review `id` `is` `synthetic-1`.
 
 ## `Later` work
 

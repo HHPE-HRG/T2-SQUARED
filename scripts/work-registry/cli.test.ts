@@ -31,7 +31,10 @@ describe("runCli", () => {
         2,
       )}\n`,
     );
-    writeFileSync(path.join(campaignDir, "proposal.md"), "The campaign uses the work-registry.\n");
+    writeFileSync(
+      path.join(campaignDir, "proposal.md"),
+      "The campaign uses the work-registry. The genesis is this campaign. The Forgejo-review is `41`.\n",
+    );
     writeFileSync(
       path.join(campaignDir, "genesis.json"),
       `${JSON.stringify(
@@ -74,7 +77,10 @@ describe("runCli", () => {
         2,
       )}\n`,
     );
-    writeFileSync(path.join(campaignDir, "proposal.md"), "The campaign uses the work-registry.\n");
+    writeFileSync(
+      path.join(campaignDir, "proposal.md"),
+      "The campaign uses the work-registry. The genesis is this campaign. The Forgejo-review is `41`.\n",
+    );
     writeFileSync(
       path.join(campaignDir, "genesis.json"),
       `${JSON.stringify(
@@ -131,7 +137,10 @@ describe("runCli", () => {
         2,
       )}\n`,
     );
-    writeFileSync(path.join(campaignDir, "proposal.md"), "The campaign uses the work-registry.\n");
+    writeFileSync(
+      path.join(campaignDir, "proposal.md"),
+      "The campaign uses the work-registry. The genesis is this campaign. The Forgejo-review is `41`.\n",
+    );
     writeFileSync(
       path.join(campaignDir, "genesis.json"),
       `${JSON.stringify(
@@ -182,7 +191,10 @@ describe("runCli", () => {
         2,
       )}\n`,
     );
-    writeFileSync(path.join(campaignDir, "proposal.md"), "The campaign uses the work-registry.\n");
+    writeFileSync(
+      path.join(campaignDir, "proposal.md"),
+      "The campaign uses the work-registry. The genesis is this campaign. The Forgejo-review is `41`.\n",
+    );
     writeFileSync(
       path.join(campaignDir, "genesis.json"),
       `${JSON.stringify(
@@ -231,7 +243,10 @@ describe("runCli", () => {
           2,
         )}\n`,
       );
-      writeFileSync(path.join(dir, "proposal.md"), "The campaign uses the work-registry.\n");
+      writeFileSync(
+        path.join(dir, "proposal.md"),
+        "The campaign uses the work-registry. The genesis is this campaign. The Forgejo-review is `41`.\n",
+      );
       writeFileSync(
         path.join(dir, "genesis.json"),
         `${JSON.stringify(
