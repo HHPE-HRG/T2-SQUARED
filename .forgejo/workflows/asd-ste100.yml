@@ -153,6 +153,8 @@ jobs:
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           git -c http.extraHeader="Authorization: token ${GITHUB_TOKEN}" fetch origin main
           git checkout --force FETCH_HEAD
+      - name: Full-corpus baseline
+        run: npm run ci:asd-ste100 -- --mode main
       - name: Release eligibility
         run: npm run ci:asd-ste100 -- --mode release
       - name: Work-registry release gate
@@ -169,9 +171,11 @@ jobs:
             "${GITHUB_SERVER_URL}/api/packages/${GITHUB_REPOSITORY_OWNER}/generic/asd-ste100-attestation/${name}/${name}"
       - name: Create protected t2-v* tag only
         if: startsWith(inputs.tag, 't2-v')
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           git tag "${{ inputs.tag }}"
-          git push origin "refs/tags/${{ inputs.tag }}"
+          git -c http.extraHeader="Authorization: token ${RELEASE_TOKEN}" push origin "refs/tags/${{ inputs.tag }}"
       - name: Remove secret mounts
         if: always()
         run: |

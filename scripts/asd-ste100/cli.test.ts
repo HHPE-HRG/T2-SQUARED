@@ -12,6 +12,7 @@ import { VocabularyMissingError } from "./vocabulary.ts";
 import {
   EXIT,
   createDefaultDeps,
+  loadMainBaseline,
   loadScanLexicon,
   parseMode,
   resolvePrGitRefs,
@@ -568,6 +569,28 @@ describe("runCli", () => {
     assert.equal(gate(main, "G5").status, "not_applicable");
     assert.equal(fixture.ok, true);
     assert.equal(main.ok, true);
+  });
+
+  it("keeps G5 not applicable in release mode when no pull is present", () => {
+    const result = runCli(["--mode", "release"], deps());
+    assert.equal(gate(result, "G5").ok, true);
+    assert.equal(gate(result, "G5").status, "not_applicable");
+  });
+
+  it("loads a matching main-result.json as the release baseline", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "asd-baseline-"));
+    mkdirSync(path.join(dir, ".cache/asd-ste100"), { recursive: true });
+    writeFileSync(
+      path.join(dir, ".cache/asd-ste100/main-result.json"),
+      `${JSON.stringify({ ok: true, sourceSha: "headsha" })}\n`,
+    );
+    const loaded = loadMainBaseline(dir, "headsha");
+    assert.equal(loaded.ok, true);
+    assert.equal(loaded.sourceSha, "headsha");
+    assert.equal(loaded.attestationPresent, true);
+    const missing = loadMainBaseline(dir, "other");
+    assert.equal(missing.ok, false);
+    assert.equal(missing.attestationPresent, false);
   });
 
   it("fails intent applicability when governed system text has no trace evidence", () => {

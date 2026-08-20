@@ -384,10 +384,16 @@ export function validateAnchor(anchor: AsdAnchor): void {
   if (!ANCHOR_STATUSES.includes(anchor.status)) {
     throw new ProfileValidationError("`anchor` `status` `is` not a `known` value");
   }
-  if (anchor.protectionActivation !== "after-workflow-dispatch-validation") {
+  if (
+    anchor.protectionActivation !== "after-workflow-dispatch-validation" &&
+    anchor.protectionActivation !== "active"
+  ) {
     throw new ProfileValidationError(
-      "`protection` `activation` `stays` `after-workflow-dispatch-validation`",
+      "`protection` `activation` must be `after-workflow-dispatch-validation` or `active`",
     );
+  }
+  if (anchor.protectionActivation === "active" && anchor.status !== "reviewed") {
+    throw new ProfileValidationError("`active` `protection` needs a `reviewed` `anchor`");
   }
   if (anchor.status === "bootstrap-pending") {
     throw new ProfileValidationError(
