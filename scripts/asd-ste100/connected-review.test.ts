@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { loadConnectedReviewFromEnv } from "./connected-review.ts";
 import { MAPPING_PRINCIPALS_PATH } from "./mapping/promote.ts";
@@ -155,5 +156,29 @@ describe("loadConnectedReviewFromEnv", () => {
         process.env.ASD_STE100_REVIEW_JSON = previousReview;
       }
     }
+  });
+});
+
+const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+describe("live connected reviewer roster", () => {
+  it("authorizes a distinct human Forgejo reviewer and keeps CI out", () => {
+    const roster = JSON.parse(
+      readFileSync(path.join(repoRoot, "t2.asd-ste100.reviewers.json"), "utf8"),
+    ) as {
+      reviewers: Array<{ userId: number; principal: string; kind: string; ci: boolean }>;
+    };
+    const byId = new Map(roster.reviewers.map((entry) => [entry.userId, entry]));
+    assert.equal(byId.get(1)?.kind, "human");
+    assert.equal(byId.get(1)?.ci, false);
+    assert.equal(byId.get(1)?.principal, "t2-single-operator");
+    assert.equal(byId.get(3)?.kind, "human");
+    assert.equal(byId.get(3)?.ci, false);
+    assert.equal(byId.get(3)?.principal, "t2-reviewer-operator");
+    assert.equal(
+      roster.reviewers.some((entry) => entry.ci === true || entry.userId === 2),
+      false,
+    );
+    assert.equal(new Set(roster.reviewers.map((entry) => entry.principal)).size, 2);
   });
 });
