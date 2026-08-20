@@ -353,6 +353,17 @@ describe("validateAnchor", () => {
       (error: unknown) => error instanceof Error && /reviewer[\s`]*principal/i.test(error.message),
     );
   });
+
+  it("accepts protection activation after workflow-dispatch validation", () => {
+    assert.doesNotThrow(() =>
+      validateAnchor({
+        ...pinLandedAnchor(),
+        status: "reviewed",
+        reviewerPrincipal: "t2-single-operator",
+        protectionActivation: "active",
+      }),
+    );
+  });
 });
 
 describe("parseApprovedWordsFromOfficialBytes", () => {
