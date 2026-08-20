@@ -10,7 +10,7 @@ The dump `lists` the campaign.
 
 The lookup read the schema.
 
-The Forgejo-review `is` `3`.
+The Forgejo-review `is` `synthetic` because this `host` `has` one `user`.
 
 A `human` approved this campaign.
 
