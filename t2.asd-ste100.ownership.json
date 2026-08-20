@@ -59,6 +59,7 @@
     "t2.upstream.json",
     "scripts/asd-ste100/*.ts",
     "scripts/asd-ste100/mapping/*.ts",
+    "scripts/asd-ste100/lexicon/*.ts",
     "scripts/work-registry/*.ts",
     ".forgejo/workflows/**"
   ],

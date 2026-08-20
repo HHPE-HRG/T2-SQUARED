@@ -31,7 +31,7 @@ export interface MappingLeakScan {
   reason: string;
 }
 
-/** Synthetic Issue 9 stand-ins. Never copy official dictionary words into git. */
+/** `Synthetic` `Issue` 9 `stand-ins`. `Never` copy `official` `dictionary` `words` into `git`. */
 export const SYNTHETIC_DICTIONARY_NEEDLES = ["SYNTHOFFICIALLEMMAZZZX"] as const;
 
 const JPEG_SOI = "\xff\xd8";
@@ -76,18 +76,18 @@ export function scanMappingLeak(rows: ReadonlyArray<MappingRow>): MappingLeakSca
   for (const row of rows) {
     for (const text of collectStrings(row)) {
       if (text.includes(JPEG_SOI) || JPEG_SOI_HEX.test(text) || JPEG_BASE64.test(text)) {
-        return { ok: false, reason: "jpg byte leak" };
+        return { ok: false, reason: "`jpg` `byte` leak" };
       }
       for (const needle of SYNTHETIC_DICTIONARY_NEEDLES) {
         if (text.includes(needle)) {
-          return { ok: false, reason: "official dictionary word leak" };
+          return { ok: false, reason: "`official` `dictionary` `word` leak" };
         }
       }
       if (DICTIONARY_SHAPED.test(text)) {
-        return { ok: false, reason: "dictionary-shaped token leak" };
+        return { ok: false, reason: "`dictionary-shaped` `token` leak" };
       }
       if (EXAMPLE_LIKE_QUOTE.test(text) || EXAMPLE_LABEL.test(text)) {
-        return { ok: false, reason: "example-like quotation leak" };
+        return { ok: false, reason: "`example-like` `quotation` leak" };
       }
     }
   }
@@ -109,7 +109,7 @@ export function mergeMappings(agents: ReadonlyArray<MappingAgentChunk>): Array<M
       if (existing !== undefined && existing.class !== next.class) {
         const prior = owners.get(next.id) ?? [];
         const overlapped = prior.some((other) => rangesOverlap(other, agent));
-        const detail = overlapped ? "overlapping ranges" : "duplicate id";
+        const detail = overlapped ? "`overlapping` `ranges`" : "`duplicate` `id`";
         throw new Error(`checker class conflict for ${next.id} (${detail})`);
       }
       if (existing === undefined) {

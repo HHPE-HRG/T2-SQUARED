@@ -253,8 +253,8 @@ describe("formatDiagnostic", () => {
       line: 1,
       column: 1,
       ruleId: "ASD-STE100-5.1",
-      message: "sentence has 24 words. Maximum is 20.",
+      message: "The count stay 24. The maximum stay 20.",
     });
-    assert.equal(line, "docs/note.md:1:1 ASD-STE100-5.1 sentence has 24 words. Maximum is 20.");
+    assert.equal(line, "docs/note.md:1:1 ASD-STE100-5.1 The count stay 24. The maximum stay 20.");
   });
 });

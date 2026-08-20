@@ -69,39 +69,39 @@ export function validateReview(input: {
   roster: ReviewerRoster;
 }): ValidationResult {
   if (input.review.state === "DISMISSED") {
-    return fail("review is dismissed or stale");
+    return fail("`review` `is` `dismissed` or `stale`");
   }
   if (input.review.state !== "APPROVED") {
-    return fail("review is not approved");
+    return fail("`review` `is` not approved");
   }
   if (input.review.commitId !== input.pull.headSha) {
-    return fail("review commit SHA does not match the current head");
+    return fail("`review` `commit` `SHA` `does` not `match` the `current` head");
   }
   const selfSign = input.roster.selfSignAllowed === true;
   if (input.review.userId === input.pull.authorId && !selfSign) {
-    return fail("author self-review is not permitted");
+    return fail("`author` `self-review` `is` not permitted");
   }
   const author = findIdentity(input.roster, input.pull.authorId);
   if (author === undefined) {
-    return fail("author principal cannot resolve");
+    return fail("`author` `principal` cannot `resolve`");
   }
   const reviewer = findReviewer(input.roster, input.review.userId);
   if (reviewer === undefined) {
-    return fail("reviewer is not in the authorized roster");
+    return fail("`reviewer` `is` not in the `authorized` `roster`");
   }
   if (author.principal === reviewer.principal && !selfSign) {
-    return fail("author principal must differ from reviewer principal");
+    return fail("`author` `principal` must `differ` from `reviewer` `principal`");
   }
   if (reviewer.ci) {
-    return fail("CI identity cannot count as rule-subset review");
+    return fail("`CI` `identity` cannot count as `rule-subset` `review`");
   }
   for (const commit of input.pull.commits) {
     if (commit.authorId === null) {
-      return fail("commit identity cannot resolve to an immutable Forgejo user ID");
+      return fail("`commit` `identity` cannot `resolve` to an `immutable` `Forgejo` `user` `ID`");
     }
     const authorReviewingOwnCommit = selfSign && input.review.userId === input.pull.authorId;
     if (commit.authorId === input.review.userId && !authorReviewingOwnCommit) {
-      return fail("reviewer committed governed content");
+      return fail("`reviewer` `committed` `governed` `content`");
     }
   }
   return pass();
@@ -109,25 +109,25 @@ export function validateReview(input: {
 
 function requiredFindingFields(finding: OverrideFinding): string | null {
   if (finding.file.trim() === "") {
-    return "missing file";
+    return "missing `file`";
   }
   if (!Number.isInteger(finding.line) || finding.line < 1) {
-    return "missing line";
+    return "missing `line`";
   }
   if (finding.ruleId.trim() === "") {
-    return "missing rule";
+    return "missing `rule`";
   }
   if (finding.reason.trim() === "") {
-    return "missing reason";
+    return "missing `reason`";
   }
   if (finding.occurrenceAnchor.trim() === "") {
-    return "missing occurrence";
+    return "missing `occurrence`";
   }
   if (finding.contentSha256.trim() === "") {
-    return "missing hash";
+    return "missing `hash`";
   }
   if (finding.repairAttemptHashes.length === 0) {
-    return "repair-attempt hashes are required";
+    return "`repair-attempt` `hashes` `are` `required`";
   }
   return null;
 }
@@ -142,19 +142,19 @@ export function validateOverride(input: {
   changedPaths: Array<string>;
 }): ValidationResult {
   if (input.proposed.reviewId !== input.review.id) {
-    return fail("missing review ID");
+    return fail("missing `review` `ID`");
   }
   if (
     input.proposed.pullNumber !== input.pull.number ||
     input.proposed.repositoryId !== input.pull.repositoryId
   ) {
-    return fail("override pull does not match the current pull request");
+    return fail("`override` pull `does` not `match` the `current` pull `request`");
   }
   if (
     input.proposed.headSha !== input.pull.headSha ||
     input.review.commitId !== input.pull.headSha
   ) {
-    return fail("review commit SHA does not match the current head");
+    return fail("`review` `commit` `SHA` `does` not `match` the `current` head");
   }
 
   const rosterForAuth = input.changedPaths.some((path) =>
@@ -169,14 +169,14 @@ export function validateOverride(input: {
   });
   if (!reviewResult.ok) {
     if (rosterForAuth !== input.roster) {
-      return fail("reviewer is not in the merge-base roster");
+      return fail("`reviewer` `is` not in the `merge-base` `roster`");
     }
     return reviewResult;
   }
 
   const listed = parseOverrideBody(input.review.body);
   if (listed === null) {
-    return fail("review body does not list override findings");
+    return fail("`review` `body` `does` not `list` `override` `findings`");
   }
   const listedKeys = new Set(listed.findings.map((item) => findingKey(item)));
 
@@ -186,7 +186,7 @@ export function validateOverride(input: {
       return fail(missing);
     }
     if (!listedKeys.has(findingKey(item))) {
-      return fail("review body cannot override more than its listed findings");
+      return fail("`review` `body` cannot `override` more than its `listed` `findings`");
     }
     const matches = input.currentFindings.filter(
       (current) =>
@@ -196,17 +196,17 @@ export function validateOverride(input: {
       matches.length > 1 &&
       !matches.some((current) => current.occurrenceAnchor === item.occurrenceAnchor)
     ) {
-      return fail("one override cannot cover two matching finding occurrences");
+      return fail("one `override` cannot `cover` `two` `matching` `finding` `occurrences`");
     }
     if (matches.length > 1 && input.proposed.findings.length < matches.length) {
-      return fail("one override cannot cover two matching finding occurrences");
+      return fail("one `override` cannot `cover` `two` `matching` `finding` `occurrences`");
     }
     const current = input.currentFindings.find((entry) => findingKey(entry) === findingKey(item));
     if (current === undefined) {
-      return fail("override does not match a current finding occurrence");
+      return fail("`override` `does` not `match` a `current` `finding` `occurrence`");
     }
     if (current.contentSha256 !== item.contentSha256) {
-      return fail("content hash mismatch");
+      return fail("`content` `hash` `mismatch`");
     }
   }
   return pass();

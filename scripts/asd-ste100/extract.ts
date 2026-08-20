@@ -56,11 +56,11 @@ export function extractMarkdown(filePath: string, source: string): Array<Extract
 }
 
 const MACHINE_PHRASES = new Set([
-  `ASD-STE100 mechanical rule-subset result`,
-  `rule-subset attestation`,
-  `ASD-STE100 Issue 9`,
-  `KTD28 self-sign: single operator`,
-  `repair attempt`,
+  "ASD-STE100 mechanical rule-subset result",
+  "rule-subset attestation",
+  "ASD-STE100 Issue 9",
+  "KTD28 self-sign: single operator",
+  "repair attempt",
 ]);
 
 function isMachineString(text: string): boolean {

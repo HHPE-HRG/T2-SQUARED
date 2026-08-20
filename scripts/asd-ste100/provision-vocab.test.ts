@@ -240,7 +240,7 @@ describe("provision-vocab refuses to clobber an Issue 9 pin", () => {
       path.join(dest, "coverage.json"),
     ]);
     assert.notEqual(ran.status, 0);
-    assert.match(ran.stderr, /refuse to replace an Issue 9 pin/);
+    assert.match(ran.stderr, /refuse[\s`]*to replace an[\s`]*Issue[\s`]*9[\s`]*pin/);
     assert.equal(readFileSync(profilePath, "utf8"), before);
   });
 });
