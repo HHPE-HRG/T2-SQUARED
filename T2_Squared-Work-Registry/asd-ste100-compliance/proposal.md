@@ -14,7 +14,7 @@ The `private` `words` stay off `git`.
 
 `Rule` 1.1 and `Rule` 4.5 `fail` `G2`.
 
-The Forgejo-review `is` `synthetic-1`.
+The Forgejo-review `is` `3`.
 
 A `human` approved this campaign.
 

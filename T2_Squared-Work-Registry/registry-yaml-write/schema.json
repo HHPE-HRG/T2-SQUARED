@@ -51,7 +51,7 @@
     {
       "kind": "pull",
       "campaign": "registry-yaml-write",
-      "reviewId": "synthetic-1"
+      "reviewId": "3"
     }
   ],
   "event": [
@@ -65,7 +65,7 @@
       "kind": "event",
       "campaign": "registry-yaml-write",
       "subject": "pull",
-      "id": "synthetic-1"
+      "id": "3"
     }
   ]
 }

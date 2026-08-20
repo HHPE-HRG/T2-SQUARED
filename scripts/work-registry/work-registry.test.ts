@@ -447,6 +447,7 @@ describe("checkWorkRegistry", () => {
       };
       assert.equal(schema.work.some((row) => row.kind === "work" && row.id === name && row.parent === null), true);
       assert.equal(schema.pull.some((row) => row.kind === "pull" && row.reviewId === genesis.forgejoReviewId), true);
+      assert.match(genesis.forgejoReviewId, /^\d+$/);
       assert.equal(schema.event.some((row) => row.kind === "event" && row.subject === "work"), true);
       assert.equal(schema.event.some((row) => row.kind === "event" && row.subject === "pull"), true);
     }
