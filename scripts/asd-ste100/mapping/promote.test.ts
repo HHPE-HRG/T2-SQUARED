@@ -309,11 +309,14 @@ describe("reviewOfficialMappingRows", () => {
     );
   });
 
-  it("accepts the live principals file with one human profile", () => {
+  it("accepts the live principals file with two human profiles", () => {
     const file = loadMappingPrincipalsFile(repoRoot);
     validateMappingPrincipals(file);
-    assert.equal(file.profiles?.length, 1);
-    assert.equal(file.profiles?.[0]?.kind, "human");
+    assert.equal(file.profiles?.length, 2);
+    assert.equal(
+      file.profiles?.every((entry) => entry.kind === "human"),
+      true,
+    );
   });
 
   it("keeps committed official wave rows unreviewed as the merge artifact", () => {
@@ -328,7 +331,11 @@ describe("reviewOfficialMappingRows", () => {
       identitiesOnDisk.some((entry) => entry.id === "operator-self-sign" && entry.kind === "human"),
       true,
     );
-    assert.equal(selfSignAllowed(identitiesOnDisk), true);
+    assert.equal(
+      identitiesOnDisk.some((entry) => entry.id === "operator-co-sign" && entry.kind === "human"),
+      true,
+    );
+    assert.equal(selfSignAllowed(identitiesOnDisk), false);
     assert.throws(
       () =>
         reviewOfficialMappingRows(

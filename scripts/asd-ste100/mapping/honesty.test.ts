@@ -17,16 +17,16 @@ import type { MappingRow } from "./merge.ts";
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const mappingDir = path.join(path.dirname(fileURLToPath(import.meta.url)));
 
-describe("mapping self-sign is the live KTD28 mode for one human profile", () => {
-  it("keeps one human profile and one principal while self-sign is in force", () => {
+describe("mapping KTD28 mode after a second human reviewer exists", () => {
+  it("keeps two human profiles and co-sign once a second reviewer exists", () => {
     const file = loadMappingPrincipalsFile(repoRoot);
     const identities = loadMappingPrincipals(repoRoot);
     const principals = new Set(identities.map((entry: MappingIdentity) => entry.principal));
-    assert.equal(humanProfileCount(file), 1);
-    assert.equal(selfSignMode(file), "self-sign");
-    assert.equal(principals.size, 1);
+    assert.equal(humanProfileCount(file), 2);
+    assert.equal(selfSignMode(file), "co-sign");
     assert.equal(principals.has("t2-single-operator"), true);
-    assert.equal(selfSignAllowed(identities, 2, file.profiles), true);
+    assert.equal(principals.has("t2-reviewer-operator"), true);
+    assert.equal(selfSignAllowed(identities, 2, file.profiles), false);
   });
 
   it("records selfSign on live mapping rows", () => {
