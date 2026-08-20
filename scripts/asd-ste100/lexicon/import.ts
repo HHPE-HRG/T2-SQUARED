@@ -31,7 +31,7 @@ export function importOriginals(dbPath: string, input: ImportOriginalsInput): Ar
     database.close();
   }
   if (existing > 0) {
-    throw new LexiconError("`scan` `once`: `originals` `are` `already` `imported`.");
+    throw new LexiconError("scan once: originals are already imported.");
   }
   const rows: Array<LexiconEntity> = input.items.map((item, ordinal) => ({
     id: randomUUID(),

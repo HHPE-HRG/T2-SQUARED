@@ -208,7 +208,7 @@ export function exportApprovedWordsFromExtraction(
 ): { sha256: string; lemmaCount: number } {
   const parsed = JSON.parse(readFileSync(sourceFile, "utf8")) as { words?: unknown };
   if (!Array.isArray(parsed.words) || parsed.words.some((word) => typeof word !== "string")) {
-    throw new Error("`extraction` `words` must be an `array` of `strings`");
+    throw new Error("extraction words must be an array of strings");
   }
   const extracted = extractApprovedDictionaryLemmas(parsed.words);
   const written = writeApprovedWords(destFile, extracted.words);
@@ -244,7 +244,7 @@ export function stripT2Surfaces(words: Array<string>): Array<string> {
 export function stripT2SurfacesFromWordsFile(wordsPath: string): void {
   const parsed = JSON.parse(readFileSync(wordsPath, "utf8")) as { words?: unknown };
   if (!Array.isArray(parsed.words) || parsed.words.some((word) => typeof word !== "string")) {
-    throw new Error("`extraction` `words` must be an `array` of `strings`");
+    throw new Error("extraction words must be an array of strings");
   }
   const words = stripT2Surfaces(parsed.words);
   writeFileSync(wordsPath, `${JSON.stringify({ words })}\n`);

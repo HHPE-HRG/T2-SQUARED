@@ -3,10 +3,10 @@ export interface WorkRegistryTerm {
   kind: "noun" | "verb";
 }
 
-/** `Canonical` `product` name. `STE` `prose` `still` `uses` the work-registry `noun`. */
+/** Canonical product name. STE prose still uses the work-registry noun. */
 export const PRODUCT_NAME = "T2_Squared-Work-Registry";
 
-/** `T2` `work-registry` `glossary`. These `are` not `Issue` 9 `dictionary` `rows`. */
+/** T2 work-registry glossary. These are not Issue 9 dictionary rows. */
 export const REQUIRED_WORK_REGISTRY_TERMS: ReadonlyArray<WorkRegistryTerm> = [
   { term: "work-registry", kind: "noun" },
   { term: "campaign", kind: "noun" },

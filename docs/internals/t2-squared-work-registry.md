@@ -1,6 +1,6 @@
 # `T2_Squared-Work-Registry`
 
-The T2 keep this `guidance`.
+The `T2` keep this `guidance`.
 
 The `public` `command` `is` `npm run ci:work-registry`.
 
@@ -10,7 +10,7 @@ The `public` `command` `is` `npm run ci:work-registry`.
 
 ## `Scope`
 
-The work-registry hold work on the T2 `codebase`.
+The work-registry hold work on the `T2` `codebase`.
 
 A campaign live `under` `T2_Squared-Work-Registry`.
 

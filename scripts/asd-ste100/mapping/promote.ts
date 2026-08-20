@@ -106,16 +106,16 @@ export function markMappingReviewed(
   options: { allowSelfSign?: boolean } = {},
 ): MappingRow {
   if (row.class !== "deterministic" && row.class !== "fail_closed_uncheckable") {
-    throw new Error("only `deterministic` or `fail`_closed_`uncheckable` `rows` accept `review`");
+    throw new Error("only deterministic or fail_closed_uncheckable rows accept review");
   }
   if (review.reviewerId.length === 0) {
-    throw new Error("`reviewed`:`true` `requires` a `reviewerId`");
+    throw new Error("reviewed:true requires a reviewerId");
   }
   const sameReviewer = review.reviewerId === review.authorId;
   const sameRowAuthor =
     row.authorId !== undefined && row.authorId !== null && review.reviewerId === row.authorId;
   if ((sameReviewer || sameRowAuthor) && options.allowSelfSign !== true) {
-    throw new Error("`self-review` `is` not permitted; `reviewerId` must be `distinct` from `author`");
+    throw new Error("self-review is not permitted; reviewerId must be distinct from author");
   }
   return {
     ...row,
@@ -188,7 +188,7 @@ export function validateMappingPrincipals(file: MappingPrincipalsFile): void {
   const providerIds = new Set<string>();
   for (const provider of providers) {
     if (typeof provider.id !== "string" || provider.id.length === 0) {
-      throw new Error("`provider` `id` `is` `required`");
+      throw new Error("provider id is required");
     }
     if (!PROVIDER_KINDS.has(provider.kind)) {
       throw new Error(`unknown provider kind: ${provider.kind}`);
@@ -202,13 +202,13 @@ export function validateMappingPrincipals(file: MappingPrincipalsFile): void {
   const credentialIds = new Set<string>();
   for (const profile of profiles) {
     if (typeof profile.id !== "string" || profile.id.length === 0) {
-      throw new Error("`profile` `id` `is` `required`");
+      throw new Error("profile id is required");
     }
     if (profile.kind !== "human" && profile.kind !== "agent") {
       throw new Error(`unknown profile kind: ${profile.kind}`);
     }
     if (typeof profile.principal !== "string" || profile.principal.length === 0) {
-      throw new Error("`profile` `principal` `is` `required`");
+      throw new Error("profile principal is required");
     }
     if (profileIds.has(profile.id)) {
       throw new Error(`duplicate profile id: ${profile.id}`);
@@ -216,7 +216,7 @@ export function validateMappingPrincipals(file: MappingPrincipalsFile): void {
     profileIds.add(profile.id);
     const credentials = profile.credentials ?? [];
     if (profile.kind === "human" && credentials.length === 0) {
-      throw new Error("`human` `profile` `needs` a `credential`");
+      throw new Error("human profile needs a credential");
     }
     for (const credential of credentials as Array<Record<string, unknown>>) {
       const extraKeys = Object.keys(credential);
@@ -232,13 +232,13 @@ export function validateMappingPrincipals(file: MappingPrincipalsFile): void {
       const provider = credential.provider;
       const subject = credential.subject;
       if (typeof id !== "string" || id.length === 0) {
-        throw new Error("`credential` `id` `is` `required`");
+        throw new Error("credential id is required");
       }
       if (typeof provider !== "string" || provider.length === 0) {
-        throw new Error("`credential` `provider` `is` `required`");
+        throw new Error("credential provider is required");
       }
       if (typeof subject !== "string" || subject.length === 0) {
-        throw new Error("`credential` `subject` `is` `required`");
+        throw new Error("credential subject is required");
       }
       if (!providerIds.has(provider)) {
         throw new Error(`unknown credential provider: ${provider}`);
@@ -260,17 +260,17 @@ export function reviewOfficialMappingRows(
   const author = identityById(identities, review.authorId);
   const reviewer = identityById(identities, review.reviewerId);
   if (author === undefined) {
-    throw new Error("`author` `principal` cannot `resolve`");
+    throw new Error("author principal cannot resolve");
   }
   if (reviewer === undefined) {
-    throw new Error("`reviewer` `principal` cannot `resolve`");
+    throw new Error("reviewer principal cannot resolve");
   }
   if (reviewer.kind !== "human") {
-    throw new Error("`KTD28` `reviewer` must be `human`");
+    throw new Error("KTD28 reviewer must be human");
   }
   const allowSelfSign = selfSignAllowed(identities, DEFAULT_SELF_SIGN_HUMAN_THRESHOLD, profiles);
   if (author.principal === reviewer.principal && !allowSelfSign) {
-    throw new Error("`author` `principal` must `differ` from `reviewer` `principal`");
+    throw new Error("author principal must differ from reviewer principal");
   }
   const notes =
     author.principal === reviewer.principal
@@ -371,7 +371,7 @@ export function coverageFromPrivateLexicon(input: {
 
 export function scanCoverageLeak(record: unknown): MappingLeakScan {
   if (hasWordListPayload(record)) {
-    return { ok: false, reason: "`word-list` `payload` in `coverage` record" };
+    return { ok: false, reason: "word-list payload in coverage record" };
   }
   const blob = collectStrings(record).join("\n");
   const asRow: MappingRow = {

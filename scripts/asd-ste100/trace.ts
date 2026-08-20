@@ -91,7 +91,7 @@ export function evaluateGeneratedText(input: {
   if (findings.length > 0) {
     return {
       ok: false,
-      reason: "`generated` `text` `failed` mechanical `rules`",
+      reason: "generated text failed mechanical rules",
       status: "blocked",
       findings,
     };
@@ -109,7 +109,7 @@ export function validateRepair(input: {
   finalText: string;
 }): TraceResult {
   if (input.attempts.length === 0) {
-    return fail("`repair-attempt` `hashes` `are` `required`");
+    return fail("repair-attempt hashes are required");
   }
   for (const attempt of input.attempts) {
     const mismatch = requireHash("repair attempt", attempt.text, attempt.sha256);
@@ -125,7 +125,7 @@ export function validateRepair(input: {
     kind: input.kind,
   });
   if (findings.length > 0) {
-    return fail("`repaired` `text` `failed` mechanical `rules`", findings);
+    return fail("repaired text failed mechanical rules", findings);
   }
   return pass();
 }
@@ -140,7 +140,7 @@ export function validateTraceLinks(fixture: TraceFixture): TraceResult {
     return intent;
   }
   if (fixture.intentApproved !== true) {
-    return fail("missing approved `intent`");
+    return fail("missing approved intent");
   }
   const systemText = requireHash("system-text", fixture.systemText, fixture.systemTextSha256);
   if (systemText !== null) {

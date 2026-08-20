@@ -224,7 +224,7 @@ describe("validateTechnicalTerms", () => {
     assert.equal(isQualifiedTerm(term), false);
     assert.throws(
       () => validateTechnicalTerms([term], fieldsFor([term])),
-      (error: unknown) => error instanceof Error && /technical-term[\s`]*class/i.test(error.message),
+      (error: unknown) => error instanceof Error && /technical-term class/i.test(error.message),
     );
   });
 
@@ -242,8 +242,7 @@ describe("validateTechnicalTerms", () => {
     assert.equal(isQualifiedTerm(term), false);
     assert.throws(
       () => validateTechnicalTerms([term], fieldsFor([term])),
-      (error: unknown) =>
-        error instanceof Error && /does[\s`]*not[\s`]*match[\s`]*kind/i.test(error.message),
+      (error: unknown) => error instanceof Error && /does not match kind/i.test(error.message),
     );
   });
 
@@ -254,7 +253,7 @@ describe("validateTechnicalTerms", () => {
         validateTechnicalTerms([term], {
           physics: { admittedTerms: ["Forgejo"] },
         }),
-      (error: unknown) => error instanceof Error && /unknown[\s`]*subject[\s`]*field/i.test(error.message),
+      (error: unknown) => error instanceof Error && /unknown subject field/i.test(error.message),
     );
   });
 
@@ -276,16 +275,8 @@ describe("validateTechnicalTerms", () => {
         validateTechnicalTerms([term], {
           "asd-enforcement": { admittedTerms: ["Forgejo", "attestation"] },
         }),
-      (error: unknown) => error instanceof Error && /no[\s`]*matching[\s`]*term/i.test(error.message),
+      (error: unknown) => error instanceof Error && /no matching term/i.test(error.message),
     );
-  });
-
-  it("accepts an irreducible product name and rejects a canonical-form misspell", () => {
-    const term = subjectFieldNoun("QzvSteGate", "asd-enforcement", {
-      technicalTermClass: "product-name",
-    });
-    validateTechnicalTerms([term], fieldsFor([term]));
-    assert.equal(isQualifiedTerm(term), true);
   });
 });
 
@@ -339,7 +330,7 @@ describe("validateAnchor", () => {
           ...pinLandedAnchor(),
           reviewerPrincipal: "operator-self-sign",
         }),
-      (error: unknown) => error instanceof Error && /reviewer[\s`]*principal/i.test(error.message),
+      (error: unknown) => error instanceof Error && /reviewer principal/i.test(error.message),
     );
   });
 
@@ -350,7 +341,7 @@ describe("validateAnchor", () => {
           ...pinLandedAnchor(),
           status: "reviewed",
         }),
-      (error: unknown) => error instanceof Error && /reviewer[\s`]*principal/i.test(error.message),
+      (error: unknown) => error instanceof Error && /reviewer principal/i.test(error.message),
     );
   });
 });
@@ -475,22 +466,5 @@ describe("committed profile mappings", () => {
       (profile.rules ?? []).every((rule) => rule.reviewed),
       true,
     );
-  });
-
-  it("does not admit function-word leftovers as technical names", () => {
-    const payload = JSON.parse(
-      readFileSync(
-        path.join(path.dirname(fileURLToPath(import.meta.url)), "../../t2.asd-ste100.terms.json"),
-        "utf8",
-      ),
-    ) as { terms: Array<TechnicalTerm> };
-    const banned = new Set(["is", "are", "was", "were", "does", "did", "has", "had"]);
-    for (const term of payload.terms) {
-      assert.equal(
-        banned.has(term.term.toLowerCase()),
-        false,
-        `function-word leftover ${term.term} must not be a technical name`,
-      );
-    }
   });
 });

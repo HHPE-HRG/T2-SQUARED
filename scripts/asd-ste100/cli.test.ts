@@ -318,7 +318,7 @@ describe("runCli", () => {
       deps({ baseline: { ok: true, sourceSha: "other" } }),
     );
     assert.equal(result.ok, false);
-    assert.match(result.reason, /source[\s`]*SHA/i);
+    assert.match(result.reason, /source SHA/i);
   });
 
   it("fails the aggregate when any required gate fails", () => {
@@ -331,7 +331,7 @@ describe("runCli", () => {
             line: 1,
             column: 1,
             ruleId: "ASD-STE100-5.1",
-            message: "The count stay 24. The maximum stay 20.",
+            message: "sentence has 24 words. Maximum is 20.",
           },
         ],
       }),
@@ -357,7 +357,7 @@ describe("runCli", () => {
             line: 1,
             column: 1,
             ruleId: "ASD-STE100-1.1",
-            message: 'keep "must" out of the approved set.',
+            message: 'word "must" is not in the approved set.',
           },
         ],
       }),
@@ -378,7 +378,7 @@ describe("runCli", () => {
             line: 1,
             column: 1,
             ruleId: "ASD-STE100-1.1",
-            message: 'keep "must" out of the approved set.',
+            message: 'word "must" is not in the approved set.',
           },
         ],
       }),
@@ -420,7 +420,7 @@ describe("runCli", () => {
             line: 1,
             column: 1,
             ruleId: "T10",
-            message: "The T2 reject this approval or this name.",
+            message: "prohibited ASD approval or certification claim.",
           },
         ],
       }),
@@ -439,7 +439,7 @@ describe("runCli", () => {
             line: 1,
             column: 1,
             ruleId: "T2-IDENTIFIER-projection",
-            message: 'The T2 keep "xyzzyGate" off this name.',
+            message: 'T2 identifier "xyzzyGate" is not bound to a qualified concept.',
           },
         ],
       }),
@@ -458,7 +458,7 @@ describe("runCli", () => {
             line: 1,
             column: 1,
             ruleId: "T2-TERM-canonical",
-            message: 'Keep "Work-Registry" as the work-registry.',
+            message: 'prose "Work-Registry" is not the canonical human form "work-registry".',
           },
         ],
       }),
@@ -478,7 +478,7 @@ describe("runCli", () => {
             line: 1,
             column: 1,
             ruleId: "ASD-STE100-5.1",
-            message: "The count stay 24. The maximum stay 20.",
+            message: "sentence has 24 words. Maximum is 20.",
           },
         ],
       }),
@@ -493,7 +493,7 @@ describe("runCli", () => {
   it("fails G5 in PR mode when the review is missing", () => {
     const result = runCli(["--mode", "pr"], deps());
     assert.equal(gate(result, "G5").ok, false);
-    assert.match(gate(result, "G5").reason, /review[\s`]*is[\s`]*missing/i);
+    assert.match(gate(result, "G5").reason, /review is missing/i);
     assert.equal(result.ok, false);
   });
 

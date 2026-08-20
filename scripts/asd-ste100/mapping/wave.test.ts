@@ -369,7 +369,7 @@ describe("scanGitDiffLeak", () => {
       ]);
     await assert.rejects(
       () => runWaves(waves, agent, { outputDir: dir, gitCwd: dir, maxAttempts: 1 }),
-      /git[\s`]*diff[\s`]*failed/i,
+      /git diff failed/i,
     );
   });
 });

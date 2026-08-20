@@ -1,6 +1,6 @@
-# The T2 `ASD-STE100 mechanical rule-subset`
+# The `T2` `ASD-STE100 mechanical rule-subset`
 
-The T2 keep this `guidance`.
+The `T2` keep this `guidance`.
 
 This `document` `is` not a `language-authority` `certificate`.
 
@@ -10,7 +10,7 @@ The `public` `command` `is` `npm run ci:asd-ste100`.
 
 ## `Ownership boundary`
 
-`Upstream` `T3` `text` stay `outside` the `governed` set when the T2 `did` not change it.
+`Upstream` `T3` `text` stay `outside` the `governed` set when the `T2` `did` not change it.
 
 `T2-owned` `text` must `match` a `closed` `ownership` `glob`.
 
@@ -94,7 +94,7 @@ A `T2-TERM-canonical` check `requires` one `human` `form`.
 
 `Sentence-initial` `capitalization` `may` change the first `letter`.
 
-A T2 `identifier-policy` check `binds` `software` `forms` to that `concept`.
+A `T2` `identifier-policy` check `binds` `software` `forms` to that `concept`.
 
 Those `software` `forms` `are` not `ASD` `dictionary` `rows`.
 
@@ -116,7 +116,7 @@ The `export` keep `uppercase` `headwords` with a part of `speech` mark.
 
 `Lowercase` `headwords` stay out of that `export`.
 
-The T2 `surfaces` stay in the `terms` `file`.
+The `T2` `surfaces` stay in the `terms` `file`.
 
 `Git` `stores` the `pin`.
 
@@ -156,7 +156,7 @@ A new head `commit` `invalidates` the override.
 
 ## `Modes`
 
-The `PR` mode check the T2 `delta`.
+The `PR` mode check the `T2` `delta`.
 
 The `Main` mode `scans` the `owned` `corpus`.
 

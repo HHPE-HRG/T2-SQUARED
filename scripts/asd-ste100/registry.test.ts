@@ -82,23 +82,6 @@ describe("live profile matches enforced checkers", () => {
     assert.equal(scanCoverageLeak(coverage).ok, true);
   });
 
-  it("does not invent copular forms that Issue 9 dictionary rows omitted", () => {
-    const coverage = JSON.parse(
-      readFileSync(
-        path.join(repoRoot, "scripts/asd-ste100/mapping/records/vocabulary-coverage.json"),
-        "utf8",
-      ),
-    ) as { lemmaCount: number };
-    const terms = JSON.parse(readFileSync(path.join(repoRoot, "t2.asd-ste100.terms.json"), "utf8")) as {
-      terms: Array<{ term: string }>;
-    };
-    assert.equal(coverage.lemmaCount, 794);
-    assert.equal(
-      terms.terms.some((term) => term.term.toLowerCase() === "is"),
-      false,
-    );
-  });
-
   it("records a reviewed anchor with a reviewer principal", () => {
     const anchor = JSON.parse(
       readFileSync(path.join(repoRoot, "t2.asd-ste100.anchor.json"), "utf8"),

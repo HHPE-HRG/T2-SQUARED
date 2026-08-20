@@ -14,7 +14,7 @@ export interface ForkInterpretInput {
 export function forkInterpret(dbPath: string, input: ForkInterpretInput): LexiconEntity {
   const parent = listEntities(dbPath).find((row) => row.id === input.parentId);
   if (parent === undefined) {
-    throw new LexiconError("the `parent` `entity` `is` missing.");
+    throw new LexiconError("the parent entity is missing.");
   }
   const nextOrdinal = listEntities(dbPath).reduce((max, row) => Math.max(max, row.ordinal), -1) + 1;
   const child: LexiconEntity = {
@@ -65,7 +65,7 @@ export function selectProductClassParent(rows: Array<LexiconEntity>): string {
   }
   const stock = rows.find((row) => row.parentId === null);
   if (stock === undefined) {
-    throw new LexiconError("the `parent` `entity` `is` missing.");
+    throw new LexiconError("the parent entity is missing.");
   }
   return stock.id;
 }

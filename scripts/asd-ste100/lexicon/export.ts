@@ -78,7 +78,7 @@ export function applyPinAtGitMerge(input: ApplyPinAtGitMergeInput): {
   vocabularyReview: AsdProfile["vocabularyReview"];
 } {
   if (input.gitMerge !== true) {
-    throw new LexiconError("`pin` apply `needs` an `explicit` `git-merge` `flag`.");
+    throw new LexiconError("pin apply needs an explicit git-merge flag.");
   }
   const bytes = readFileSync(input.wordsPath);
   const sha256 = createHash("sha256").update(bytes).digest("hex");

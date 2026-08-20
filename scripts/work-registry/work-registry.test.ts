@@ -132,7 +132,7 @@ describe("registerCampaign", () => {
     assert.throws(
       () => registerCampaign(dir),
       (error: unknown) =>
-        error instanceof WorkRegistryError && error.message === "the campaign `is` not approved.",
+        error instanceof WorkRegistryError && error.message === "the campaign is not approved.",
     );
   });
 
@@ -156,7 +156,7 @@ describe("registerCampaign", () => {
     assert.throws(
       () => registerCampaign(extra),
       (error: unknown) =>
-        error instanceof WorkRegistryError && error.message === "the campaign `has` `extra` `markdown`.",
+        error instanceof WorkRegistryError && error.message === "the campaign has extra markdown.",
     );
     const ideation = writeCampaign({
       proposal: "The campaign uses the work-registry.\n",
@@ -165,7 +165,7 @@ describe("registerCampaign", () => {
     assert.throws(
       () => registerCampaign(ideation),
       (error: unknown) =>
-        error instanceof WorkRegistryError && error.message === "`ideation` `is` not a campaign.",
+        error instanceof WorkRegistryError && error.message === "ideation is not a campaign.",
     );
   });
 
@@ -186,7 +186,7 @@ describe("registerCampaign", () => {
     assert.throws(
       () => registerCampaign(dir),
       (error: unknown) =>
-        error instanceof WorkRegistryError && error.message === "the campaign `has` `two` `documents`.",
+        error instanceof WorkRegistryError && error.message === "the campaign has two documents.",
     );
   });
 
@@ -198,7 +198,7 @@ describe("registerCampaign", () => {
       () => registerCampaign(dir),
       (error: unknown) =>
         error instanceof WorkRegistryError &&
-        error.message === "the proposal must `translate` the new `noun`.",
+        error.message === "the proposal must translate the new noun.",
     );
   });
 
@@ -210,7 +210,7 @@ describe("registerCampaign", () => {
     assert.throws(
       () => registerCampaign(dir),
       (error: unknown) =>
-        error instanceof WorkRegistryError && error.message === "the genesis `is` missing.",
+        error instanceof WorkRegistryError && error.message === "the genesis is missing.",
     );
   });
 
@@ -225,7 +225,7 @@ describe("registerCampaign", () => {
     assert.throws(
       () => registerCampaign(dir),
       (error: unknown) =>
-        error instanceof WorkRegistryError && error.message === "the epoch `is` not `valid`.",
+        error instanceof WorkRegistryError && error.message === "the epoch is not valid.",
     );
   });
 });
@@ -436,7 +436,7 @@ describe("checkDrift", () => {
     assert.throws(
       () => checkDrift(dir),
       (error: unknown) =>
-        error instanceof WorkRegistryError && error.message === "the schema `has` `drift`.",
+        error instanceof WorkRegistryError && error.message === "the schema has drift.",
     );
   });
 

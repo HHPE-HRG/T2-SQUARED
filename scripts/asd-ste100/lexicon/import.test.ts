@@ -59,7 +59,7 @@ describe("importOriginals", () => {
     importOriginals(dest, { actorId: "agent-test", items: SYNTHETIC_ITEMS });
     assert.throws(
       () => importOriginals(dest, { actorId: "agent-test", items: SYNTHETIC_ITEMS }),
-      (error: unknown) => error instanceof LexiconError && /scan[\s`]*once/i.test(error.message),
+      (error: unknown) => error instanceof LexiconError && /scan once/i.test(error.message),
     );
     assert.equal(listEntities(dest).length, 3);
   });

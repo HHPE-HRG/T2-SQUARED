@@ -199,7 +199,7 @@ describe("runCli", () => {
     assert.throws(
       () => runCli(["--root", root, "--check", "sample"]),
       (error: unknown) =>
-        error instanceof WorkRegistryError && error.message === "the schema `has` `drift`.",
+        error instanceof WorkRegistryError && error.message === "the schema has drift.",
     );
     runCli(["--root", root, "--compile", "sample"]);
     runCli(["--root", root, "--check", "sample"]);
@@ -251,7 +251,7 @@ describe("runCli", () => {
     assert.throws(
       () => runCli(["--root", root]),
       (error: unknown) =>
-        error instanceof WorkRegistryError && error.message === "the schema `has` `drift`.",
+        error instanceof WorkRegistryError && error.message === "the schema has drift.",
     );
   });
 });

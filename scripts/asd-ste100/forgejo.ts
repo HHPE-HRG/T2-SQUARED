@@ -63,13 +63,13 @@ function requiredString(value: unknown, field: string): string {
 
 export function parseForgejoPull(payload: unknown): ForgejoPull {
   if (!isRecord(payload)) {
-    throw new Error("`Forgejo` pull `payload` must be an object");
+    throw new Error("Forgejo pull payload must be an object");
   }
   const user = payload.user;
   const repository = payload.repository;
   const head = payload.head;
   if (!isRecord(user) || !isRecord(head)) {
-    throw new Error("`Forgejo` pull `payload` `is` missing `user` or head");
+    throw new Error("Forgejo pull payload is missing user or head");
   }
   const repositoryId = isRecord(repository)
     ? requiredNumber(repository.id, "repository.id")
@@ -102,11 +102,11 @@ export function parseForgejoPull(payload: unknown): ForgejoPull {
 
 export function parseForgejoReview(payload: unknown): ForgejoReview {
   if (!isRecord(payload)) {
-    throw new Error("`Forgejo` `review` `payload` must be an object");
+    throw new Error("Forgejo review payload must be an object");
   }
   const user = payload.user;
   if (!isRecord(user)) {
-    throw new Error("`Forgejo` `review` `payload` `is` missing `user`");
+    throw new Error("Forgejo review payload is missing user");
   }
   const state = requiredString(payload.state, "state");
   if (
@@ -115,7 +115,7 @@ export function parseForgejoReview(payload: unknown): ForgejoReview {
     state !== "DISMISSED" &&
     state !== "REQUEST_CHANGES"
   ) {
-    throw new Error("`Forgejo` `review` `state` `is` not `recognized`");
+    throw new Error("Forgejo review state is not recognized");
   }
   return {
     id: requiredNumber(payload.id, "id"),

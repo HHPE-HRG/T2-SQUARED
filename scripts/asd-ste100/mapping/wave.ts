@@ -63,7 +63,7 @@ function partitionSizes(totalPages: number, chunkSize: number): Array<number> {
     leftover -= take;
   }
   if (leftover > 0) {
-    throw new Error("cannot absorb `remainder` while `keeping` `chunk` `sizes` in 10-40");
+    throw new Error("cannot absorb remainder while keeping chunk sizes in 10-40");
   }
   return sizes;
 }
@@ -77,7 +77,7 @@ export function partitionWaves(
   const ordered = [...manifest].sort((left, right) => left.page - right.page);
   const firstPage = ordered[0]?.page;
   if (firstPage === undefined) {
-    throw new Error("`ordered` set `is` empty");
+    throw new Error("ordered set is empty");
   }
   const waves: Array<PageChunk> = [];
   let cursor = firstPage;
@@ -139,11 +139,11 @@ export function scanGitDiffLeak(
     JPEG_BASE64.test(diffText) ||
     JPEG_BINARY_FILES.test(diffText)
   ) {
-    return { ok: false, reason: "`jpg` `byte` leak" };
+    return { ok: false, reason: "jpg byte leak" };
   }
   for (const needle of officialNeedles) {
     if (needle.length > 0 && diffText.includes(needle)) {
-      return { ok: false, reason: "`official` `dictionary` `word` leak" };
+      return { ok: false, reason: "official dictionary word leak" };
     }
   }
   return { ok: true, reason: "" };
@@ -178,7 +178,7 @@ function readGitDiff(cwd: string): string {
       if (stdout.trim() !== "") {
         return stdout;
       }
-      throw new Error("`git` `diff` `failed`");
+      throw new Error("git diff failed");
     }
   };
   const untracked = run(["ls-files", "--others", "--exclude-standard"]);

@@ -53,7 +53,7 @@ function jpgNames(srcDir: string): Array<string> {
     .filter((name) => /\.jpe?g$/i.test(name))
     .sort();
   if (names.length === 0) {
-    throw new LexiconError("no `jpg` `files` in `src`.");
+    throw new LexiconError("no jpg files in src.");
   }
   return names;
 }
@@ -102,7 +102,7 @@ export function itemsFromJpgDir(srcDir: string, destRoot: string): Array<Origina
 
 export function runLexiconScan(input: LexiconScanInput): void {
   if (destInsideGitWorkTree(input.dest)) {
-    throw new LexiconError("`dest` must stay off the `git` work `tree`.");
+    throw new LexiconError("dest must stay off the git work tree.");
   }
   const destRoot = destRootFromSqlite(input.dest);
   mkdirSync(destRoot, { recursive: true });
@@ -137,7 +137,7 @@ export function main(argv: Array<string> = process.argv.slice(2)): number {
       const profilePath = flagValue(argv, "--profile");
       const termsPath = flagValue(argv, "--terms");
       if (wordsPath === undefined || profilePath === undefined || termsPath === undefined) {
-        process.stderr.write("`pin` apply `needs` --`git-merge` --`words` --`profile` --`terms`.\n");
+        process.stderr.write("pin apply needs --git-merge --words --profile --terms.\n");
         return 1;
       }
       const surfaces = (flagValue(argv, "--surfaces") ?? "")
@@ -168,7 +168,7 @@ export function main(argv: Array<string> = process.argv.slice(2)): number {
     runLexiconScan({ src, dest, actorId });
     return 0;
   } catch (error) {
-    const message = error instanceof Error ? error.message : "`lexicon` `scan` `failed`.";
+    const message = error instanceof Error ? error.message : "lexicon scan failed.";
     process.stderr.write(`${message}\n`);
     return 1;
   }

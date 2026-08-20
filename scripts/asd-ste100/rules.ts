@@ -15,7 +15,7 @@ export interface RuleInput {
 }
 
 const LIST_PREFIX = /^(?:[-*+]|\d+[.)])\s+/;
-// `Bare-form` instruction `verbs` only; `capitalized` `nouns` must stay `descriptive`.
+// Bare-form instruction verbs only; capitalized nouns must stay descriptive.
 const IMPERATIVE_VERBS = new Set([
   "add",
   "check",
@@ -72,7 +72,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "ASD-STE100-5.1",
-      message: `The count stay ${words}. The maximum stay 20.`,
+      message: `sentence has ${words} words. Maximum is 20.`,
     });
   }
   if (input.kind === "descriptive" && words > 25) {
@@ -81,7 +81,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "ASD-STE100-6.3",
-      message: `The count stay ${words}. The maximum stay 25.`,
+      message: `sentence has ${words} words. Maximum is 25.`,
     });
   }
   const sentences = sentenceCount(input.text);
@@ -91,7 +91,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "ASD-STE100-6.6",
-      message: `The count stay ${sentences}. The maximum stay 6.`,
+      message: `paragraph has ${sentences} sentences. Maximum is 6.`,
     });
   }
   if (/\b(?:[A-Za-z]+n't|it's|that's|can't|won't)\b/i.test(input.text)) {
@@ -100,7 +100,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "T2-HEURISTIC-contraction",
-      message: "`contraction` stay not permitted in this `prose`.",
+      message: "contraction is not permitted in governed prose.",
     });
   }
   if (input.text.includes(";")) {
@@ -109,7 +109,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "T2-HEURISTIC-semicolon",
-      message: "`semicolon` stay not permitted in this `prose`.",
+      message: "semicolon is not permitted in governed prose.",
     });
   }
   if (
@@ -122,7 +122,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "T2-HEURISTIC-passive",
-      message: "`passive` `construction` stay a `candidate` for `rewrite`.",
+      message: "passive construction is a candidate for rewrite.",
     });
   }
   if (/\b(?:colour|centre|organise|organisation|defence|licence)\b/i.test(input.text)) {
@@ -131,7 +131,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "T2-HEURISTIC-spelling",
-      message: "`non-American` `spelling` stay not permitted in this `prose`.",
+      message: "non-American spelling is not permitted in governed prose.",
     });
   }
   if (/\bthe\s+\w+ing\s+of\b/i.test(input.text)) {
@@ -140,7 +140,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "T2-HEURISTIC-verb-form",
-      message: "this `verb` `form` stay not permitted as a `noun`.",
+      message: "this verb form is not permitted as a noun.",
     });
   }
   if (input.text.includes("?")) {
@@ -149,7 +149,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "T2-HEURISTIC-question",
-      message: "a `question` mark stay not permitted in this `prose`.",
+      message: "a question mark is not permitted in governed prose.",
     });
   }
   if (/\s\/\s/.test(input.text)) {
@@ -158,7 +158,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       line: input.line,
       column: input.column,
       ruleId: "T2-HEURISTIC-slash",
-      message: "a `spaced` `slash` stay not permitted as a `word` `joiner`.",
+      message: "a spaced slash is not permitted as a word joiner.",
     });
   }
   return findings;

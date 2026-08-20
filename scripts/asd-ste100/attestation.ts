@@ -86,7 +86,7 @@ export function buildAttestation(input: {
   };
 }
 
-/** `Whole-file` `dumps` only. One `official` `lemma` in source `text` `is` not a leak. */
+/** Whole-file dumps only. One official lemma in source text is not a leak. */
 function dumpNeedles(official: string): Array<string> {
   const needles = new Set<string>();
   needles.add(official);
@@ -100,7 +100,7 @@ function dumpNeedles(official: string): Array<string> {
     needles.add(`${JSON.stringify({ words })}\n`);
     needles.add(JSON.stringify(words));
   } catch {
-    // `Opaque` `bytes` `still` use the `whole-file` `needle`.
+    // Opaque bytes still use the whole-file needle.
   }
   return [...needles].filter((needle) => needle.length > 0);
 }
@@ -110,20 +110,20 @@ export function scanForVocabularyLeak(input: {
   officialBytes: Buffer | string | null;
 }): { ok: boolean; reason: string } {
   if (input.officialBytes === null) {
-    return { ok: false, reason: "leak `scan` `unavailable`" };
+    return { ok: false, reason: "leak scan unavailable" };
   }
   const official =
     typeof input.officialBytes === "string"
       ? input.officialBytes
       : input.officialBytes.toString("utf8");
   if (official.trim().length === 0) {
-    return { ok: false, reason: "leak `scan` `unavailable`" };
+    return { ok: false, reason: "leak scan unavailable" };
   }
   const needles = dumpNeedles(official);
   for (const text of input.texts) {
     for (const needle of needles) {
       if (text.includes(needle)) {
-        return { ok: false, reason: "`vocabulary` leak in result output" };
+        return { ok: false, reason: "vocabulary leak in result output" };
       }
     }
   }

@@ -144,7 +144,7 @@ describe("validateReview", () => {
       roster,
     });
     assert.equal(result.ok, false);
-    assert.match(result.reason, /user[\s`]*ID/i);
+    assert.match(result.reason, /user ID/i);
   });
 
   it("accepts human and agent reviewers through the same path", () => {
