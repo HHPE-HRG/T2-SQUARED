@@ -32,6 +32,18 @@
           "subject": "mac-server-cli"
         }
       ]
+    },
+    {
+      "id": "reviewer",
+      "kind": "human",
+      "principal": "t2-reviewer-operator",
+      "credentials": [
+        {
+          "id": "forgejo-review",
+          "provider": "forgejo",
+          "subject": "t2-reviewer"
+        }
+      ]
     }
   ],
   "identities": [
@@ -43,6 +55,11 @@
     {
       "id": "operator-self-sign",
       "principal": "t2-single-operator",
+      "kind": "human"
+    },
+    {
+      "id": "operator-co-sign",
+      "principal": "t2-reviewer-operator",
       "kind": "human"
     }
   ]
