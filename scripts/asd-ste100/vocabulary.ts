@@ -16,6 +16,8 @@ export interface AsdRuleMapping {
 export interface AsdProfile {
   issue: string;
   vocabularySha256: string;
+  /** Digest of private structured Issue 9 POS/form/meaning authority for Rules 1.2–1.4. */
+  lexicalAuthoritySha256?: string;
   claim: string;
   vocabularyReview?: "pending-human" | "human-verified";
   rules?: Array<AsdRuleMapping>;
@@ -49,12 +51,12 @@ export const REGISTERED_SUBJECT_FIELD_IDS = [
   "t2-platform",
 ] as const;
 
-// 1.5 `classifies` the `technical-name` `category`. It `stays` `overlay-only`, not live `G2`.
+// 1.5 classifies technical nouns; 1.12 classifies technical verbs. Overlay-only, not live G2.
 export const TECHNICAL_TERM_CLASSES = {
   "company-name": { kind: "noun", requiredAsdBasis: ["1.5"] },
   "product-name": { kind: "noun", requiredAsdBasis: ["1.5"] },
   "subject-field-noun": { kind: "noun", requiredAsdBasis: ["1.5"] },
-  "subject-field-verb": { kind: "verb", requiredAsdBasis: ["1.5"] },
+  "subject-field-verb": { kind: "verb", requiredAsdBasis: ["1.12"] },
 } as const;
 
 export type TechnicalTermClassId = keyof typeof TECHNICAL_TERM_CLASSES;

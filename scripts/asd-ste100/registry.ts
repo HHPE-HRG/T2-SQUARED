@@ -7,6 +7,10 @@ import {
   type ArticleInput,
   type MembershipInput,
 } from "./membership.ts";
+import {
+  checkApprovedForms,
+  type StructuredLexicalAuthority,
+} from "./lexicon/structured-authority.ts";
 import { checkMechanicalRules, type Finding, type RuleInput } from "./rules.ts";
 import type { AsdRuleMapping } from "./vocabulary.ts";
 
@@ -17,12 +21,15 @@ export type EnforcedCheckerId =
   | "article-before-noun"
   | "procedural-sentence-word-count"
   | "descriptive-sentence-word-count"
-  | "paragraph-sentence-count";
+  | "paragraph-sentence-count"
+  | "semicolon-ban"
+  | "approved-word-forms";
 
 export interface EnforcedCheckerInput extends RuleInput {
   approvedWords?: MembershipInput["approvedWords"];
   technicalTerms?: MembershipInput["technicalTerms"];
   knownNouns?: ArticleInput["knownNouns"];
+  lexicalAuthority?: StructuredLexicalAuthority;
 }
 
 export interface EnforcedChecker {
@@ -77,6 +84,35 @@ export const ENFORCED_CHECKERS: Record<EnforcedCheckerId, EnforcedChecker> = {
     id: "paragraph-sentence-count",
     asdId: "6.6",
     check: (input) => asdFindings(input, "6.6"),
+  },
+  "semicolon-ban": {
+    id: "semicolon-ban",
+    asdId: "8.1",
+    check: (input) => asdFindings(input, "8.1"),
+  },
+  "approved-word-forms": {
+    id: "approved-word-forms",
+    asdId: "1.4",
+    check: (input) => {
+      if (input.lexicalAuthority === undefined) {
+        return [
+          {
+            path: input.path,
+            line: input.line,
+            column: input.column,
+            ruleId: "ASD-STE100-1.4",
+            message: "`structured` `lexical` `authority` `is` missing.",
+          },
+        ];
+      }
+      return checkApprovedForms({
+        path: input.path,
+        line: input.line,
+        column: input.column,
+        text: input.text,
+        authority: input.lexicalAuthority,
+      });
+    },
   },
 };
 

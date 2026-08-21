@@ -1,57 +1,99 @@
 {
-  "coverageKind": "issue9-self-sign",
+  "coverageKind": "issue9-co-sign",
   "issue9PagesMapped": true,
-  "selfSign": true,
+  "selfSign": false,
   "rows": [
     {
       "id": "1.1",
       "class": "deterministic",
-      "sourcePages": [41, 42],
+      "sourcePages": [
+        41,
+        42
+      ],
       "proposedCheckerId": "vocabulary-membership",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
+    },
+    {
+      "id": "1.4",
+      "class": "deterministic",
+      "sourcePages": [
+        41,
+        44
+      ],
+      "proposedCheckerId": "approved-word-forms",
+      "reviewed": true,
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: promote approved verb and adjective forms"
     },
     {
       "id": "4.5",
       "class": "deterministic",
-      "sourcePages": [73, 80, 81],
+      "sourcePages": [
+        73,
+        80,
+        81
+      ],
       "proposedCheckerId": "article-before-noun",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
     },
     {
       "id": "5.1",
       "class": "deterministic",
-      "sourcePages": [83, 84],
+      "sourcePages": [
+        83,
+        84
+      ],
       "proposedCheckerId": "procedural-sentence-word-count",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
     },
     {
       "id": "6.3",
       "class": "deterministic",
-      "sourcePages": [91, 94],
+      "sourcePages": [
+        91,
+        94
+      ],
       "proposedCheckerId": "descriptive-sentence-word-count",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
     },
     {
       "id": "6.6",
       "class": "deterministic",
-      "sourcePages": [91, 97],
+      "sourcePages": [
+        91,
+        97
+      ],
       "proposedCheckerId": "paragraph-sentence-count",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
+    },
+    {
+      "id": "8.1",
+      "class": "deterministic",
+      "sourcePages": [
+        103,
+        104
+      ],
+      "proposedCheckerId": "semicolon-ban",
+      "reviewed": true,
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: promote semicolon ban to live Issue 9 checker"
     }
   ]
 }

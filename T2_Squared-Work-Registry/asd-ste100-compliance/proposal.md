@@ -18,8 +18,8 @@ The Forgejo-review `is` `7`.
 
 A `human` approved this campaign.
 
-Compile the schema from this proposal.
+`Compile` the schema from this proposal.
 
 Lookup `reads` the schema.
 
-This campaign `does` not copy `Issue` 9 `rows` into `git`.
+This campaign `does` not `copy` `Issue` 9 `rows` into `git`.

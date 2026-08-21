@@ -29,7 +29,7 @@ describe("mapping KTD28 mode after a second human reviewer exists", () => {
     assert.equal(selfSignAllowed(identities, 2, file.profiles), false);
   });
 
-  it("records selfSign on live mapping rows", () => {
+  it("records co-sign on live mapping rows once two human profiles exist", () => {
     const live = JSON.parse(
       readFileSync(path.join(mappingDir, "records/records.json"), "utf8"),
     ) as {
@@ -37,10 +37,10 @@ describe("mapping KTD28 mode after a second human reviewer exists", () => {
       selfSign: boolean;
       rows: Array<MappingRow>;
     };
-    assert.equal(live.coverageKind, "issue9-self-sign");
-    assert.equal(live.selfSign, true);
+    assert.equal(live.coverageKind, "issue9-co-sign");
+    assert.equal(live.selfSign, false);
     assert.equal(
-      live.rows.every((row) => row.reviewerId === "operator-self-sign"),
+      live.rows.every((row) => row.reviewerId === "operator-co-sign"),
       true,
     );
   });

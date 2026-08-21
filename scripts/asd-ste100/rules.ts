@@ -1,3 +1,5 @@
+import { steWordCount } from "./word-count.ts";
+
 export interface Finding {
   path: string;
   line: number;
@@ -50,11 +52,6 @@ export function inferMechanicalKind(text: string): RuleInput["kind"] {
   return isImperativeRemainder(text) ? "procedural" : "descriptive";
 }
 
-function wordCount(text: string): number {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  return words.length;
-}
-
 function sentenceCount(text: string): number {
   const sentences = text
     .split(/(?<=[.!?])\s+/)
@@ -65,7 +62,7 @@ function sentenceCount(text: string): number {
 
 export function checkMechanicalRules(input: RuleInput): Array<Finding> {
   const findings: Array<Finding> = [];
-  const words = wordCount(input.text);
+  const words = steWordCount(input.text);
   if (input.kind === "procedural" && words > 20) {
     findings.push({
       path: input.path,
@@ -108,7 +105,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       path: input.path,
       line: input.line,
       column: input.column,
-      ruleId: "T2-HEURISTIC-semicolon",
+      ruleId: "ASD-STE100-8.1",
       message: "`semicolon` stay not permitted in this `prose`.",
     });
   }

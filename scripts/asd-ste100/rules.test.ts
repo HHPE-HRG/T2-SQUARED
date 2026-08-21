@@ -87,7 +87,7 @@ describe("checkMechanicalRules", () => {
       true,
     );
     assert.equal(
-      findings.some((finding) => finding.ruleId === "T2-HEURISTIC-semicolon"),
+      findings.some((finding) => finding.ruleId === "ASD-STE100-8.1"),
       true,
     );
   });

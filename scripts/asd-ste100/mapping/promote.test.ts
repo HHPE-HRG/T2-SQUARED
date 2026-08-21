@@ -586,7 +586,7 @@ describe("live mapping records", () => {
     assert.equal(leak.ok, true);
   });
 
-  it("records Issue 9 self-sign provenance on live mapping rows", () => {
+  it("records Issue 9 co-sign provenance on live mapping rows", () => {
     const livePath = path.join(mappingDir, "records/records.json");
     const live = JSON.parse(readFileSync(livePath, "utf8")) as {
       coverageKind: string;
@@ -594,11 +594,11 @@ describe("live mapping records", () => {
       selfSign: boolean;
       rows: Array<MappingRow>;
     };
-    assert.equal(live.coverageKind, "issue9-self-sign");
+    assert.equal(live.coverageKind, "issue9-co-sign");
     assert.equal(live.issue9PagesMapped, true);
-    assert.equal(live.selfSign, true);
+    assert.equal(live.selfSign, false);
     assert.equal(
-      live.rows.every((row) => row.reviewed === true && row.reviewerId === "operator-self-sign"),
+      live.rows.every((row) => row.reviewed === true && row.reviewerId === "operator-co-sign"),
       true,
     );
     assert.equal(
@@ -606,7 +606,7 @@ describe("live mapping records", () => {
       true,
     );
     assert.equal(
-      live.rows.every((row) => /self-sign/i.test(row.reviewNotes ?? "")),
+      live.rows.every((row) => /co-sign/i.test(row.reviewNotes ?? "")),
       true,
     );
   });

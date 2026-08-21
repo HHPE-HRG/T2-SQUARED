@@ -33,7 +33,11 @@ describe("work-registry technical terms", () => {
       assert.equal(typeof hit.concept, "string", required.term);
       assert.equal((hit.subjectFields ?? []).length > 0, true, required.term);
       assert.equal(typeof hit.technicalTermClass, "string", required.term);
-      assert.deepEqual(hit.asdBasis, ["1.5"], required.term);
+      if (required.kind === "verb") {
+        assert.deepEqual(hit.asdBasis, ["1.12"], required.term);
+      } else {
+        assert.deepEqual(hit.asdBasis, ["1.5"], required.term);
+      }
       assert.notEqual(hit.asdBasis?.[0], "1.1", required.term);
       assert.equal(hit.softwareForms !== undefined, true, required.term);
       for (const field of hit.subjectFields ?? []) {

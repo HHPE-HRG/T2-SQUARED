@@ -12,7 +12,12 @@ import {
   scanForVocabularyLeak,
 } from "./attestation.ts";
 import type { RuleSubsetAttestation } from "./attestation.ts";
-import { admissionFindingsForRows } from "./admission.ts";
+import {
+  admissionFindingsForInventory,
+  admissionFindingsForRows,
+  assertAdmissionPathsComplete,
+  digestGovernedSurfaces,
+} from "./admission.ts";
 import { checkClaims } from "./claim.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
 import {
@@ -21,9 +26,13 @@ import {
   extractTypeScript,
   extractTypeScriptComments,
 } from "./extract.ts";
-import { assertClassificationComplete } from "./mapping/completeness.ts";
+import {
+  assertClassificationComplete,
+  CLASSIFICATION_LEDGER_PATH,
+} from "./mapping/completeness.ts";
 import {
   assertReviewedRulesHaveMappingRecords,
+  LIVE_MAPPING_RECORDS_PATH,
   loadLiveMappingRecords,
 } from "./mapping/promote.ts";
 import { collectScopeRecords, loadOwnershipManifest } from "./ownership.ts";
@@ -47,6 +56,12 @@ import {
   type CurrentFinding,
   type ProposedOverride,
 } from "./override.ts";
+import {
+  approvedFormsSet,
+  loadStructuredLexicalAuthority,
+  StructuredLexicalAuthorityError,
+  type StructuredLexicalAuthority,
+} from "./lexicon/structured-authority.ts";
 import {
   parseApprovedWordsFromOfficialBytes,
   validateAnchor,
@@ -196,6 +211,7 @@ export function runFixtureSelfTest(root = process.cwd()): void {
   const profile = loadJson<AsdProfile>(root, "t2.asd-ste100.json");
   validateProfile(profile);
   assertClassificationComplete(root);
+  assertAdmissionPathsComplete(root);
   assertReviewedRulesHaveMappingRecords(profile.rules ?? [], loadLiveMappingRecords(root));
   const termsFile = loadJson<{
     subjectFields?: SubjectFieldRegistry;
@@ -217,6 +233,9 @@ function countsTowardG2(finding: Finding, profile: AsdProfile): boolean {
     finding.ruleId === IDENTIFIER_POLICY_RULE_ID ||
     finding.ruleId === TERM_CANONICAL_RULE_ID
   ) {
+    return true;
+  }
+  if (finding.ruleId.startsWith("T2-ADMISSION-")) {
     return true;
   }
   if (finding.ruleId === `${ASD_RULE_PREFIX}1.1` || finding.ruleId === `${ASD_RULE_PREFIX}4.5`) {
@@ -565,12 +584,55 @@ function extractOwned(filePath: string, source: string) {
   return [];
 }
 
+export function computeOwnedSurfacesDigest(root: string, headSha: string): string {
+  const manifest = loadOwnershipManifest(path.join(root, "t2.asd-ste100.ownership.json"));
+  const records = collectScopeRecords({
+    cwd: root,
+    mode: "corpus",
+    baseSha: headSha,
+    headSha,
+    manifest,
+  });
+  const extracts: Array<{ path: string; line: number; column: number; text: string }> = [];
+  for (const record of records) {
+    if (!record.includeInCorpusFindings || skipScanPath(record.path)) {
+      continue;
+    }
+    const source = gitShow(root, headSha, record.path);
+    if (source === null) {
+      continue;
+    }
+    for (const extracted of extractOwned(record.path, source)) {
+      extracts.push({
+        path: extracted.path,
+        line: extracted.line,
+        column: extracted.column,
+        text: extracted.text,
+      });
+    }
+  }
+  return digestGovernedSurfaces(extracts);
+}
+
+export function resolveLexicalAuthorityPath(vocabularyPath?: string): string | undefined {
+  const explicit = process.env.ASD_STE100_LEXICAL_AUTHORITY;
+  if (explicit !== undefined && explicit.length > 0) {
+    return explicit;
+  }
+  if (vocabularyPath !== undefined && vocabularyPath.length > 0) {
+    return path.join(path.dirname(vocabularyPath), "structured-lexical-authority.json");
+  }
+  return undefined;
+}
+
 export function loadScanLexicon(
   cwd: string,
   officialBytes: Buffer | null,
+  lexicalAuthority: StructuredLexicalAuthority | null = null,
 ): {
   approvedWords: Set<string>;
   technicalTerms: Array<TechnicalTerm>;
+  lexicalAuthority: StructuredLexicalAuthority | null;
 } {
   const termsFile = loadJson<{
     subjectFields?: SubjectFieldRegistry;
@@ -579,10 +641,31 @@ export function loadScanLexicon(
   validateTechnicalTerms(termsFile.terms, termsFile.subjectFields ?? {});
   const officialWords =
     officialBytes === null ? [] : parseApprovedWordsFromOfficialBytes(officialBytes);
+  const approvedWords = approvedWordSet(officialWords);
+  if (lexicalAuthority !== null) {
+    for (const form of approvedFormsSet(lexicalAuthority)) {
+      approvedWords.add(form);
+    }
+  }
   return {
-    approvedWords: approvedWordSet(officialWords),
+    approvedWords,
     technicalTerms: termsFile.terms,
+    lexicalAuthority,
   };
+}
+
+export function loadPinnedLexicalAuthority(
+  profile: AsdProfile,
+): StructuredLexicalAuthority | null {
+  const expected = profile.lexicalAuthoritySha256;
+  if (expected === undefined || expected.length === 0) {
+    return null;
+  }
+  const filePath = resolveLexicalAuthorityPath(process.env.ASD_STE100_VOCABULARY);
+  if (filePath === undefined) {
+    throw new StructuredLexicalAuthorityError("`structured` `lexical` `authority` `is` missing");
+  }
+  return loadStructuredLexicalAuthority({ filePath, expectedSha256: expected });
 }
 
 export function scanGovernedFindings(input: {
@@ -611,11 +694,14 @@ export function scanGovernedFindings(input: {
       throw new VocabularyChecksumMismatchError();
     }
   }
-  const lexicon = loadScanLexicon(checkerCwd, officialBytes);
+  const lexicalAuthority =
+    officialBytes !== null ? loadPinnedLexicalAuthority(profile) : null;
+  const lexicon = loadScanLexicon(checkerCwd, officialBytes, lexicalAuthority);
   const knownNouns = knownNounsFromTerms(lexicon.technicalTerms);
   const liveRules = profile.rules ?? [];
   const findings: Array<Finding> = [];
   const paths: Array<string> = [];
+  const extracts: Array<{ path: string; line: number; column: number; text: string }> = [];
   const kind = (text: string) => inferMechanicalKind(text);
   for (const record of records) {
     if (!record.includeInCorpusFindings || skipScanPath(record.path)) {
@@ -627,6 +713,12 @@ export function scanGovernedFindings(input: {
       continue;
     }
     for (const extracted of extractOwned(record.path, source)) {
+      extracts.push({
+        path: extracted.path,
+        line: extracted.line,
+        column: extracted.column,
+        text: extracted.text,
+      });
       findings.push(...checkClaims(extracted));
       findings.push(
         ...checkIdentifierPolicy({
@@ -659,12 +751,25 @@ export function scanGovernedFindings(input: {
             approvedWords: lexicon.approvedWords,
             technicalTerms: lexicon.technicalTerms,
             knownNouns,
+            lexicalAuthority: lexicon.lexicalAuthority ?? undefined,
           }),
         );
       }
     }
   }
-  findings.push(...admissionFindingsForRows(loadLiveMappingRecords(checkerCwd)));
+  // Admission evidence and the classification ledger live in the PR/corpus tree.
+  // Surfaces digest must be the full owned corpus digest, not the PR-delta extract set.
+  if (existsSync(path.join(treeCwd, CLASSIFICATION_LEDGER_PATH))) {
+    findings.push(
+      ...admissionFindingsForInventory({
+        root: treeCwd,
+        surfacesDigest: computeOwnedSurfacesDigest(treeCwd, input.headSha),
+        requireDigestMatch: true,
+      }),
+    );
+  } else if (existsSync(path.join(treeCwd, LIVE_MAPPING_RECORDS_PATH))) {
+    findings.push(...admissionFindingsForRows(loadLiveMappingRecords(treeCwd)));
+  }
   return { paths, findings };
 }
 
