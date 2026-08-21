@@ -10,7 +10,7 @@ export const ENFORCEMENT_CLASSES = [
 
 export type EnforcementClass = (typeof ENFORCEMENT_CLASSES)[number];
 
-const PARSER_MECHANICAL = new Set(["4.5", "5.1", "6.3", "6.6"]);
+const PARSER_MECHANICAL = new Set(["4.5", "5.1", "6.3", "6.6", "8.1"]);
 const DETERMINISTIC = new Set(["1.1"]);
 const CONTEXTUAL = new Set(["1.5", "1.6", "1.8", "1.9", "1.10", "1.11"]);
 const NOT_APPLICABLE_PREFIX = /^(?:GR-|front-matter|part2-)/;

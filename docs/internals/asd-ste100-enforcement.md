@@ -54,6 +54,8 @@ The mechanical `Issue 9` check `cover` `sentence` length and `paragraph` length.
 
 The live check `cover` `vocabulary` `membership` and `articles` before `known` `nouns`.
 
+The live check also `cover` the `semicolon` `ban`.
+
 `Heuristic` check `cover` `contractions`, `semicolons`, `passive` `constructions`, `verb` `forms`, and `American` `spelling`.
 
 `Heuristic` check also `cover` `question` `marks` and `spaced` `slashes`.
@@ -156,27 +158,29 @@ A new head `commit` `invalidates` the override.
 
 ## `Issue 9` `admission`
 
-The closed `63-id` inventory must keep one `admission` path for each id.
+The closed `63-id` `inventory` must keep one `admission` `path` for each `id`.
 
-`Deterministic` and `parser-mechanical` ids use live checkers.
+`Deterministic` and `parser-mechanical` `ids` use live `checkers`.
 
-`Not-applicable-to-surface` ids stay out of G2.
+`Not-applicable-to-surface` `ids` stay out of `G2`.
 
-`Human-review` and `contextual/semantic` ids need rule-review evidence.
+`Human-review` and `contextual/semantic` `ids` `need` `rule-review` `evidence`.
 
-The evidence file `is` `scripts/asd-ste100/mapping/records/rule-reviews.json`.
+The `evidence` `file` `is` `scripts/asd-ste100/mapping/records/rule-reviews.json`.
 
-Evidence bind to a `surfacesDigest` of governed extracts.
+`Evidence` `bind` to a `surfacesDigest` of `governed` `extracts`.
 
-A stale digest block admission.
+`Evidence` also `bind` to an `authorityDigest` of the `terms` and `rules` `files`.
 
-Absence of evidence block admission.
+A `stale` `digest` `block` `admission`.
 
-Admission findings use `T2-ADMISSION-*` ids.
+`Absence` of `evidence` `block` `admission`.
 
-They do not mint fake `ASD-STE100-*` pass claims.
+`Admission` `findings` use `T2-ADMISSION-*` `ids`.
 
-Live mapping rows use `operator-co-sign` when two human profiles exist.
+They do not `mint` `fake` `ASD-STE100-*` `pass` `claims`.
+
+Live `mapping` `rows` use `operator-co-sign` when `two` `human` `profiles` `exist`.
 
 ## `Modes`
 

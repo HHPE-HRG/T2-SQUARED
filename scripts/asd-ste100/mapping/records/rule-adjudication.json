@@ -1,0 +1,628 @@
+{
+  "coverageKind": "issue9-rule-adjudication",
+  "headHint": "2ac18f464af21a93d5567a75aab971b660aa7f2d",
+  "surfacesDigest": "f05e8aed37e247eca9967dec97af2c0bc08b69f5a2d8e6f87aad8906fc88be5c",
+  "authorityDigest": "918f98863413908445d9c70f6ab9463df56b20698b200ed86451e776af1e875b",
+  "governedPaths": [
+    "T2_Squared-Work-Registry/asd-ste100-compliance/proposal.md",
+    "T2_Squared-Work-Registry/registry-yaml-write/proposal.md",
+    "docs/internals/asd-ste100-enforcement.md",
+    "docs/internals/asd-ste100-remediation-w1.md",
+    "docs/internals/t2-squared-work-registry.md",
+    "docs/operations/asd-ste100-forgejo.md"
+  ],
+  "extractCount": 378,
+  "reviewRequiredCount": 47,
+  "pendingHumanCoSign": true,
+  "requiredReviewerId": "operator-co-sign",
+  "requiredAuthorId": "u12-wave-author",
+  "instructions": "Distinct human principal t2-reviewer-operator must co-sign by copying applicable-satisfied/applicable-vacuous rows into rule-reviews.json with reviewed:true, matching digests, and reviewNotes. Do not sign blocked-missing-structured-lexicon rows until private POS/meaning/form authority exists.",
+  "rows": [
+    {
+      "ruleId": "1.10",
+      "enforcementClass": "contextual/semantic",
+      "cue": "no slang/jargon as technical nouns",
+      "disposition": "applicable-satisfied",
+      "notes": "T2 terms in t2.asd-ste100.terms.json carry concept, canonical, subjectFields, technicalTermClass, and asdBasis 1.5/1.12. Governed prose backticks non-dictionary tokens. Live 1.1+term policy gate the surface.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        52
+      ]
+    },
+    {
+      "ruleId": "1.11",
+      "enforcementClass": "contextual/semantic",
+      "cue": "one technical noun per item",
+      "disposition": "applicable-satisfied",
+      "notes": "T2 terms in t2.asd-ste100.terms.json carry concept, canonical, subjectFields, technicalTermClass, and asdBasis 1.5/1.12. Governed prose backticks non-dictionary tokens. Live 1.1+term policy gate the surface.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        53
+      ]
+    },
+    {
+      "ruleId": "1.12",
+      "enforcementClass": "human-review",
+      "cue": "technical verb category",
+      "disposition": "applicable-satisfied",
+      "notes": "T2 terms in t2.asd-ste100.terms.json carry concept, canonical, subjectFields, technicalTermClass, and asdBasis 1.5/1.12. Governed prose backticks non-dictionary tokens. Live 1.1+term policy gate the surface.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        53,
+        54,
+        55,
+        192,
+        264
+      ]
+    },
+    {
+      "ruleId": "1.13",
+      "enforcementClass": "human-review",
+      "cue": "no technical verb as noun",
+      "disposition": "applicable-satisfied",
+      "notes": "No governed extract uses a reviewed technical noun as a verb or a reviewed technical verb as a noun.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        56
+      ]
+    },
+    {
+      "ruleId": "1.14",
+      "enforcementClass": "human-review",
+      "cue": "American spelling",
+      "disposition": "applicable-satisfied",
+      "notes": "No British spelling tokens in governed extracts; heuristic spelling remains advisory.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        57
+      ]
+    },
+    {
+      "ruleId": "1.2",
+      "enforcementClass": "human-review",
+      "cue": "POS of approved words",
+      "disposition": "blocked-missing-structured-lexicon",
+      "notes": "",
+      "blocked": "Private Issue 9 POS/meaning/form rows are not structured for token-level adjudication of every governed lemma; approved-words.json is lemma-only. Human must sample against Issue 9 pages.",
+      "sourcePages": [
+        41,
+        42,
+        43
+      ]
+    },
+    {
+      "ruleId": "1.3",
+      "enforcementClass": "human-review",
+      "cue": "approved meanings",
+      "disposition": "blocked-missing-structured-lexicon",
+      "notes": "",
+      "blocked": "Private Issue 9 POS/meaning/form rows are not structured for token-level adjudication of every governed lemma; approved-words.json is lemma-only. Human must sample against Issue 9 pages.",
+      "sourcePages": [
+        41,
+        44
+      ]
+    },
+    {
+      "ruleId": "1.4",
+      "enforcementClass": "human-review",
+      "cue": "approved verb/adj forms",
+      "disposition": "blocked-missing-structured-lexicon",
+      "notes": "",
+      "blocked": "Private Issue 9 POS/meaning/form rows are not structured for token-level adjudication of every governed lemma; approved-words.json is lemma-only. Human must sample against Issue 9 pages.",
+      "sourcePages": [
+        41,
+        44
+      ]
+    },
+    {
+      "ruleId": "1.5",
+      "enforcementClass": "contextual/semantic",
+      "cue": "technical noun category",
+      "disposition": "applicable-satisfied",
+      "notes": "T2 terms in t2.asd-ste100.terms.json carry concept, canonical, subjectFields, technicalTermClass, and asdBasis 1.5/1.12. Governed prose backticks non-dictionary tokens. Live 1.1+term policy gate the surface.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        45,
+        46,
+        47,
+        48,
+        49,
+        264
+      ]
+    },
+    {
+      "ruleId": "1.6",
+      "enforcementClass": "contextual/semantic",
+      "cue": "unapproved only as technical noun/adj in category",
+      "disposition": "applicable-satisfied",
+      "notes": "T2 terms in t2.asd-ste100.terms.json carry concept, canonical, subjectFields, technicalTermClass, and asdBasis 1.5/1.12. Governed prose backticks non-dictionary tokens. Live 1.1+term policy gate the surface.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        49,
+        50
+      ]
+    },
+    {
+      "ruleId": "1.7",
+      "enforcementClass": "human-review",
+      "cue": "no technical noun as verb",
+      "disposition": "applicable-satisfied",
+      "notes": "No governed extract uses a reviewed technical noun as a verb or a reviewed technical verb as a noun.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        51
+      ]
+    },
+    {
+      "ruleId": "1.8",
+      "enforcementClass": "contextual/semantic",
+      "cue": "approved subject-field nouns",
+      "disposition": "applicable-satisfied",
+      "notes": "T2 terms in t2.asd-ste100.terms.json carry concept, canonical, subjectFields, technicalTermClass, and asdBasis 1.5/1.12. Governed prose backticks non-dictionary tokens. Live 1.1+term policy gate the surface.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        51
+      ]
+    },
+    {
+      "ruleId": "1.9",
+      "enforcementClass": "contextual/semantic",
+      "cue": "short/easy technical nouns",
+      "disposition": "applicable-satisfied",
+      "notes": "T2 terms in t2.asd-ste100.terms.json carry concept, canonical, subjectFields, technicalTermClass, and asdBasis 1.5/1.12. Governed prose backticks non-dictionary tokens. Live 1.1+term policy gate the surface.",
+      "blocked": null,
+      "sourcePages": [
+        41,
+        52
+      ]
+    },
+    {
+      "ruleId": "2.1",
+      "enforcementClass": "human-review",
+      "cue": "multi-word nouns ≤3",
+      "disposition": "applicable-satisfied",
+      "notes": "Multi-word technical nouns in terms are ≤3 orthographic words (Forgejo-review is hyphenated one term).",
+      "blocked": null,
+      "sourcePages": [
+        59,
+        60,
+        61,
+        62
+      ]
+    },
+    {
+      "ruleId": "2.2",
+      "enforcementClass": "human-review",
+      "cue": "long technical nouns written in full once",
+      "disposition": "applicable-satisfied",
+      "notes": "Multi-word technical nouns in terms are ≤3 orthographic words (Forgejo-review is hyphenated one term).",
+      "blocked": null,
+      "sourcePages": [
+        59,
+        60
+      ]
+    },
+    {
+      "ruleId": "3.1",
+      "enforcementClass": "human-review",
+      "cue": "dictionary verb forms",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        63
+      ]
+    },
+    {
+      "ruleId": "3.2",
+      "enforcementClass": "human-review",
+      "cue": "allowed tenses",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        63,
+        64
+      ]
+    },
+    {
+      "ruleId": "3.3",
+      "enforcementClass": "human-review",
+      "cue": "past participle as adjective",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        63,
+        64,
+        65
+      ]
+    },
+    {
+      "ruleId": "3.4",
+      "enforcementClass": "human-review",
+      "cue": "no complex auxiliaries",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        63,
+        65
+      ]
+    },
+    {
+      "ruleId": "3.5",
+      "enforcementClass": "human-review",
+      "cue": "-ing only as TN/modifier",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        63,
+        66,
+        67
+      ]
+    },
+    {
+      "ruleId": "3.6",
+      "enforcementClass": "human-review",
+      "cue": "active voice preference",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        63,
+        67,
+        68,
+        69,
+        70
+      ]
+    },
+    {
+      "ruleId": "3.7",
+      "enforcementClass": "human-review",
+      "cue": "use approved verb for action",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        63,
+        71
+      ]
+    },
+    {
+      "ruleId": "4.1",
+      "enforcementClass": "human-review",
+      "cue": "short clear sentences",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        73,
+        74
+      ]
+    },
+    {
+      "ruleId": "4.2",
+      "enforcementClass": "human-review",
+      "cue": "no omitted words/contractions",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        73,
+        75
+      ]
+    },
+    {
+      "ruleId": "4.3",
+      "enforcementClass": "human-review",
+      "cue": "vertical lists for complex text",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        73,
+        76,
+        77,
+        78
+      ]
+    },
+    {
+      "ruleId": "4.4",
+      "enforcementClass": "human-review",
+      "cue": "connecting words",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        73,
+        79
+      ]
+    },
+    {
+      "ruleId": "5.2",
+      "enforcementClass": "human-review",
+      "cue": "one instruction/sentence",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        83,
+        84,
+        85
+      ]
+    },
+    {
+      "ruleId": "5.3",
+      "enforcementClass": "human-review",
+      "cue": "imperative instructions",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        83,
+        85,
+        86
+      ]
+    },
+    {
+      "ruleId": "5.4",
+      "enforcementClass": "human-review",
+      "cue": "condition before instruction",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        83,
+        86
+      ]
+    },
+    {
+      "ruleId": "5.5",
+      "enforcementClass": "human-review",
+      "cue": "notes are information only",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        83,
+        84,
+        87,
+        88,
+        89
+      ]
+    },
+    {
+      "ruleId": "6.1",
+      "enforcementClass": "human-review",
+      "cue": "give information gradually",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        91,
+        92,
+        96
+      ]
+    },
+    {
+      "ruleId": "6.2",
+      "enforcementClass": "human-review",
+      "cue": "key words/structure",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        91,
+        92,
+        93,
+        94,
+        96
+      ]
+    },
+    {
+      "ruleId": "6.4",
+      "enforcementClass": "human-review",
+      "cue": "paragraphs for related info",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        91,
+        95
+      ]
+    },
+    {
+      "ruleId": "6.5",
+      "enforcementClass": "human-review",
+      "cue": "one topic per paragraph",
+      "disposition": "applicable-satisfied",
+      "notes": "Governed docs use house STE (backticks, short sentences, live 5.1/6.3/6.6). No contraction/semicolon/passive candidates remain in extracts after corpus repair.",
+      "blocked": null,
+      "sourcePages": [
+        91,
+        96
+      ]
+    },
+    {
+      "ruleId": "7.1",
+      "enforcementClass": "human-review",
+      "cue": "label safety level",
+      "disposition": "applicable-vacuous",
+      "notes": "No safety instruction, warning, or caution blocks appear in the governed T2 corpus.",
+      "blocked": null,
+      "sourcePages": [
+        99,
+        100
+      ]
+    },
+    {
+      "ruleId": "7.2",
+      "enforcementClass": "human-review",
+      "cue": "safety starts with command/condition",
+      "disposition": "applicable-vacuous",
+      "notes": "No safety instruction, warning, or caution blocks appear in the governed T2 corpus.",
+      "blocked": null,
+      "sourcePages": [
+        99,
+        101
+      ]
+    },
+    {
+      "ruleId": "7.3",
+      "enforcementClass": "human-review",
+      "cue": "explain risk",
+      "disposition": "applicable-vacuous",
+      "notes": "No safety instruction, warning, or caution blocks appear in the governed T2 corpus.",
+      "blocked": null,
+      "sourcePages": [
+        99,
+        102
+      ]
+    },
+    {
+      "ruleId": "8.2",
+      "enforcementClass": "human-review",
+      "cue": "hyphens for related words",
+      "disposition": "applicable-satisfied",
+      "notes": "Presentation/counting residuals: steWordCount implements 8.5–8.7 reductions for live length rules; hyphens/parentheses usage in corpus is consistent. Proper-noun/title edge cases remain human.",
+      "blocked": null,
+      "sourcePages": [
+        103,
+        104
+      ]
+    },
+    {
+      "ruleId": "8.3",
+      "enforcementClass": "human-review",
+      "cue": "parentheses uses",
+      "disposition": "applicable-satisfied",
+      "notes": "Presentation/counting residuals: steWordCount implements 8.5–8.7 reductions for live length rules; hyphens/parentheses usage in corpus is consistent. Proper-noun/title edge cases remain human.",
+      "blocked": null,
+      "sourcePages": [
+        103,
+        105,
+        106
+      ]
+    },
+    {
+      "ruleId": "8.4",
+      "enforcementClass": "human-review",
+      "cue": "colon in lists / word count",
+      "disposition": "applicable-satisfied",
+      "notes": "Presentation/counting residuals: steWordCount implements 8.5–8.7 reductions for live length rules; hyphens/parentheses usage in corpus is consistent. Proper-noun/title edge cases remain human.",
+      "blocked": null,
+      "sourcePages": [
+        103,
+        106
+      ]
+    },
+    {
+      "ruleId": "8.5",
+      "enforcementClass": "human-review",
+      "cue": "parentheses count as one word",
+      "disposition": "applicable-satisfied",
+      "notes": "Presentation/counting residuals: steWordCount implements 8.5–8.7 reductions for live length rules; hyphens/parentheses usage in corpus is consistent. Proper-noun/title edge cases remain human.",
+      "blocked": null,
+      "sourcePages": [
+        103,
+        107
+      ]
+    },
+    {
+      "ruleId": "8.6",
+      "enforcementClass": "human-review",
+      "cue": "special one-word counts",
+      "disposition": "applicable-satisfied",
+      "notes": "Presentation/counting residuals: steWordCount implements 8.5–8.7 reductions for live length rules; hyphens/parentheses usage in corpus is consistent. Proper-noun/title edge cases remain human.",
+      "blocked": null,
+      "sourcePages": [
+        103,
+        107,
+        108,
+        109,
+        110,
+        263
+      ]
+    },
+    {
+      "ruleId": "8.7",
+      "enforcementClass": "human-review",
+      "cue": "hyphenated = one word",
+      "disposition": "applicable-satisfied",
+      "notes": "Presentation/counting residuals: steWordCount implements 8.5–8.7 reductions for live length rules; hyphens/parentheses usage in corpus is consistent. Proper-noun/title edge cases remain human.",
+      "blocked": null,
+      "sourcePages": [
+        103,
+        110
+      ]
+    },
+    {
+      "ruleId": "9.1",
+      "enforcementClass": "human-review",
+      "cue": "rephrase when word-for-word fails",
+      "disposition": "applicable-satisfied",
+      "notes": "Consistent T2-TERM-canonical surfaces; no phrasal-verb clusters detected in governed extracts.",
+      "blocked": null,
+      "sourcePages": [
+        111,
+        112,
+        113,
+        114,
+        115
+      ]
+    },
+    {
+      "ruleId": "9.2",
+      "enforcementClass": "human-review",
+      "cue": "use approved words correctly",
+      "disposition": "applicable-satisfied",
+      "notes": "Consistent T2-TERM-canonical surfaces; no phrasal-verb clusters detected in governed extracts.",
+      "blocked": null,
+      "sourcePages": [
+        111,
+        115,
+        116,
+        117,
+        258
+      ]
+    },
+    {
+      "ruleId": "9.3",
+      "enforcementClass": "human-review",
+      "cue": "no phrasal verbs",
+      "disposition": "applicable-satisfied",
+      "notes": "Consistent T2-TERM-canonical surfaces; no phrasal-verb clusters detected in governed extracts.",
+      "blocked": null,
+      "sourcePages": [
+        111,
+        117,
+        118
+      ]
+    },
+    {
+      "ruleId": "9.4",
+      "enforcementClass": "human-review",
+      "cue": "consistent terminology style",
+      "disposition": "applicable-satisfied",
+      "notes": "Consistent T2-TERM-canonical surfaces; no phrasal-verb clusters detected in governed extracts.",
+      "blocked": null,
+      "sourcePages": [
+        111,
+        118,
+        119
+      ]
+    }
+  ],
+  "worktreeNote": "Digests computed from worktree files; recompute after commit before human co-sign."
+}

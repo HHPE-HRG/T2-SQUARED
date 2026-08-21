@@ -47,7 +47,10 @@ export interface RuleReviewEvidence {
   reviewerId: string;
   reviewed: true;
   surfacesDigest: string;
+  /** Hash of terms/rules/ownership authority that must match for Part 1 and term-bound reviews. */
+  authorityDigest: string;
   reviewNotes: string;
+  disposition: "applicable-satisfied" | "applicable-vacuous" | "corpus-repaired";
 }
 
 export interface RuleReviewsFile {
@@ -139,6 +142,29 @@ export function digestGovernedSurfaces(
   return createHash("sha256").update(JSON.stringify(rows), "utf8").digest("hex");
 }
 
+/**
+ * Digest terminology and profile authority outside owned prose extracts.
+ *
+ * Privileged control files are not in surfacesDigest. This digest still
+ * invalidates review when terms or live rule mappings change.
+ */
+export function digestAdmissionAuthority(root: string): string {
+  const parts = [
+    "t2.asd-ste100.terms.json",
+    "t2.asd-ste100.rules.json",
+    "t2.asd-ste100.ownership.json",
+    "t2.asd-ste100.json",
+  ].map((relative) => {
+    const filePath = path.join(root, relative);
+    const body = existsSync(filePath) ? readFileSync(filePath, "utf8") : "";
+    return {
+      path: relative,
+      sha256: createHash("sha256").update(body, "utf8").digest("hex"),
+    };
+  });
+  return createHash("sha256").update(JSON.stringify(parts), "utf8").digest("hex");
+}
+
 export function loadRuleReviews(root: string): RuleReviewsFile {
   if (!existsSync(path.join(root, RULE_REVIEWS_PATH))) {
     return { coverageKind: "issue9-rule-review-evidence", reviews: [] };
@@ -210,6 +236,7 @@ export function admissionFindingsForRows(rows: ReadonlyArray<MappingRow>): Array
 export function admissionFindingsForInventory(input: {
   root: string;
   surfacesDigest: string | null;
+  authorityDigest?: string | null;
   requireDigestMatch: boolean;
   override?: UncheckableOverrideInput;
 }): Array<Finding> {
@@ -217,6 +244,7 @@ export function admissionFindingsForInventory(input: {
   const liveIds = new Set(loadLiveMappingRecords(input.root).map((row) => row.id));
   const reviews = loadRuleReviews(input.root);
   const reviewById = new Map(reviews.reviews.map((entry) => [entry.ruleId, entry]));
+  const authorityDigest = input.authorityDigest ?? digestAdmissionAuthority(input.root);
   const findings: Array<Finding> = [];
 
   for (const row of inventory) {
@@ -241,6 +269,7 @@ export function admissionFindingsForInventory(input: {
       evidence.authorId.length > 0 &&
       evidence.reviewerId !== evidence.authorId &&
       evidence.enforcementClass === row.enforcementClass &&
+      evidence.authorityDigest === authorityDigest &&
       (!input.requireDigestMatch ||
         (input.surfacesDigest !== null && evidence.surfacesDigest === input.surfacesDigest));
 
@@ -289,6 +318,9 @@ export function assertAdmissionPathsComplete(root: string): void {
     }
     if (evidence.surfacesDigest.trim().length !== 64) {
       throw new Error(`rule-review surfacesDigest invalid: ${evidence.ruleId}`);
+    }
+    if (evidence.authorityDigest.trim().length !== 64) {
+      throw new Error(`rule-review authorityDigest invalid: ${evidence.ruleId}`);
     }
   }
   const blocked = admissionFindingsForInventory({

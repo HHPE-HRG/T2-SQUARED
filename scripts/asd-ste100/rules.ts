@@ -105,7 +105,7 @@ export function checkMechanicalRules(input: RuleInput): Array<Finding> {
       path: input.path,
       line: input.line,
       column: input.column,
-      ruleId: "T2-HEURISTIC-semicolon",
+      ruleId: "ASD-STE100-8.1",
       message: "`semicolon` stay not permitted in this `prose`.",
     });
   }

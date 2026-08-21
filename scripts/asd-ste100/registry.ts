@@ -17,7 +17,8 @@ export type EnforcedCheckerId =
   | "article-before-noun"
   | "procedural-sentence-word-count"
   | "descriptive-sentence-word-count"
-  | "paragraph-sentence-count";
+  | "paragraph-sentence-count"
+  | "semicolon-ban";
 
 export interface EnforcedCheckerInput extends RuleInput {
   approvedWords?: MembershipInput["approvedWords"];
@@ -77,6 +78,11 @@ export const ENFORCED_CHECKERS: Record<EnforcedCheckerId, EnforcedChecker> = {
     id: "paragraph-sentence-count",
     asdId: "6.6",
     check: (input) => asdFindings(input, "6.6"),
+  },
+  "semicolon-ban": {
+    id: "semicolon-ban",
+    asdId: "8.1",
+    check: (input) => asdFindings(input, "8.1"),
   },
 };
 

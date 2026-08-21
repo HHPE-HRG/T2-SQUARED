@@ -579,12 +579,12 @@
     },
     {
       "id": "8.1",
-      "class": "fail_closed_uncheckable",
+      "class": "deterministic",
       "sourcePages": [
         103,
         104
       ],
-      "proposedCheckerId": "fail-closed-uncheckable",
+      "proposedCheckerId": "semicolon-ban",
       "reviewed": true,
       "authorId": "u12-wave-author",
       "reviewerId": "operator-co-sign",

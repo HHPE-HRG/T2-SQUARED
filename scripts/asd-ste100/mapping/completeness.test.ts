@@ -20,11 +20,11 @@ describe("writing-rule classification completeness", () => {
     assert.doesNotThrow(() => assertAdmissionPathsComplete(repoRoot));
   });
 
-  it("keeps live mapping records at the five mechanical ids", () => {
+  it("keeps live mapping records at the six mechanical ids", () => {
     const live = loadLiveMappingRecords(repoRoot);
     assert.deepEqual(
       live.map((row) => row.id),
-      ["1.1", "4.5", "5.1", "6.3", "6.6"],
+      ["1.1", "4.5", "5.1", "6.3", "6.6", "8.1"],
     );
   });
 
@@ -47,7 +47,7 @@ describe("writing-rule classification completeness", () => {
     assert.throws(() => assertClassificationComplete(root), /unreviewed writing-rule id: 1\.2/);
   });
 
-  it("mints no overlay admission findings on the live five-id mapping alone", () => {
+  it("mints no overlay admission findings on the live mechanical mapping alone", () => {
     const live = loadLiveMappingRecords(repoRoot);
     assert.equal(admissionFindingsForRows(live).length, 0);
     assert.equal(
@@ -131,6 +131,7 @@ describe("writing-rule classification completeness", () => {
       );
     }
     const digest = "c".repeat(64);
+    const authorityDigest = "e".repeat(64);
     const inventory = JSON.parse(
       readFileSync(path.join(recordsDir, "enforcement-classes.json"), "utf8"),
     ) as {
@@ -149,15 +150,20 @@ describe("writing-rule classification completeness", () => {
         reviewerId: "operator-co-sign",
         reviewed: true,
         surfacesDigest: digest,
+        authorityDigest,
+        disposition: "applicable-satisfied",
         reviewNotes: "test evidence",
       }));
     writeFileSync(
       path.join(recordsDir, "rule-reviews.json"),
       `${JSON.stringify({ coverageKind: "issue9-rule-review-evidence", reviews }, null, 2)}\n`,
     );
+    // Pin authority digest by writing matching profile files hashed into authorityDigest.
+    // For this unit test, call admission with explicit authorityDigest override.
     const findings = admissionFindingsForInventory({
       root,
       surfacesDigest: digest,
+      authorityDigest,
       requireDigestMatch: true,
     });
     assert.equal(
@@ -167,10 +173,21 @@ describe("writing-rule classification completeness", () => {
     const stale = admissionFindingsForInventory({
       root,
       surfacesDigest: "d".repeat(64),
+      authorityDigest,
       requireDigestMatch: true,
     });
     assert.equal(
       stale.some((finding) => finding.ruleId === "T2-ADMISSION-review-required"),
+      true,
+    );
+    const staleAuthority = admissionFindingsForInventory({
+      root,
+      surfacesDigest: digest,
+      authorityDigest: "f".repeat(64),
+      requireDigestMatch: true,
+    });
+    assert.equal(
+      staleAuthority.some((finding) => finding.ruleId === "T2-ADMISSION-review-required"),
       true,
     );
   });

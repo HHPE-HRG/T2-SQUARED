@@ -62,6 +62,17 @@
         91,
         97
       ]
+    },
+    {
+      "id": "8.1",
+      "reviewed": true,
+      "checker": "semicolon-ban",
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-co-sign",
+      "sourcePages": [
+        103,
+        104
+      ]
     }
   ]
 }
