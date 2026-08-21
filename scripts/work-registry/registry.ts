@@ -10,6 +10,13 @@ export class WorkRegistryError extends Error {
   }
 }
 
+/** v1 requires at least one registered campaign under the product root. */
+export class WorkRegistryEmptyError extends WorkRegistryError {
+  constructor() {
+    super("the work-registry `root` `has` no campaign.");
+  }
+}
+
 export interface CampaignManifest {
   product: string;
   campaign: string;
@@ -740,8 +747,9 @@ export function dumpWorkRegistry(root: string): Array<CampaignDump> {
 export function checkWorkRegistry(root: string): void {
   const base = path.join(root, PRODUCT_NAME);
   if (!existsSync(base) || !statSync(base).isDirectory()) {
-    return;
+    throw new WorkRegistryEmptyError();
   }
+  let campaigns = 0;
   for (const name of readdirSync(base)) {
     const campaignDir = path.join(base, name);
     if (!statSync(campaignDir).isDirectory()) {
@@ -749,5 +757,9 @@ export function checkWorkRegistry(root: string): void {
     }
     registerCampaign(campaignDir);
     checkDrift(campaignDir);
+    campaigns += 1;
+  }
+  if (campaigns === 0) {
+    throw new WorkRegistryEmptyError();
   }
 }

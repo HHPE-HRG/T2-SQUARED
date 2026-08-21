@@ -6,6 +6,8 @@ This `runbook` `is` not a `language-authority` `certificate`.
 
 Activate `branch` protection only after `workflow` `dispatch` `succeeds`.
 
+The live anchor now `records` `protectionActivation` as `active`.
+
 ## `Host` `facts`
 
 `Host` name `is` `hhpe-forge`.
@@ -318,7 +320,7 @@ The `file` `records` a `reviewer` `principal`.
 
 `Fixture` result `records` `npm run ci:asd-ste100`.
 
-Activate `protections` after `workflow-dispatch` `validation`.
+`Protection` activation `is` `active` on the live anchor.
 
 `Rerun` the full `corpus` from that `SHA`.
 

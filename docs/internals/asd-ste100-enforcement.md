@@ -154,6 +154,30 @@ It name `file`, `line`, `rule`, `content` `hash`, and repair `hashes`.
 
 A new head `commit` `invalidates` the override.
 
+## `Issue 9` `admission`
+
+The closed `63-id` inventory must keep one `admission` path for each id.
+
+`Deterministic` and `parser-mechanical` ids use live checkers.
+
+`Not-applicable-to-surface` ids stay out of G2.
+
+`Human-review` and `contextual/semantic` ids need rule-review evidence.
+
+The evidence file `is` `scripts/asd-ste100/mapping/records/rule-reviews.json`.
+
+Evidence bind to a `surfacesDigest` of governed extracts.
+
+A stale digest block admission.
+
+Absence of evidence block admission.
+
+Admission findings use `T2-ADMISSION-*` ids.
+
+They do not mint fake `ASD-STE100-*` pass claims.
+
+Live mapping rows use `operator-co-sign` when two human profiles exist.
+
 ## `Modes`
 
 The `PR` mode check the `T2` `delta`.

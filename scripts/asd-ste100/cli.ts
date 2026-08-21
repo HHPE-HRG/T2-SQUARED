@@ -12,7 +12,12 @@ import {
   scanForVocabularyLeak,
 } from "./attestation.ts";
 import type { RuleSubsetAttestation } from "./attestation.ts";
-import { admissionFindingsForRows } from "./admission.ts";
+import {
+  admissionFindingsForInventory,
+  admissionFindingsForRows,
+  assertAdmissionPathsComplete,
+  digestGovernedSurfaces,
+} from "./admission.ts";
 import { checkClaims } from "./claim.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
 import {
@@ -21,9 +26,13 @@ import {
   extractTypeScript,
   extractTypeScriptComments,
 } from "./extract.ts";
-import { assertClassificationComplete } from "./mapping/completeness.ts";
+import {
+  assertClassificationComplete,
+  CLASSIFICATION_LEDGER_PATH,
+} from "./mapping/completeness.ts";
 import {
   assertReviewedRulesHaveMappingRecords,
+  LIVE_MAPPING_RECORDS_PATH,
   loadLiveMappingRecords,
 } from "./mapping/promote.ts";
 import { collectScopeRecords, loadOwnershipManifest } from "./ownership.ts";
@@ -196,6 +205,7 @@ export function runFixtureSelfTest(root = process.cwd()): void {
   const profile = loadJson<AsdProfile>(root, "t2.asd-ste100.json");
   validateProfile(profile);
   assertClassificationComplete(root);
+  assertAdmissionPathsComplete(root);
   assertReviewedRulesHaveMappingRecords(profile.rules ?? [], loadLiveMappingRecords(root));
   const termsFile = loadJson<{
     subjectFields?: SubjectFieldRegistry;
@@ -217,6 +227,9 @@ function countsTowardG2(finding: Finding, profile: AsdProfile): boolean {
     finding.ruleId === IDENTIFIER_POLICY_RULE_ID ||
     finding.ruleId === TERM_CANONICAL_RULE_ID
   ) {
+    return true;
+  }
+  if (finding.ruleId.startsWith("T2-ADMISSION-")) {
     return true;
   }
   if (finding.ruleId === `${ASD_RULE_PREFIX}1.1` || finding.ruleId === `${ASD_RULE_PREFIX}4.5`) {
@@ -565,6 +578,36 @@ function extractOwned(filePath: string, source: string) {
   return [];
 }
 
+export function computeOwnedSurfacesDigest(root: string, headSha: string): string {
+  const manifest = loadOwnershipManifest(path.join(root, "t2.asd-ste100.ownership.json"));
+  const records = collectScopeRecords({
+    cwd: root,
+    mode: "corpus",
+    baseSha: headSha,
+    headSha,
+    manifest,
+  });
+  const extracts: Array<{ path: string; line: number; column: number; text: string }> = [];
+  for (const record of records) {
+    if (!record.includeInCorpusFindings || skipScanPath(record.path)) {
+      continue;
+    }
+    const source = gitShow(root, headSha, record.path);
+    if (source === null) {
+      continue;
+    }
+    for (const extracted of extractOwned(record.path, source)) {
+      extracts.push({
+        path: extracted.path,
+        line: extracted.line,
+        column: extracted.column,
+        text: extracted.text,
+      });
+    }
+  }
+  return digestGovernedSurfaces(extracts);
+}
+
 export function loadScanLexicon(
   cwd: string,
   officialBytes: Buffer | null,
@@ -616,6 +659,7 @@ export function scanGovernedFindings(input: {
   const liveRules = profile.rules ?? [];
   const findings: Array<Finding> = [];
   const paths: Array<string> = [];
+  const extracts: Array<{ path: string; line: number; column: number; text: string }> = [];
   const kind = (text: string) => inferMechanicalKind(text);
   for (const record of records) {
     if (!record.includeInCorpusFindings || skipScanPath(record.path)) {
@@ -627,6 +671,12 @@ export function scanGovernedFindings(input: {
       continue;
     }
     for (const extracted of extractOwned(record.path, source)) {
+      extracts.push({
+        path: extracted.path,
+        line: extracted.line,
+        column: extracted.column,
+        text: extracted.text,
+      });
       findings.push(...checkClaims(extracted));
       findings.push(
         ...checkIdentifierPolicy({
@@ -664,7 +714,17 @@ export function scanGovernedFindings(input: {
       }
     }
   }
-  findings.push(...admissionFindingsForRows(loadLiveMappingRecords(checkerCwd)));
+  if (existsSync(path.join(checkerCwd, CLASSIFICATION_LEDGER_PATH))) {
+    findings.push(
+      ...admissionFindingsForInventory({
+        root: checkerCwd,
+        surfacesDigest: digestGovernedSurfaces(extracts),
+        requireDigestMatch: true,
+      }),
+    );
+  } else if (existsSync(path.join(checkerCwd, LIVE_MAPPING_RECORDS_PATH))) {
+    findings.push(...admissionFindingsForRows(loadLiveMappingRecords(checkerCwd)));
+  }
   return { paths, findings };
 }
 

@@ -34,6 +34,12 @@ A campaign also `needs` a `human` who can approve.
 
 The `human` `may` use the override of the Forgejo-review.
 
+`forgejoApproved` `is` recorded provenance in the manifest and genesis.
+
+Git merge `is` the admission authority for campaign content.
+
+v1 do not call Forgejo over the network to re-verify a review id.
+
 ## `Records`
 
 The genesis name the `root` of the campaign.
@@ -76,15 +82,61 @@ The compile write `json` when the schema `path` `ends` in `json`.
 
 The check `flag` can name a campaign.
 
+The check fail when the product root `has` no campaign.
+
 ## `Live campaign`
 
 The campaign `is` `asd-ste100-compliance`.
 
 The `later` campaign `is` `registry-yaml-write`.
 
+`registry-yaml-write` keep a live `schema.yaml`.
+
 `Both` live `campaigns` `are` `Forgejo-closed`.
 
 The Forgejo-review `id` `is` `7`.
+
+## `v1` guarantees
+
+v1 keep one proposal markdown per campaign.
+
+v1 keep structured companion documents.
+
+v1 keep proposal-derived schema with drift detection.
+
+v1 keep genesis, progeny, and epoch identity.
+
+v1 keep work, pull, and event compile.
+
+v1 keep Forgejo-review id as provenance, not a live remote gate.
+
+## `Not` in v1
+
+v1 do not migrate schemas across versions.
+
+v1 do not model cross-campaign dependencies.
+
+v1 do not index or query beyond dump and lookup.
+
+v1 do not start CAN.
+
+v1 do not call Forgejo to re-check a review.
+
+## `Growth` seams
+
+Later versions may add schema migration.
+
+Later versions may add record and event kinds.
+
+Later versions may link campaigns.
+
+Later versions may enrich actor and artifact provenance.
+
+Later versions may add index or query views.
+
+Later versions may add optional remote review verification.
+
+Later versions may harden registry-root baseline authority beyond the empty-root fail-closed check.
 
 ## `Later` work
 

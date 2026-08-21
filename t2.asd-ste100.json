@@ -9,16 +9,23 @@
       "reviewed": true,
       "checker": "vocabulary-membership",
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "sourcePages": [41, 42]
+      "reviewerId": "operator-co-sign",
+      "sourcePages": [
+        41,
+        42
+      ]
     },
     {
       "id": "4.5",
       "reviewed": true,
       "checker": "article-before-noun",
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "sourcePages": [73, 80, 81]
+      "reviewerId": "operator-co-sign",
+      "sourcePages": [
+        73,
+        80,
+        81
+      ]
     },
     {
       "id": "5.1",
@@ -26,8 +33,11 @@
       "reviewed": true,
       "checker": "procedural-sentence-word-count",
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "sourcePages": [83, 84]
+      "reviewerId": "operator-co-sign",
+      "sourcePages": [
+        83,
+        84
+      ]
     },
     {
       "id": "6.3",
@@ -35,8 +45,11 @@
       "reviewed": true,
       "checker": "descriptive-sentence-word-count",
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "sourcePages": [91, 94]
+      "reviewerId": "operator-co-sign",
+      "sourcePages": [
+        91,
+        94
+      ]
     },
     {
       "id": "6.6",
@@ -44,8 +57,11 @@
       "reviewed": true,
       "checker": "paragraph-sentence-count",
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "sourcePages": [91, 97]
+      "reviewerId": "operator-co-sign",
+      "sourcePages": [
+        91,
+        97
+      ]
     }
   ]
 }

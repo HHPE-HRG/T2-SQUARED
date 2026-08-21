@@ -424,11 +424,16 @@ describe("appendEpoch", () => {
 });
 
 describe("checkWorkRegistry", () => {
-  it("passes when T2_Squared-Work-Registry has no campaign", () => {
+  it("fails when T2_Squared-Work-Registry has no campaign", () => {
     const root = mkdtempSync(path.join(tmpdir(), "t2-work-registry-root-"));
     mkdirSync(path.join(root, PRODUCT_NAME));
     writeFileSync(path.join(root, PRODUCT_NAME, ".gitkeep"), "");
-    checkWorkRegistry(root);
+    assert.throws(() => checkWorkRegistry(root), /no campaign/);
+  });
+
+  it("fails when the work-registry product root is missing", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "t2-work-registry-missing-"));
+    assert.throws(() => checkWorkRegistry(root), /no campaign/);
   });
 
   it("passes the live asd-ste100-compliance campaign", () => {

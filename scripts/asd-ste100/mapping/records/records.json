@@ -1,7 +1,7 @@
 {
-  "coverageKind": "issue9-self-sign",
+  "coverageKind": "issue9-co-sign",
   "issue9PagesMapped": true,
-  "selfSign": true,
+  "selfSign": false,
   "rows": [
     {
       "id": "1.1",
@@ -10,8 +10,8 @@
       "proposedCheckerId": "vocabulary-membership",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
     },
     {
       "id": "4.5",
@@ -20,8 +20,8 @@
       "proposedCheckerId": "article-before-noun",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
     },
     {
       "id": "5.1",
@@ -30,8 +30,8 @@
       "proposedCheckerId": "procedural-sentence-word-count",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
     },
     {
       "id": "6.3",
@@ -40,8 +40,8 @@
       "proposedCheckerId": "descriptive-sentence-word-count",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
     },
     {
       "id": "6.6",
@@ -50,8 +50,8 @@
       "proposedCheckerId": "paragraph-sentence-count",
       "reviewed": true,
       "authorId": "u12-wave-author",
-      "reviewerId": "operator-self-sign",
-      "reviewNotes": "KTD28 self-sign: single operator"
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
     }
   ]
 }

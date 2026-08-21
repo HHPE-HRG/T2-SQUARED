@@ -2,7 +2,7 @@
   "product": "T2_Squared-Work-Registry",
   "campaign": "registry-yaml-write",
   "proposal": "proposal.md",
-  "schema": "schema.json",
+  "schema": "schema.yaml",
   "forgejoApproved": true,
   "humanApproved": true,
   "humanOverride": false

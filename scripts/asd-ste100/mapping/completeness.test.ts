@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { admissionFindingsForRows } from "../admission.ts";
+import { admissionFindingsForInventory, admissionFindingsForRows, assertAdmissionPathsComplete } from "../admission.ts";
 import { assertClassificationComplete, WRITING_RULE_IDS } from "./completeness.ts";
 import { ENFORCEMENT_CLASSES, enforcementClassFor } from "./enforcement-class.ts";
 import type { CheckerClass, MappingRow } from "./merge.ts";
@@ -17,6 +17,7 @@ describe("writing-rule classification completeness", () => {
   it("locks the reviewed 63-id writing-rule ledger", () => {
     assert.equal(WRITING_RULE_IDS.length, 63);
     assert.doesNotThrow(() => assertClassificationComplete(repoRoot));
+    assert.doesNotThrow(() => assertAdmissionPathsComplete(repoRoot));
   });
 
   it("keeps live mapping records at the five mechanical ids", () => {
@@ -46,7 +47,7 @@ describe("writing-rule classification completeness", () => {
     assert.throws(() => assertClassificationComplete(root), /unreviewed writing-rule id: 1\.2/);
   });
 
-  it("mints no overlay admission findings on the live five-id mapping", () => {
+  it("mints no overlay admission findings on the live five-id mapping alone", () => {
     const live = loadLiveMappingRecords(repoRoot);
     assert.equal(admissionFindingsForRows(live).length, 0);
     assert.equal(
@@ -55,6 +56,26 @@ describe("writing-rule classification completeness", () => {
         return mapped === "deterministic" || mapped === "parser-mechanical";
       }),
       true,
+    );
+  });
+
+  it("blocks review-required inventory ids without surfacesDigest evidence", () => {
+    const findings = admissionFindingsForInventory({
+      root: repoRoot,
+      surfacesDigest: "a".repeat(64),
+      requireDigestMatch: true,
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-ADMISSION-review-required"),
+      true,
+    );
+    assert.equal(
+      findings.some((finding) => finding.message.includes("Rule 1.2 ")),
+      true,
+    );
+    assert.equal(
+      findings.some((finding) => finding.message.includes("Rule GR-1 ")),
+      false,
     );
   });
 
@@ -79,11 +100,79 @@ describe("writing-rule classification completeness", () => {
     );
   });
 
-  it("does not mint admission findings for overlay not-applicable ids absent from live mapping", () => {
-    const liveIds = new Set(loadLiveMappingRecords(repoRoot).map((row) => row.id));
-    assert.equal(liveIds.has("GR-1"), false);
-    assert.equal(liveIds.has("front-matter"), false);
-    assert.equal(admissionFindingsForRows(loadLiveMappingRecords(repoRoot)).length, 0);
+  it("does not mint review-required findings for not-applicable inventory ids", () => {
+    const findings = admissionFindingsForInventory({
+      root: repoRoot,
+      surfacesDigest: "b".repeat(64),
+      requireDigestMatch: true,
+    });
+    assert.equal(
+      findings.some((finding) => /Rule GR-1 /.test(finding.message)),
+      false,
+    );
+    assert.equal(
+      findings.some((finding) => /Rule front-matter /.test(finding.message)),
+      false,
+    );
+  });
+  it("admits review-required ids when surfacesDigest-bound co-sign evidence matches", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "t2-asd-rule-reviews-"));
+    const recordsDir = path.join(root, "scripts/asd-ste100/mapping/records");
+    mkdirSync(recordsDir, { recursive: true });
+    // Minimal inventory: copy live classification files from repo then overwrite reviews.
+    for (const name of [
+      "official-unreviewed.json",
+      "enforcement-classes.json",
+      "records.json",
+    ]) {
+      writeFileSync(
+        path.join(recordsDir, name),
+        readFileSync(path.join(repoRoot, "scripts/asd-ste100/mapping/records", name), "utf8"),
+      );
+    }
+    const digest = "c".repeat(64);
+    const inventory = JSON.parse(
+      readFileSync(path.join(recordsDir, "enforcement-classes.json"), "utf8"),
+    ) as {
+      classes: Array<{ id: string; enforcementClass: string }>;
+    };
+    const reviews = inventory.classes
+      .filter(
+        (row) =>
+          row.enforcementClass === "human-review" ||
+          row.enforcementClass === "contextual/semantic",
+      )
+      .map((row) => ({
+        ruleId: row.id,
+        enforcementClass: row.enforcementClass,
+        authorId: "u12-wave-author",
+        reviewerId: "operator-co-sign",
+        reviewed: true,
+        surfacesDigest: digest,
+        reviewNotes: "test evidence",
+      }));
+    writeFileSync(
+      path.join(recordsDir, "rule-reviews.json"),
+      `${JSON.stringify({ coverageKind: "issue9-rule-review-evidence", reviews }, null, 2)}\n`,
+    );
+    const findings = admissionFindingsForInventory({
+      root,
+      surfacesDigest: digest,
+      requireDigestMatch: true,
+    });
+    assert.equal(
+      findings.some((finding) => finding.ruleId === "T2-ADMISSION-review-required"),
+      false,
+    );
+    const stale = admissionFindingsForInventory({
+      root,
+      surfacesDigest: "d".repeat(64),
+      requireDigestMatch: true,
+    });
+    assert.equal(
+      stale.some((finding) => finding.ruleId === "T2-ADMISSION-review-required"),
+      true,
+    );
   });
 });
 
