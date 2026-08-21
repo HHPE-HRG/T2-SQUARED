@@ -1,7 +1,7 @@
 {
   "coverageKind": "issue9-rule-review-evidence",
   "status": "UNSIGNED-DRAFT",
-  "headHint": "582c8a22c0fa00c25d268aa8f2364cb55cc5e111",
+  "headHint": "37398c8d5c6329d1d28ef2bb6fa248a6cc55c681",
   "surfacesDigest": "9a33dca089e40e647ed869575d9368a53e248a67899bd9c2d025c92709d4963a",
   "authorityDigest": "dcb08a84984f964f07d7c063332eddf6b5bfd691bf681e6741ccd7af426157e9",
   "instructions": "UNSIGNED DRAFT only. Distinct human principal t2-reviewer-operator co-signs by copying rows into rule-reviews.json with reviewed:true and matching digests. Rule 1.4 is live mechanical and is not in this packet. Agent must not act as operator-co-sign.",
