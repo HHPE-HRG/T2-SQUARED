@@ -17,6 +17,19 @@
       "reviewNotes": "KTD28 co-sign: distinct mapping reviewer"
     },
     {
+      "id": "1.4",
+      "class": "deterministic",
+      "sourcePages": [
+        41,
+        44
+      ],
+      "proposedCheckerId": "approved-word-forms",
+      "reviewed": true,
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-co-sign",
+      "reviewNotes": "KTD28 co-sign: promote approved verb and adjective forms"
+    },
+    {
       "id": "4.5",
       "class": "deterministic",
       "sourcePages": [

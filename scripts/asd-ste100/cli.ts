@@ -57,6 +57,12 @@ import {
   type ProposedOverride,
 } from "./override.ts";
 import {
+  approvedFormsSet,
+  loadStructuredLexicalAuthority,
+  StructuredLexicalAuthorityError,
+  type StructuredLexicalAuthority,
+} from "./lexicon/structured-authority.ts";
+import {
   parseApprovedWordsFromOfficialBytes,
   validateAnchor,
   validateProfile,
@@ -608,12 +614,25 @@ export function computeOwnedSurfacesDigest(root: string, headSha: string): strin
   return digestGovernedSurfaces(extracts);
 }
 
+export function resolveLexicalAuthorityPath(vocabularyPath?: string): string | undefined {
+  const explicit = process.env.ASD_STE100_LEXICAL_AUTHORITY;
+  if (explicit !== undefined && explicit.length > 0) {
+    return explicit;
+  }
+  if (vocabularyPath !== undefined && vocabularyPath.length > 0) {
+    return path.join(path.dirname(vocabularyPath), "structured-lexical-authority.json");
+  }
+  return undefined;
+}
+
 export function loadScanLexicon(
   cwd: string,
   officialBytes: Buffer | null,
+  lexicalAuthority: StructuredLexicalAuthority | null = null,
 ): {
   approvedWords: Set<string>;
   technicalTerms: Array<TechnicalTerm>;
+  lexicalAuthority: StructuredLexicalAuthority | null;
 } {
   const termsFile = loadJson<{
     subjectFields?: SubjectFieldRegistry;
@@ -622,10 +641,31 @@ export function loadScanLexicon(
   validateTechnicalTerms(termsFile.terms, termsFile.subjectFields ?? {});
   const officialWords =
     officialBytes === null ? [] : parseApprovedWordsFromOfficialBytes(officialBytes);
+  const approvedWords = approvedWordSet(officialWords);
+  if (lexicalAuthority !== null) {
+    for (const form of approvedFormsSet(lexicalAuthority)) {
+      approvedWords.add(form);
+    }
+  }
   return {
-    approvedWords: approvedWordSet(officialWords),
+    approvedWords,
     technicalTerms: termsFile.terms,
+    lexicalAuthority,
   };
+}
+
+export function loadPinnedLexicalAuthority(
+  profile: AsdProfile,
+): StructuredLexicalAuthority | null {
+  const expected = profile.lexicalAuthoritySha256;
+  if (expected === undefined || expected.length === 0) {
+    return null;
+  }
+  const filePath = resolveLexicalAuthorityPath(process.env.ASD_STE100_VOCABULARY);
+  if (filePath === undefined) {
+    throw new StructuredLexicalAuthorityError("`structured` `lexical` `authority` `is` missing");
+  }
+  return loadStructuredLexicalAuthority({ filePath, expectedSha256: expected });
 }
 
 export function scanGovernedFindings(input: {
@@ -654,7 +694,9 @@ export function scanGovernedFindings(input: {
       throw new VocabularyChecksumMismatchError();
     }
   }
-  const lexicon = loadScanLexicon(checkerCwd, officialBytes);
+  const lexicalAuthority =
+    officialBytes !== null ? loadPinnedLexicalAuthority(profile) : null;
+  const lexicon = loadScanLexicon(checkerCwd, officialBytes, lexicalAuthority);
   const knownNouns = knownNounsFromTerms(lexicon.technicalTerms);
   const liveRules = profile.rules ?? [];
   const findings: Array<Finding> = [];
@@ -709,6 +751,7 @@ export function scanGovernedFindings(input: {
             approvedWords: lexicon.approvedWords,
             technicalTerms: lexicon.technicalTerms,
             knownNouns,
+            lexicalAuthority: lexicon.lexicalAuthority ?? undefined,
           }),
         );
       }

@@ -16,6 +16,8 @@ export interface AsdRuleMapping {
 export interface AsdProfile {
   issue: string;
   vocabularySha256: string;
+  /** Digest of private structured Issue 9 POS/form/meaning authority for Rules 1.2–1.4. */
+  lexicalAuthoritySha256?: string;
   claim: string;
   vocabularyReview?: "pending-human" | "human-verified";
   rules?: Array<AsdRuleMapping>;

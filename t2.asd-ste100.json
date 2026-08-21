@@ -1,6 +1,7 @@
 {
   "issue": "9",
   "vocabularySha256": "db49e0d73a35392c190ed529034f4e4a354af54519eb6c88ad7105cbf7e3884e",
+  "lexicalAuthoritySha256": "01f0e47694d074dccb0fc9f69623ae28d53b91b0649686ea5639a7a034c367a8",
   "vocabularyReview": "human-verified",
   "claim": "ASD-STE100 mechanical rule-subset result",
   "rules": [
@@ -13,6 +14,17 @@
       "sourcePages": [
         41,
         42
+      ]
+    },
+    {
+      "id": "1.4",
+      "reviewed": true,
+      "checker": "approved-word-forms",
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-co-sign",
+      "sourcePages": [
+        41,
+        44
       ]
     },
     {

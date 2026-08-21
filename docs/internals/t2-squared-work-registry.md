@@ -26,11 +26,11 @@ Other `files` use `json` or `yaml`.
 
 Do not add a `second` `markdown` `file`.
 
-## The approve
+## The `approve`
 
 A campaign `needs` the Forgejo-review.
 
-A campaign also `needs` a `human` who can approve.
+A campaign also `needs` a `human` who can `approve`.
 
 The `human` `may` use the override of the Forgejo-review.
 
@@ -50,9 +50,9 @@ The epoch `appends` when the genesis `is` complete.
 
 The epoch also `appends` when the progeny `is` complete.
 
-The schema `is` a compile of `glossary` `terms` in the proposal.
+The schema `is` a `compile` of `glossary` `terms` in the proposal.
 
-The compile write `work`, `pull`, and `event` from the proposal.
+The `compile` write `work`, `pull`, and `event` from the proposal.
 
 The `work` record name the genesis and the progeny.
 
@@ -60,7 +60,7 @@ The `pull` record name the Forgejo-review.
 
 The `event` record `appends` from the `work` and the `pull`.
 
-`CI` `fails` when the schema `has` a drift.
+`CI` `fails` when the schema `has` a `drift`.
 
 The lookup read the schema.
 
@@ -74,11 +74,11 @@ The dump `lists` the schema `path`.
 
 The dump `lists` the approved `boolean`.
 
-The dump `field` `forgejoClosed` `is` `true` when the Forgejo and the `human` `both` approve without the override.
+The dump `field` `forgejoClosed` `is` `true` when the Forgejo and the `human` `both` `approve` without the override.
 
-The compile write `yaml` when the schema `path` `ends` in `yaml`.
+The `compile` write `yaml` when the schema `path` `ends` in `yaml`.
 
-The compile write `json` when the schema `path` `ends` in `json`.
+The `compile` write `json` when the schema `path` `ends` in `json`.
 
 The check `flag` can name a campaign.
 
@@ -106,7 +106,7 @@ The Forgejo-review `id` `is` `7`.
 
 `v1` keep the genesis, the progeny, and the epoch `identity`.
 
-`v1` keep `work`, `pull`, and `event` compile.
+`v1` keep `work`, `pull`, and `event` `compile`.
 
 `v1` keep the Forgejo-review `id` as `provenance`, not a live `remote` `gate`.
 

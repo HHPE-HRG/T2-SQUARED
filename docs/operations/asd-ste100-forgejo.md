@@ -88,7 +88,7 @@ The leak `scan` `does` not reject one source `token`.
 
 A `human` `inspects the private file` before `any` `pin` change off the `fixture`.
 
-`Rule` 1.1 and `Rule` 4.5 `fail` `G2` after that approve.
+`Rule` 1.1 and `Rule` 4.5 `fail` `G2` after that `approve`.
 
 `Pipeline` `tokens` live on the `VM` `under` the agent `state` `directory`.
 

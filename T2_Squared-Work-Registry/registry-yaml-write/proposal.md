@@ -4,7 +4,7 @@
 
 This campaign `tests` `yaml` write for the schema.
 
-The compile write the schema from this proposal.
+The `compile` write the schema from this proposal.
 
 The dump `lists` the campaign.
 

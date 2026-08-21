@@ -20,11 +20,11 @@ describe("writing-rule classification completeness", () => {
     assert.doesNotThrow(() => assertAdmissionPathsComplete(repoRoot));
   });
 
-  it("keeps live mapping records at the six mechanical ids", () => {
+  it("keeps live mapping records at the seven mechanical ids", () => {
     const live = loadLiveMappingRecords(repoRoot);
     assert.deepEqual(
       live.map((row) => row.id),
-      ["1.1", "4.5", "5.1", "6.3", "6.6", "8.1"],
+      ["1.1", "1.4", "4.5", "5.1", "6.3", "6.6", "8.1"],
     );
   });
 

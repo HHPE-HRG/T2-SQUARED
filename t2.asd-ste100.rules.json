@@ -12,6 +12,17 @@
       ]
     },
     {
+      "id": "1.4",
+      "reviewed": true,
+      "checker": "approved-word-forms",
+      "authorId": "u12-wave-author",
+      "reviewerId": "operator-co-sign",
+      "sourcePages": [
+        41,
+        44
+      ]
+    },
+    {
       "id": "4.5",
       "reviewed": true,
       "checker": "article-before-noun",
