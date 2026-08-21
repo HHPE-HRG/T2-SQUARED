@@ -1,7 +1,7 @@
 {
   "issue": "9",
   "vocabularySha256": "db49e0d73a35392c190ed529034f4e4a354af54519eb6c88ad7105cbf7e3884e",
-  "lexicalAuthoritySha256": "01f0e47694d074dccb0fc9f69623ae28d53b91b0649686ea5639a7a034c367a8",
+  "lexicalAuthoritySha256": "b90803233c17f6838895cf86136530f8b5cb962311c0a5f417c3a427fc1b081d",
   "vocabularyReview": "human-verified",
   "claim": "ASD-STE100 mechanical rule-subset result",
   "rules": [

@@ -37,3 +37,9 @@ node_modules/
 *.log
 .env*
 !.env.example
+
+# Private Issue 9 lexical mounts (never commit)
+structured-lexical-authority.json
+**/structured-lexical-authority.json
+approved-words.json
+**/approved-words.json

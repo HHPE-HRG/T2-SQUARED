@@ -1,8 +1,8 @@
 {
   "coverageKind": "issue9-rule-adjudication",
-  "headHint": "2ac18f464af21a93d5567a75aab971b660aa7f2d",
-  "surfacesDigest": "f05e8aed37e247eca9967dec97af2c0bc08b69f5a2d8e6f87aad8906fc88be5c",
-  "authorityDigest": "918f98863413908445d9c70f6ab9463df56b20698b200ed86451e776af1e875b",
+  "headHint": "d0e8f825f84bf547c5a70fbe64d512de4cf56907",
+  "surfacesDigest": "9a33dca089e40e647ed869575d9368a53e248a67899bd9c2d025c92709d4963a",
+  "authorityDigest": "dcb08a84984f964f07d7c063332eddf6b5bfd691bf681e6741ccd7af426157e9",
   "governedPaths": [
     "T2_Squared-Work-Registry/asd-ste100-compliance/proposal.md",
     "T2_Squared-Work-Registry/registry-yaml-write/proposal.md",
@@ -112,7 +112,7 @@
       "enforcementClass": "deterministic",
       "cue": "approved verb/adj forms",
       "disposition": "applicable-satisfied",
-      "notes": "Live mechanical checker approved-word-forms uses private approved verb/adjective forms. Rule 1.1 membership expands with those forms. Non-approved heads stay fail-closed. No general-English morphology invention.",
+      "notes": "Live mechanical gate requires pinned private structured lexical authority. Approved verb/adjective forms expand Rule 1.1 membership. The 1.4 checker rejects non-approved verb/adjective heads and fails closed when authority is missing. Invented inflections are not synthesized; unlisted forms fail as unknown 1.1 tokens. No general-English morphology invention.",
       "blocked": null,
       "sourcePages": [
         41,

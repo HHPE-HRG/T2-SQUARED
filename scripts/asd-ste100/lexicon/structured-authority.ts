@@ -137,11 +137,8 @@ function formRelated(lemma: string, form: string): boolean {
   if (form === lemma) {
     return true;
   }
-  if (form.startsWith(lemma) || lemma.startsWith(form)) {
-    return true;
-  }
-  const stem = lemma.length >= 4 ? lemma.slice(0, Math.min(lemma.length, 6)) : lemma;
-  return form.startsWith(stem);
+  // Pure form lines must continue the lemma; do not accept shared-prefix OCR junk.
+  return form.startsWith(lemma) || lemma.startsWith(form);
 }
 
 /**
@@ -272,7 +269,7 @@ export function extractStructuredLexicalEntries(
 
   const entries = [...map.values()]
     .map((entry) => ({
-      id: `${entry.lemma}:${entry.pos}`,
+      id: `${entry.lemma}:${entry.pos}:${entry.approved ? "a" : "n"}`,
       lemma: entry.lemma,
       approved: entry.approved,
       pos: entry.pos,
@@ -482,19 +479,13 @@ function tokenize(text: string): Array<{ token: string; index: number }> {
 }
 
 /**
- * Mechanical Rule 1.4 subset: reject uses of non-approved verb/adj heads.
+ * Mechanical Rule 1.4 gate: require pinned structured authority.
  *
- * Parameters
- * ----------
- * input.path, line, column, text, authority
- *
- * Returns
- * -------
- * Array<Finding>
- *
- * Example
- * -------
- * checkApprovedForms({ path:"x.md", line:1, column:1, text:"Qzvstebuild it.", authority })
+ * Approved verb and adjective forms are enforced by expanding Rule 1.1
+ * membership with `approvedFormsSet`. This checker fails closed when that
+ * authority is absent and rejects non-approved verb/adjective heads that are
+ * not also approved lemmas or approved forms. It does not invent English
+ * morphology for missing forms.
  */
 export function checkApprovedForms(input: {
   path: string;
@@ -507,18 +498,16 @@ export function checkApprovedForms(input: {
     input.authority.entries.filter((entry) => entry.approved).map((entry) => entry.lemma),
   );
   const approvedForms = approvedFormsSet(input.authority);
-  const nonApprovedVerbAdj = new Set(
+  const nonApprovedOnly = new Set(
     input.authority.entries
       .filter((entry) => !entry.approved && (entry.pos === "v" || entry.pos === "adj"))
-      .map((entry) => entry.lemma),
+      .map((entry) => entry.lemma)
+      .filter((lemma) => !approvedLemmas.has(lemma) && !approvedForms.has(lemma)),
   );
   const findings: Array<Finding> = [];
   for (const part of tokenize(input.text)) {
     const key = part.token.toLowerCase();
-    if (!nonApprovedVerbAdj.has(key)) {
-      continue;
-    }
-    if (approvedLemmas.has(key) || approvedForms.has(key)) {
+    if (!nonApprovedOnly.has(key)) {
       continue;
     }
     findings.push({
