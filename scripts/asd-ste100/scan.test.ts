@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
+import { REVIEW_REQUIRED_ADMISSION_ID } from "./admission.ts";
 import { scanGovernedFindings } from "./cli.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
 import { unapprovedTokenMessage } from "./membership.ts";
@@ -302,6 +304,30 @@ describe("scanGovernedFindings", () => {
     assert.equal(
       scanned.findings.some((finding) => finding.ruleId === "ASD-STE100-5.1"),
       false,
+    );
+  });
+
+  it("binds PR-mode admission to the corpus surfacesDigest and the PR tree reviews", () => {
+    const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const vocabularyPath = process.env.ASD_STE100_VOCABULARY;
+    assert.ok(
+      vocabularyPath && existsSync(vocabularyPath),
+      "ASD_STE100_VOCABULARY must point at the mounted Issue 9 vocabulary",
+    );
+    const officialBytes = readFileSync(vocabularyPath);
+    const headSha = git(repoRoot, ["rev-parse", "HEAD"]);
+    const baseSha = git(repoRoot, ["merge-base", "forgejo/main", "HEAD"]);
+    const scanned = scanGovernedFindings({
+      cwd: repoRoot,
+      mode: "pr",
+      baseSha,
+      headSha,
+      officialBytes,
+    });
+    assert.equal(
+      scanned.findings.filter((finding) => finding.ruleId === REVIEW_REQUIRED_ADMISSION_ID).length,
+      0,
+      "co-signed corpus surfacesDigest must admit in PR mode; PR-delta extracts must not rebind the digest",
     );
   });
 });

@@ -757,16 +757,18 @@ export function scanGovernedFindings(input: {
       }
     }
   }
-  if (existsSync(path.join(checkerCwd, CLASSIFICATION_LEDGER_PATH))) {
+  // Admission evidence and the classification ledger live in the PR/corpus tree.
+  // Surfaces digest must be the full owned corpus digest, not the PR-delta extract set.
+  if (existsSync(path.join(treeCwd, CLASSIFICATION_LEDGER_PATH))) {
     findings.push(
       ...admissionFindingsForInventory({
-        root: checkerCwd,
-        surfacesDigest: digestGovernedSurfaces(extracts),
+        root: treeCwd,
+        surfacesDigest: computeOwnedSurfacesDigest(treeCwd, input.headSha),
         requireDigestMatch: true,
       }),
     );
-  } else if (existsSync(path.join(checkerCwd, LIVE_MAPPING_RECORDS_PATH))) {
-    findings.push(...admissionFindingsForRows(loadLiveMappingRecords(checkerCwd)));
+  } else if (existsSync(path.join(treeCwd, LIVE_MAPPING_RECORDS_PATH))) {
+    findings.push(...admissionFindingsForRows(loadLiveMappingRecords(treeCwd)));
   }
   return { paths, findings };
 }
