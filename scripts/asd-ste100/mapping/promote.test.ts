@@ -319,10 +319,11 @@ describe("reviewOfficialMappingRows", () => {
     );
   });
 
-  it("keeps committed official wave rows unreviewed as the merge artifact", () => {
+  it("refuses same-id self-review when stamping official mapping rows", () => {
     const officialPath = path.join(mappingDir, "records/official-unreviewed.json");
     const payload = JSON.parse(readFileSync(officialPath, "utf8")) as { rows: Array<MappingRow> };
     const identitiesOnDisk = loadMappingPrincipals(repoRoot);
+    const file = loadMappingPrincipalsFile(repoRoot);
     assert.equal(
       identitiesOnDisk.some((entry) => entry.id === "u12-wave-author"),
       true,
@@ -335,7 +336,7 @@ describe("reviewOfficialMappingRows", () => {
       identitiesOnDisk.some((entry) => entry.id === "operator-co-sign" && entry.kind === "human"),
       true,
     );
-    assert.equal(selfSignAllowed(identitiesOnDisk), false);
+    assert.equal(selfSignAllowed(identitiesOnDisk, 2, file.profiles), false);
     assert.throws(
       () =>
         reviewOfficialMappingRows(
@@ -346,12 +347,9 @@ describe("reviewOfficialMappingRows", () => {
             reviewNotes: "KTD28",
           },
           identitiesOnDisk,
+          file.profiles,
         ),
       /self-review|distinct|principal|human|agent/i,
-    );
-    assert.equal(
-      payload.rows.every((row) => row.reviewed === false && row.reviewerId === null),
-      true,
     );
   });
 });
@@ -613,21 +611,30 @@ describe("live mapping records", () => {
     );
   });
 
-  it("assigns every official page in unreviewed mapping rows without claiming review", () => {
+  it("assigns every official page in the reviewed writing-rule ledger", () => {
     const officialPath = path.join(mappingDir, "records/official-unreviewed.json");
     const payload = JSON.parse(readFileSync(officialPath, "utf8")) as {
       coverageKind: string;
       issue9PagesMapped: boolean;
       rows: Array<MappingRow>;
     };
-    assert.equal(payload.coverageKind, "official-wave-unreviewed");
+    assert.equal(payload.coverageKind, "issue9-writing-rule-classification");
     assert.equal(payload.issue9PagesMapped, true);
     assert.equal(
-      payload.rows.every((row) => row.reviewed === false),
+      payload.rows
+        .filter((row) => row.class !== "private_lexicon")
+        .every(
+          (row) =>
+            row.reviewed === true &&
+            row.reviewerId === "operator-co-sign" &&
+            /co-sign/i.test(row.reviewNotes ?? ""),
+        ),
       true,
     );
     assert.equal(
-      payload.rows.every((row) => row.reviewerId === null && row.reviewNotes === null),
+      payload.rows
+        .filter((row) => row.class === "private_lexicon")
+        .every((row) => row.reviewed === false && row.reviewerId === null),
       true,
     );
     const pages = new Set(payload.rows.flatMap((row) => row.sourcePages));

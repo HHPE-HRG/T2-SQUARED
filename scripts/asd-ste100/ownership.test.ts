@@ -363,6 +363,7 @@ describe("repo ownership admission exclusions", () => {
             technicalTermClass: "product-name",
             subjectFields: ["asd-enforcement"],
             asdBasis: ["1.5"],
+            softwareForms: { typescriptType: "ForgejoHost" },
           },
         ],
       }),

@@ -268,6 +268,13 @@ function technicalTermQualificationError(term: TechnicalTerm): string | null {
   if (insufficient) {
     return "`insufficient` `asdBasis` for " + term.term;
   }
+  const software = term.softwareForms;
+  const forms = [software?.typescriptType, software?.typescriptValue, software?.cli].filter(
+    (value) => typeof value === "string" && value.trim().length > 0,
+  );
+  if (forms.length === 0) {
+    return "`technical` `term` `is` missing `software` `forms`: " + term.term;
+  }
   return null;
 }
 

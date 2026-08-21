@@ -12,7 +12,7 @@ import {
   scanForVocabularyLeak,
 } from "./attestation.ts";
 import type { RuleSubsetAttestation } from "./attestation.ts";
-import { admitFailClosedUncheckable } from "./admission.ts";
+import { admissionFindingsForRows } from "./admission.ts";
 import { checkClaims } from "./claim.ts";
 import { formatDiagnostic } from "./diagnostics.ts";
 import {
@@ -21,6 +21,7 @@ import {
   extractTypeScript,
   extractTypeScriptComments,
 } from "./extract.ts";
+import { assertClassificationComplete } from "./mapping/completeness.ts";
 import {
   assertReviewedRulesHaveMappingRecords,
   loadLiveMappingRecords,
@@ -194,6 +195,7 @@ export function resolvePrGitRefs(input: {
 export function runFixtureSelfTest(root = process.cwd()): void {
   const profile = loadJson<AsdProfile>(root, "t2.asd-ste100.json");
   validateProfile(profile);
+  assertClassificationComplete(root);
   assertReviewedRulesHaveMappingRecords(profile.rules ?? [], loadLiveMappingRecords(root));
   const termsFile = loadJson<{
     subjectFields?: SubjectFieldRegistry;
@@ -351,6 +353,13 @@ export function runCli(argv: Array<string>, deps: CliDeps): CliRunResult {
     try {
       const connectedProfile = loadJson<AsdProfile>(deps.cwd, "t2.asd-ste100.json");
       validateProfile(connectedProfile);
+      const ledgerPath = path.join(
+        deps.cwd,
+        "scripts/asd-ste100/mapping/records/official-unreviewed.json",
+      );
+      if (existsSync(ledgerPath)) {
+        assertClassificationComplete(deps.cwd);
+      }
       deps.officialVocabularyBytes();
     } catch (error) {
       if (
@@ -655,12 +664,7 @@ export function scanGovernedFindings(input: {
       }
     }
   }
-  for (const row of loadLiveMappingRecords(checkerCwd)) {
-    if (row.class !== "fail_closed_uncheckable") {
-      continue;
-    }
-    findings.push(...admitFailClosedUncheckable({ row }).findings);
-  }
+  findings.push(...admissionFindingsForRows(loadLiveMappingRecords(checkerCwd)));
   return { paths, findings };
 }
 
