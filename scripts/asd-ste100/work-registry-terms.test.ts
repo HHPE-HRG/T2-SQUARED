@@ -35,6 +35,7 @@ describe("work-registry technical terms", () => {
       assert.equal(typeof hit.technicalTermClass, "string", required.term);
       assert.deepEqual(hit.asdBasis, ["1.5"], required.term);
       assert.notEqual(hit.asdBasis?.[0], "1.1", required.term);
+      assert.equal(hit.softwareForms !== undefined, true, required.term);
       for (const field of hit.subjectFields ?? []) {
         const admitted = payload.subjectFields?.[field]?.admittedTerms ?? [];
         assert.equal(admitted.includes(hit.term), true, `${required.term} admitted in ${field}`);

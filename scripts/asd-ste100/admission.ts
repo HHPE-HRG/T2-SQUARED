@@ -36,6 +36,17 @@ function admissionFinding(row: MappingRow): Finding {
   };
 }
 
+export function admissionFindingsForRows(rows: ReadonlyArray<MappingRow>): Array<Finding> {
+  const findings: Array<Finding> = [];
+  for (const row of rows) {
+    if (row.class !== "fail_closed_uncheckable") {
+      continue;
+    }
+    findings.push(...admitFailClosedUncheckable({ row }).findings);
+  }
+  return findings;
+}
+
 export function admitFailClosedUncheckable(input: {
   row: MappingRow;
   override?: UncheckableOverrideInput;
