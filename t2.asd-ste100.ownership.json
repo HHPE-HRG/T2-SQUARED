@@ -15,6 +15,7 @@
     "docs/plans/2026-08-16-001-fix-human-gate-honesty-plan.md",
     "docs/plans/2026-08-16-002-feat-asd-lexicon-bridge-plan.md",
     "docs/plans/2026-08-17-001-feat-fill-asd-ste-sandbox-plan.md",
+    "docs/plans/2026-08-23-001-feat-t2-opentelemetry-peer-plane-plan.md",
     "scripts/work-registry/**",
     "T2_Squared-Work-Registry/**",
     "docs/internals/t2-squared-work-registry.md"
