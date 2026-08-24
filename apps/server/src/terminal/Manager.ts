@@ -52,6 +52,7 @@ import * as Semaphore from "effect/Semaphore";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import * as ServerConfig from "../config.ts";
+import { withCatalogBridge } from "../t2Observability/T2Observability.ts";
 import {
   increment,
   terminalRestartsTotal,
@@ -1887,130 +1888,135 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     input: TerminalStartInput,
     eventType: "started" | "restarted",
   ) {
-    yield* stopProcess(session);
-    yield* Effect.annotateCurrentSpan({
-      "terminal.thread_id": session.threadId,
-      "terminal.id": session.terminalId,
-      "terminal.event_type": eventType,
-      "terminal.cwd": input.cwd,
-    });
+    return yield* withCatalogBridge(
+      "terminal",
+      Effect.gen(function* () {
+        yield* stopProcess(session);
+        yield* Effect.annotateCurrentSpan({
+          "terminal.thread_id": session.threadId,
+          "terminal.id": session.terminalId,
+          "terminal.event_type": eventType,
+          "terminal.cwd": input.cwd,
+        });
 
-    const startingAt = yield* nowIso;
-    yield* modifyManagerState((state) => {
-      session.status = "starting";
-      session.cwd = input.cwd;
-      session.worktreePath = input.worktreePath ?? null;
-      session.cols = input.cols;
-      session.rows = input.rows;
-      session.exitCode = null;
-      session.exitSignal = null;
-      session.hasRunningSubprocess = false;
-      session.childCommandLabel = null;
-      session.pendingProcessEvents = [];
-      session.pendingProcessEventIndex = 0;
-      session.processEventDrainRunning = false;
-      session.updatedAt = startingAt;
-      return [undefined, state] as const;
-    });
+        const startingAt = yield* nowIso;
+        yield* modifyManagerState((state) => {
+          session.status = "starting";
+          session.cwd = input.cwd;
+          session.worktreePath = input.worktreePath ?? null;
+          session.cols = input.cols;
+          session.rows = input.rows;
+          session.exitCode = null;
+          session.exitSignal = null;
+          session.hasRunningSubprocess = false;
+          session.childCommandLabel = null;
+          session.pendingProcessEvents = [];
+          session.pendingProcessEventIndex = 0;
+          session.processEventDrainRunning = false;
+          session.updatedAt = startingAt;
+          return [undefined, state] as const;
+        });
 
-    let ptyProcess: PtyAdapter.PtyProcess | null = null;
-    let startedShell: string | null = null;
+        let ptyProcess: PtyAdapter.PtyProcess | null = null;
+        let startedShell: string | null = null;
 
-    const startResult = yield* Effect.result(
-      increment(terminalSessionsTotal, { lifecycle: eventType }).pipe(
-        Effect.andThen(
-          Effect.gen(function* () {
-            const shellCandidates = resolveShellCandidates(shellResolver, platform, baseEnv);
-            const terminalEnv = createTerminalSpawnEnv(baseEnv, session.runtimeEnv);
-            const spawnResult = yield* trySpawn(shellCandidates, terminalEnv, session);
-            ptyProcess = spawnResult.process;
-            startedShell = spawnResult.shellLabel;
+        const startResult = yield* Effect.result(
+          increment(terminalSessionsTotal, { lifecycle: eventType }).pipe(
+            Effect.andThen(
+              Effect.gen(function* () {
+                const shellCandidates = resolveShellCandidates(shellResolver, platform, baseEnv);
+                const terminalEnv = createTerminalSpawnEnv(baseEnv, session.runtimeEnv);
+                const spawnResult = yield* trySpawn(shellCandidates, terminalEnv, session);
+                ptyProcess = spawnResult.process;
+                startedShell = spawnResult.shellLabel;
 
-            const processPid = ptyProcess.pid;
-            const unsubscribeData = ptyProcess.onData((data) => {
-              if (!enqueueProcessEvent(session, processPid, { type: "output", data })) {
-                return;
-              }
-              runFork(drainProcessEvents(session, processPid));
-            });
-            const unsubscribeExit = ptyProcess.onExit((event) => {
-              if (!enqueueProcessEvent(session, processPid, { type: "exit", event })) {
-                return;
-              }
-              runFork(drainProcessEvents(session, processPid));
-            });
+                const processPid = ptyProcess.pid;
+                const unsubscribeData = ptyProcess.onData((data) => {
+                  if (!enqueueProcessEvent(session, processPid, { type: "output", data })) {
+                    return;
+                  }
+                  runFork(drainProcessEvents(session, processPid));
+                });
+                const unsubscribeExit = ptyProcess.onExit((event) => {
+                  if (!enqueueProcessEvent(session, processPid, { type: "exit", event })) {
+                    return;
+                  }
+                  runFork(drainProcessEvents(session, processPid));
+                });
 
-            let eventStamp: ReturnType<typeof advanceEventSequence> = {
-              updatedAt: session.updatedAt,
-              sequence: session.eventSequence,
-            };
-            yield* modifyManagerState((state) => {
-              session.process = ptyProcess;
-              session.pid = processPid;
-              session.status = "running";
-              session.unsubscribeData = unsubscribeData;
-              session.unsubscribeExit = unsubscribeExit;
-              eventStamp = advanceEventSequence(session);
-              return [undefined, state] as const;
-            });
+                let eventStamp: ReturnType<typeof advanceEventSequence> = {
+                  updatedAt: session.updatedAt,
+                  sequence: session.eventSequence,
+                };
+                yield* modifyManagerState((state) => {
+                  session.process = ptyProcess;
+                  session.pid = processPid;
+                  session.status = "running";
+                  session.unsubscribeData = unsubscribeData;
+                  session.unsubscribeExit = unsubscribeExit;
+                  eventStamp = advanceEventSequence(session);
+                  return [undefined, state] as const;
+                });
 
-            yield* publishEvent({
-              type: eventType,
-              threadId: session.threadId,
-              terminalId: session.terminalId,
-              sequence: eventStamp.sequence,
-              snapshot: snapshot(session),
-            });
-          }),
-        ),
-      ),
+                yield* publishEvent({
+                  type: eventType,
+                  threadId: session.threadId,
+                  terminalId: session.terminalId,
+                  sequence: eventStamp.sequence,
+                  snapshot: snapshot(session),
+                });
+              }),
+            ),
+          ),
+        );
+
+        if (startResult._tag === "Success") {
+          return;
+        }
+
+        {
+          const error = startResult.failure;
+          if (ptyProcess) {
+            yield* startKillEscalation(ptyProcess, session.threadId, session.terminalId);
+          }
+
+          yield* modifyManagerState((state) => {
+            cleanupProcessHandles(session);
+            session.status = "error";
+            session.pid = null;
+            session.process = null;
+            session.hasRunningSubprocess = false;
+            session.childCommandLabel = null;
+            session.pendingProcessEvents = [];
+            session.pendingProcessEventIndex = 0;
+            session.processEventDrainRunning = false;
+            advanceEventSequence(session);
+            return [undefined, state] as const;
+          });
+          yield* unregisterTerminal({
+            threadId: session.threadId,
+            terminalId: session.terminalId,
+          });
+
+          yield* evictInactiveSessionsIfNeeded();
+
+          const message = error.message;
+          yield* publishEvent({
+            type: "error",
+            threadId: session.threadId,
+            terminalId: session.terminalId,
+            sequence: session.eventSequence,
+            message,
+          });
+          yield* Effect.logError("failed to start terminal", {
+            threadId: session.threadId,
+            terminalId: session.terminalId,
+            cause: error,
+            ...(startedShell ? { shell: startedShell } : {}),
+          });
+        }
+      }),
     );
-
-    if (startResult._tag === "Success") {
-      return;
-    }
-
-    {
-      const error = startResult.failure;
-      if (ptyProcess) {
-        yield* startKillEscalation(ptyProcess, session.threadId, session.terminalId);
-      }
-
-      yield* modifyManagerState((state) => {
-        cleanupProcessHandles(session);
-        session.status = "error";
-        session.pid = null;
-        session.process = null;
-        session.hasRunningSubprocess = false;
-        session.childCommandLabel = null;
-        session.pendingProcessEvents = [];
-        session.pendingProcessEventIndex = 0;
-        session.processEventDrainRunning = false;
-        advanceEventSequence(session);
-        return [undefined, state] as const;
-      });
-      yield* unregisterTerminal({
-        threadId: session.threadId,
-        terminalId: session.terminalId,
-      });
-
-      yield* evictInactiveSessionsIfNeeded();
-
-      const message = error.message;
-      yield* publishEvent({
-        type: "error",
-        threadId: session.threadId,
-        terminalId: session.terminalId,
-        sequence: session.eventSequence,
-        message,
-      });
-      yield* Effect.logError("failed to start terminal", {
-        threadId: session.threadId,
-        terminalId: session.terminalId,
-        cause: error,
-        ...(startedShell ? { shell: startedShell } : {}),
-      });
-    }
   });
 
   const closeSession = Effect.fn("terminal.closeSession")(function* (

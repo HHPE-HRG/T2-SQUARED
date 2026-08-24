@@ -7,6 +7,7 @@ import * as Metric from "effect/Metric";
 import * as References from "effect/References";
 import * as Stream from "effect/Stream";
 
+import { withCatalogBridge, withCatalogBridgeStream } from "../t2Observability/T2Observability.ts";
 import { outcomeFromExit } from "./Attributes.ts";
 import { metricAttributes, rpcRequestDuration, rpcRequestsTotal, withMetrics } from "./Metrics.ts";
 
@@ -41,7 +42,7 @@ const withRpcEffectTracing = <A, E, R>(
   traceAttributes?: Readonly<Record<string, unknown>>,
 ): Effect.Effect<A, E, R> =>
   shouldTraceRpc(method)
-    ? effect.pipe(
+    ? withCatalogBridge("rpc", effect).pipe(
         Effect.withSpan(`${RPC_SPAN_PREFIX}.${method}`, {
           attributes: rpcSpanAttributes(method, traceAttributes),
         }),
@@ -54,7 +55,7 @@ const withRpcStreamTracing = <A, E, R>(
   traceAttributes?: Readonly<Record<string, unknown>>,
 ): Stream.Stream<A, E, R> =>
   shouldTraceRpc(method)
-    ? stream.pipe(
+    ? withCatalogBridgeStream("rpc", stream).pipe(
         Stream.withSpan(`${RPC_SPAN_PREFIX}.${method}`, {
           attributes: rpcSpanAttributes(method, traceAttributes),
         }),

@@ -30,6 +30,7 @@ import { dedupeRemoteBranchesWithLocalMatches, normalizeGitRemoteUrl } from "@t3
 import { compactTraceAttributes } from "@t3tools/shared/observability";
 import { decodeJsonResult } from "@t3tools/shared/schemaJson";
 import { gitCommandDuration, gitCommandsTotal, withMetrics } from "../observability/Metrics.ts";
+import { withCatalogBridge } from "../t2Observability/T2Observability.ts";
 import * as GitVcsDriver from "./GitVcsDriver.ts";
 import {
   parseRemoteNames,
@@ -840,6 +841,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
           operation: input.operation,
         },
       }),
+      (effect) => withCatalogBridge("git", effect),
       Effect.withSpan(input.operation, {
         kind: "client",
         attributes: {

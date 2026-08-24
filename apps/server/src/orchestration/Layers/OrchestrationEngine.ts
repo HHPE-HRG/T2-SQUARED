@@ -28,6 +28,7 @@ import {
   orchestrationCommandsTotal,
   orchestrationCommandDuration,
 } from "../../observability/Metrics.ts";
+import { withCatalogBridge } from "../../t2Observability/T2Observability.ts";
 import { toPersistenceSqlError } from "../../persistence/Errors.ts";
 import { OrchestrationEventStore } from "../../persistence/Services/OrchestrationEventStore.ts";
 import { OrchestrationCommandReceiptRepository } from "../../persistence/Services/OrchestrationCommandReceipts.ts";
@@ -229,7 +230,10 @@ const makeOrchestrationEngine = Effect.gen(function* () {
           }
         }
         return { sequence: committedCommand.lastSequence };
-      }).pipe(Effect.withSpan(`orchestration.command.${envelope.command.type}`)),
+      }).pipe(
+        (effect) => withCatalogBridge("orchestration", effect),
+        Effect.withSpan(`orchestration.command.${envelope.command.type}`),
+      ),
     ).pipe(
       Effect.flatMap((exit) =>
         Effect.gen(function* () {

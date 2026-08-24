@@ -47,6 +47,7 @@ import {
   providerTurnMetricAttributes,
   withMetrics,
 } from "../../observability/Metrics.ts";
+import { withCatalogBridge } from "../../t2Observability/T2Observability.ts";
 import { type ProviderAdapterError, ProviderValidationError } from "../Errors.ts";
 import type { ProviderAdapterShape } from "../Services/ProviderAdapter.ts";
 import * as ProviderAdapterRegistry from "../Services/ProviderAdapterRegistry.ts";
@@ -759,6 +760,7 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
       });
       return turn;
     }).pipe(
+      (effect) => withCatalogBridge("provider-turn", effect),
       withMetrics({
         counter: providerTurnsTotal,
         timer: providerTurnDuration,

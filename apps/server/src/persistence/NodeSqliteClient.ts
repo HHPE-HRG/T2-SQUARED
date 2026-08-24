@@ -18,6 +18,8 @@ import * as Scope from "effect/Scope";
 import * as Semaphore from "effect/Semaphore";
 import * as Context from "effect/Context";
 import * as Stream from "effect/Stream";
+
+import { withCatalogBridge } from "../t2Observability/T2Observability.ts";
 import * as Reactivity from "effect/unstable/reactivity/Reactivity";
 import * as Client from "effect/unstable/sql/SqlClient";
 import type { Connection } from "effect/unstable/sql/SqlConnection";
@@ -236,24 +238,29 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
 
     return identity<Connection>({
       execute(sql, params, rowTransform) {
-        return rowTransform ? Effect.map(run(sql, params), rowTransform) : run(sql, params);
+        const effect = rowTransform ? Effect.map(run(sql, params), rowTransform) : run(sql, params);
+        return withCatalogBridge("sqlite", effect);
       },
       executeRaw(sql, params) {
-        return run(sql, params, true);
+        return withCatalogBridge("sqlite", run(sql, params, true));
       },
       executeValues(sql, params) {
-        return runValues(sql, params);
+        return withCatalogBridge("sqlite", runValues(sql, params));
       },
       executeValuesUnprepared(sql, params) {
-        return Effect.flatMap(prepare(sql), (statement) =>
-          runStatementValues(statement, params ?? []),
+        return withCatalogBridge(
+          "sqlite",
+          Effect.flatMap(prepare(sql), (statement) => runStatementValues(statement, params ?? [])),
         );
       },
       executeUnprepared(sql, params, rowTransform) {
         const effect = prepare(sql).pipe(
           Effect.flatMap((statement) => runStatement(statement, params ?? [], false)),
         );
-        return rowTransform ? Effect.map(effect, rowTransform) : effect;
+        return withCatalogBridge(
+          "sqlite",
+          rowTransform ? Effect.map(effect, rowTransform) : effect,
+        );
       },
       executeStream(_sql, _params) {
         return Stream.die(new UnsupportedNodeSqliteOperationError());

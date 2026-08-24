@@ -80,6 +80,7 @@ import * as SourceControlProviderRegistry from "./sourceControl/SourceControlPro
 import * as SourceControlRepositoryService from "./sourceControl/SourceControlRepositoryService.ts";
 import * as ProjectSetupScriptRunner from "./project/ProjectSetupScriptRunner.ts";
 import { ObservabilityLive } from "./observability/Layers/Observability.ts";
+import { T2ObservabilityLive } from "./t2Observability/T2Observability.ts";
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import { authHttpApiLayer, environmentAuthenticatedAuthLayer } from "./auth/http.ts";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
@@ -123,8 +124,9 @@ import { forkParked, ServerActivation } from "./serverActivation.ts";
 // those finalizers get a chance to run.
 const HTTP_PREEMPTIVE_SHUTDOWN_GRACE_MS = 0;
 const ResourceAttributionLayerLive = ResourceAttribution.layer;
-const ApplicationObservabilityLive = ObservabilityLive.pipe(
-  Layer.provideMerge(ResourceAttributionLayerLive),
+const ApplicationObservabilityLive = Layer.mergeAll(
+  ObservabilityLive.pipe(Layer.provideMerge(ResourceAttributionLayerLive)),
+  T2ObservabilityLive,
 );
 
 const PtyAdapterLive = Layer.unwrap(
