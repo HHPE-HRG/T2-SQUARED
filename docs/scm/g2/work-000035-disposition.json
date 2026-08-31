@@ -1,0 +1,156 @@
+{
+  "pin": "WORK-000035",
+  "sourceVersion": "t2.asd-ste100.json#vocabularySha256=db49e0d73a35392c190ed529034f4e4a354af54519eb6c88ad7105cbf7e3884e",
+  "capturePoint": {
+    "status": "open",
+    "description": "after-governed-translation-before-can-encode"
+  },
+  "outputs": [
+    {
+      "id": "controlled-language-profile",
+      "status": "deferred",
+      "evidence": [
+        "t2.asd-ste100.json",
+        "t2.asd-ste100.rules.json",
+        "docs/internals/asd-ste100-enforcement.md"
+      ],
+      "gap": {
+        "gapId": "G2-GAP-PROFILE",
+        "steward": "t2-035-disposition-steward",
+        "missingCondition": "A versioned T2-owned profile that is a language-authority certificate for outward communication, not only a mechanical rule-subset.",
+        "consequence": "Outward language is checked as a mechanical subset. It is not the WORK-000035 profile.",
+        "forbiddenWork": [
+          "scm-can-codec",
+          "production-encoding",
+          "nibble-alphabet",
+          "global-dictionary-encoding",
+          "encoding-english",
+          "encoding-t3-payloads",
+          "claiming-g9-semantic-parity"
+        ],
+        "closureEvidence": "T2-owned profile document with version/hash, owner, and applicable outward scope that claims language authority rather than mechanical-subset results."
+      }
+    },
+    {
+      "id": "owner-attributed-term-dictionary",
+      "status": "deferred",
+      "evidence": [
+        "t2.asd-ste100.terms.json",
+        "t2.asd-ste100.ownership.json",
+        "scripts/asd-ste100/lexicon/structured-authority.ts"
+      ],
+      "gap": {
+        "gapId": "G2-GAP-DICTIONARY",
+        "steward": "t2-035-disposition-steward",
+        "missingCondition": "Every governed term has authoritative ownership and usable version identity for outward semantics, with canBus kept distinct from SCM campaign vocabulary.",
+        "consequence": "Dictionary membership and ownership globs exist. They do not prove pin-complete owned meanings.",
+        "forbiddenWork": [
+          "scm-can-codec",
+          "production-encoding",
+          "nibble-alphabet",
+          "global-dictionary-encoding",
+          "encoding-english",
+          "encoding-t3-payloads",
+          "claiming-g9-semantic-parity"
+        ],
+        "closureEvidence": "Versioned term dictionary with per-term or per-family owners, collision rules, and tests that fail ownerless terms without treating SCM as a canBus alias."
+      }
+    },
+    {
+      "id": "typed-semantic-bindings",
+      "status": "deferred",
+      "evidence": [
+        "docs/scm/g1b/inventory.json",
+        "docs/plans/2026-08-23-002-feat-scm-dod-gates-plan.md"
+      ],
+      "gap": {
+        "gapId": "G2-GAP-TYPED-IR",
+        "steward": "t2-035-disposition-steward",
+        "missingCondition": "A typed T2 semantic object at capture point after governed translation and before CAN encode, usable as equality oracle.",
+        "consequence": "equality_object stays unspecified. Semantic equality is unresolved. Codec work remains forbidden.",
+        "forbiddenWork": [
+          "scm-can-codec",
+          "production-encoding",
+          "nibble-alphabet",
+          "global-dictionary-encoding",
+          "encoding-english",
+          "encoding-t3-payloads",
+          "claiming-g9-semantic-parity"
+        ],
+        "closureEvidence": "Named T2 type at the capture point, with schema owner, version, equality rules, and canonical absence/unknown/invalid values. Origin OQ2 may name the first IR."
+      }
+    },
+    {
+      "id": "outward-communication-enforcement",
+      "status": "deferred",
+      "evidence": [
+        "docs/internals/asd-ste100-enforcement.md",
+        "docs/operations/asd-ste100-forgejo.md",
+        "scripts/asd-ste100/admission.ts",
+        ".forgejo/workflows/asd-ste100.yml"
+      ],
+      "gap": {
+        "gapId": "G2-GAP-ENFORCEMENT",
+        "steward": "t2-035-disposition-steward",
+        "missingCondition": "Mandatory fail-closed enforcement at every applicable outward boundary, not only Forgejo admission and npm run ci:asd-ste100.",
+        "consequence": "Admission tooling is candidate evidence. It is not complete outward-communication enforcement.",
+        "forbiddenWork": [
+          "scm-can-codec",
+          "production-encoding",
+          "nibble-alphabet",
+          "global-dictionary-encoding",
+          "encoding-english",
+          "encoding-t3-payloads",
+          "claiming-g9-semantic-parity"
+        ],
+        "closureEvidence": "Recorded boundary list, fail behavior, and proof that each applicable outward path is an admission gate rather than an advisory scanner."
+      }
+    },
+    {
+      "id": "controlled-language-equivalence-fixtures",
+      "status": "deferred",
+      "evidence": [
+        "scripts/asd-ste100/lexicon/interpret.test.ts",
+        "scripts/asd-ste100/lexicon/normalize.test.ts",
+        "scripts/asd-ste100/admission-boundaries.test.ts"
+      ],
+      "gap": {
+        "gapId": "G2-GAP-FIXTURES",
+        "steward": "t2-035-disposition-steward",
+        "missingCondition": "Fixtures that prove governed source form to typed semantic binding equality at the capture point.",
+        "consequence": "Current tests cover syntax, rules, and lexicon surfaces. They do not prove typed semantic equivalence.",
+        "forbiddenWork": [
+          "scm-can-codec",
+          "production-encoding",
+          "nibble-alphabet",
+          "global-dictionary-encoding",
+          "encoding-english",
+          "encoding-t3-payloads",
+          "claiming-g9-semantic-parity"
+        ],
+        "closureEvidence": "Fixture set: governed source to governed translation to typed semantic binding equals expected typed binding. This row stays distinct from G2-GAP-TYPED-IR."
+      }
+    },
+    {
+      "id": "explicit-enforcement-cutover",
+      "status": "deferred",
+      "evidence": ["t2.asd-ste100.anchor.json", "docs/operations/asd-ste100-forgejo.md"],
+      "gap": {
+        "gapId": "G2-GAP-CUTOVER",
+        "steward": "t2-035-disposition-steward",
+        "missingCondition": "An explicit, verifiable moment after which WORK-000035 outward enforcement is mandatory for the pin, not only mechanical-subset admission.",
+        "consequence": "protectionActivation active records subset admission cutover. It is not pin-complete outward cutover.",
+        "forbiddenWork": [
+          "scm-can-codec",
+          "production-encoding",
+          "nibble-alphabet",
+          "global-dictionary-encoding",
+          "encoding-english",
+          "encoding-t3-payloads",
+          "claiming-g9-semantic-parity"
+        ],
+        "closureEvidence": "Cutover identifier, applicable boundaries, before/after mode, owner, rollback authority, and whether the repository is after that cutover."
+      }
+    }
+  ]
+}

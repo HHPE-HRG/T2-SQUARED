@@ -1,0 +1,173 @@
+{
+  "nodes": [
+    {
+      "node_id": "node.rpc",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.mcp",
+      "halt_initiator": "open",
+      "baseline_authority": "A1",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.orchestration",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.projection",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.provider",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.provider.codex",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.provider.claude",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.provider.cursor",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.provider.grok",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.provider.opencode",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.terminal",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.persistence",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.settings",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.auth",
+      "halt_initiator": "open",
+      "baseline_authority": "A1",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.assets",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.usage",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.vcs",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.source-control",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.preview",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.project",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.lifecycle",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.relay",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.network",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.t2-observer",
+      "halt_initiator": "no",
+      "baseline_authority": "observer",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.t3-observer",
+      "halt_initiator": "no",
+      "baseline_authority": "observer",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.analytics",
+      "halt_initiator": "no",
+      "baseline_authority": "observer",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.resource-telemetry",
+      "halt_initiator": "no",
+      "baseline_authority": "observer",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.observer.404",
+      "halt_initiator": "no",
+      "baseline_authority": "observer",
+      "placementStatus": "reserved",
+      "live_g1_comm_ids": []
+    }
+  ]
+}

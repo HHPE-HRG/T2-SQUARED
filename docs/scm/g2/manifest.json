@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "gate": "G2",
+  "status": "completed",
+  "authorized": true,
+  "completed": true,
+  "doesNotAuthorizeLaterGates": true,
+  "g4toG7Authorized": false,
+  "plan": "docs/plans/2026-08-26-001-feat-scm-g2-work-000035-disposition-plan.md",
+  "dispositionRef": "docs/scm/g2/work-000035-disposition.json",
+  "rationaleRef": "docs/scm/g2/rationale.md",
+  "authorization": {
+    "identity": "human-operator",
+    "scope": "g2-execution",
+    "note": "Human operator authorized G2 implementation only. This is not G4-G7 authorization and not human A7 attestation of pin completeness."
+  },
+  "review": {
+    "status": "approved",
+    "identity": "codex-independent-review",
+    "independentOfImplementationAuthor": true,
+    "reviewedArtifactHash": "b9e4457fcf656d1bf618aad17472122e5598017956ad0c2b8a371541b9fe6375",
+    "note": "Human-authorized narrow completion review after live_g1_comm_ids, artifact-bound review hash, and remaining shape-throw guards. Not human A7 attestation. Does not authorize G4-G7."
+  }
+}

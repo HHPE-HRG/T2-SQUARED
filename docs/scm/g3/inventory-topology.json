@@ -1,0 +1,738 @@
+{
+  "mappings": [
+    {
+      "comm_id": "INV-T2-RPC-WS",
+      "node_id": "node.rpc",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-HTTP-META",
+      "node_id": "node.rpc",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-HTTP-AUTH",
+      "node_id": "node.rpc",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A1",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "authority"
+    },
+    {
+      "comm_id": "INV-T2-HTTP-ORCH",
+      "node_id": "node.rpc",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-HTTP-PR",
+      "node_id": "node.rpc",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-HTTP-CONNECT",
+      "node_id": "node.rpc",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A1",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "authority"
+    },
+    {
+      "comm_id": "INV-T2-HTTP-SERVE",
+      "node_id": "node.rpc",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-HTTP-STATIC",
+      "node_id": "node.rpc",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-MCP-HTTP",
+      "node_id": "node.mcp",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A1",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "authority"
+    },
+    {
+      "comm_id": "INV-T2-ORCH-RPC",
+      "node_id": "node.orchestration",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-ORCH",
+      "node_id": "node.orchestration",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-ORCH-LIVE",
+      "node_id": "node.orchestration",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-ORCH-QUEUE",
+      "node_id": "node.orchestration",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-ORCH-EVENTS",
+      "node_id": "node.orchestration",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PROJECT-READ",
+      "node_id": "node.projection",
+      "home_bus_id": "bus.persistence",
+      "origin_bus_id": "bus.persistence",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PROJECT-QUEUE",
+      "node_id": "node.projection",
+      "home_bus_id": "bus.persistence",
+      "origin_bus_id": "bus.persistence",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PROJECT-SQL",
+      "node_id": "node.projection",
+      "home_bus_id": "bus.persistence",
+      "origin_bus_id": "bus.persistence",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-TURN",
+      "node_id": "node.provider",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-EVENTS",
+      "node_id": "node.provider",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-LIST-EVENTS",
+      "node_id": "node.provider",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-PERM",
+      "node_id": "node.provider",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A1",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "authority"
+    },
+    {
+      "comm_id": "INV-T2-FILE-PROVIDER-SESSION",
+      "node_id": "node.provider",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-CODEX",
+      "node_id": "node.provider.codex",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "permissioned-child"
+    },
+    {
+      "comm_id": "INV-T2-FLAG-CODEX-LAUNCH",
+      "node_id": "node.provider.codex",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "permissioned-child"
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-CLAUDE",
+      "node_id": "node.provider.claude",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "permissioned-child"
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-CURSOR",
+      "node_id": "node.provider.cursor",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "permissioned-child"
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-GROK",
+      "node_id": "node.provider.grok",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "permissioned-child"
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-OPENCODE",
+      "node_id": "node.provider.opencode",
+      "home_bus_id": "bus.provider",
+      "origin_bus_id": "bus.provider",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "permissioned-child"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TERM",
+      "node_id": "node.terminal",
+      "home_bus_id": "bus.terminal",
+      "origin_bus_id": "bus.terminal",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-TERM",
+      "node_id": "node.terminal",
+      "home_bus_id": "bus.terminal",
+      "origin_bus_id": "bus.terminal",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-FLAG-TERM-ENV",
+      "node_id": "node.terminal",
+      "home_bus_id": "bus.terminal",
+      "origin_bus_id": "bus.terminal",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-SQLITE",
+      "node_id": "node.persistence",
+      "home_bus_id": "bus.persistence",
+      "origin_bus_id": "bus.persistence",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-FILE-RUNTIME-STATE",
+      "node_id": "node.persistence",
+      "home_bus_id": "bus.persistence",
+      "origin_bus_id": "bus.persistence",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-FILE-CHECKPOINTS",
+      "node_id": "node.persistence",
+      "home_bus_id": "bus.persistence",
+      "origin_bus_id": "bus.persistence",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-FILE-SETTINGS",
+      "node_id": "node.settings",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-SETTINGS-EVENTS",
+      "node_id": "node.settings",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-FLAG-SERVER-CONFIG",
+      "node_id": "node.settings",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-AUTH",
+      "node_id": "node.auth",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A1",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "authority"
+    },
+    {
+      "comm_id": "INV-T2-FILE-SECRETS",
+      "node_id": "node.auth",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A1",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "authority"
+    },
+    {
+      "comm_id": "INV-T2-FILE-ATTACHMENTS",
+      "node_id": "node.assets",
+      "home_bus_id": "bus.persistence",
+      "origin_bus_id": "bus.persistence",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-FILE-USAGE-CACHE",
+      "node_id": "node.usage",
+      "home_bus_id": "bus.persistence",
+      "origin_bus_id": "bus.persistence",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-DISCOVERY",
+      "node_id": "node.vcs",
+      "home_bus_id": "bus.vcs",
+      "origin_bus_id": "bus.vcs",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-VCS-EVENTS",
+      "node_id": "node.vcs",
+      "home_bus_id": "bus.vcs",
+      "origin_bus_id": "bus.vcs",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-FILE-WORKTREES",
+      "node_id": "node.vcs",
+      "home_bus_id": "bus.vcs",
+      "origin_bus_id": "bus.vcs",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-GIT",
+      "node_id": "node.vcs",
+      "home_bus_id": "bus.vcs",
+      "origin_bus_id": "bus.vcs",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-SC-GITHUB",
+      "node_id": "node.source-control",
+      "home_bus_id": "bus.vcs",
+      "origin_bus_id": "bus.vcs",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "endpoint": "GitHubCli",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-SC-GITLAB",
+      "node_id": "node.source-control",
+      "home_bus_id": "bus.vcs",
+      "origin_bus_id": "bus.vcs",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "endpoint": "GitLabCli",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-SC-ADO",
+      "node_id": "node.source-control",
+      "home_bus_id": "bus.vcs",
+      "origin_bus_id": "bus.vcs",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "endpoint": "AzureDevOpsCli",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-SC-BITBUCKET",
+      "node_id": "node.source-control",
+      "home_bus_id": "bus.vcs",
+      "origin_bus_id": "bus.vcs",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "endpoint": "BitbucketApi",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PREVIEW-AUTO",
+      "node_id": "node.preview",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A1",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "authority"
+    },
+    {
+      "comm_id": "INV-T2-PREVIEW-SCAN",
+      "node_id": "node.preview",
+      "home_bus_id": "bus.rpc",
+      "origin_bus_id": "bus.rpc",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-PROJECT-SETUP",
+      "node_id": "node.project",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-CONFIG",
+      "node_id": "node.lifecycle",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-LIFECYCLE-EVENTS",
+      "node_id": "node.lifecycle",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-EDITOR-LAUNCH",
+      "node_id": "node.lifecycle",
+      "home_bus_id": "bus.control",
+      "origin_bus_id": "bus.control",
+      "placementStatus": "placed",
+      "row_authority_class": "human",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "authority"
+    },
+    {
+      "comm_id": "INV-T2-RELAY-CLIENT",
+      "node_id": "node.relay",
+      "home_bus_id": "bus.network",
+      "origin_bus_id": "bus.network",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-RELAY-HTTP",
+      "node_id": "node.relay",
+      "home_bus_id": "bus.network",
+      "origin_bus_id": "bus.network",
+      "placementStatus": "placed",
+      "row_authority_class": "A1",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "authority"
+    },
+    {
+      "comm_id": "INV-T2-RELAY-AWARENESS",
+      "node_id": "node.relay",
+      "home_bus_id": "bus.network",
+      "origin_bus_id": "bus.network",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-TAILSCALE",
+      "node_id": "node.network",
+      "home_bus_id": "bus.network",
+      "origin_bus_id": "bus.network",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-NET-TCP",
+      "node_id": "node.network",
+      "home_bus_id": "bus.network",
+      "origin_bus_id": "bus.network",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-FLAG-CLOUDFLARED",
+      "node_id": "node.network",
+      "home_bus_id": "bus.network",
+      "origin_bus_id": "bus.network",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
+    },
+    {
+      "comm_id": "INV-T2-TEL-NDJSON",
+      "node_id": "node.t2-observer",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-TEL-T2-OTLP",
+      "node_id": "node.t2-observer",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-FILE-LOGS",
+      "node_id": "node.t2-observer",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-FLAG-T2-OTEL",
+      "node_id": "node.t2-observer",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-TEL-T3-TRACE",
+      "node_id": "node.t3-observer",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-TEL-T3-OTLP",
+      "node_id": "node.t3-observer",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-FLAG-T3-OTEL",
+      "node_id": "node.t3-observer",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-TEL-ANALYTICS",
+      "node_id": "node.analytics",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TEL",
+      "node_id": "node.resource-telemetry",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-RES-MONITOR",
+      "node_id": "node.resource-telemetry",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-TEL-DESKTOP-IN",
+      "node_id": "node.resource-telemetry",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-TEL-DESKTOP-CONTROL",
+      "node_id": "node.resource-telemetry",
+      "home_bus_id": "bus.observer",
+      "origin_bus_id": "bus.observer",
+      "placementStatus": "placed",
+      "row_authority_class": "observer",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "linked"
+    }
+  ]
+}

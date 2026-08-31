@@ -1,0 +1,261 @@
+{
+  "buses": [
+    {
+      "bus_id": "bus.rpc",
+      "steward": "t2-server-host",
+      "permanent": false
+    },
+    {
+      "bus_id": "bus.control",
+      "steward": "t2-server-host",
+      "permanent": false
+    },
+    {
+      "bus_id": "bus.provider",
+      "steward": "t2-server-host",
+      "permanent": false
+    },
+    {
+      "bus_id": "bus.persistence",
+      "steward": "t2-server-host",
+      "permanent": false
+    },
+    {
+      "bus_id": "bus.terminal",
+      "steward": "t2-server-host",
+      "permanent": false
+    },
+    {
+      "bus_id": "bus.observer",
+      "steward": "t2-server-host",
+      "permanent": false
+    },
+    {
+      "bus_id": "bus.network",
+      "steward": "t2-server-host",
+      "permanent": false
+    },
+    {
+      "bus_id": "bus.vcs",
+      "steward": "t2-server-host",
+      "permanent": false
+    }
+  ],
+  "nodeBusBindings": [
+    {
+      "node_id": "node.rpc",
+      "bus_id": "bus.rpc",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.mcp",
+      "bus_id": "bus.rpc",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.preview",
+      "bus_id": "bus.rpc",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.orchestration",
+      "bus_id": "bus.control",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.auth",
+      "bus_id": "bus.control",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.lifecycle",
+      "bus_id": "bus.control",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.settings",
+      "bus_id": "bus.control",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.project",
+      "bus_id": "bus.control",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.provider",
+      "bus_id": "bus.provider",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.provider.codex",
+      "bus_id": "bus.provider",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.provider.claude",
+      "bus_id": "bus.provider",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.provider.cursor",
+      "bus_id": "bus.provider",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.provider.grok",
+      "bus_id": "bus.provider",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.provider.opencode",
+      "bus_id": "bus.provider",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.persistence",
+      "bus_id": "bus.persistence",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.projection",
+      "bus_id": "bus.persistence",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.assets",
+      "bus_id": "bus.persistence",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.usage",
+      "bus_id": "bus.persistence",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.terminal",
+      "bus_id": "bus.terminal",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.t2-observer",
+      "bus_id": "bus.observer",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.t3-observer",
+      "bus_id": "bus.observer",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.analytics",
+      "bus_id": "bus.observer",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.resource-telemetry",
+      "bus_id": "bus.observer",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.network",
+      "bus_id": "bus.network",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.relay",
+      "bus_id": "bus.network",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.vcs",
+      "bus_id": "bus.vcs",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.source-control",
+      "bus_id": "bus.vcs",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.provider.codex",
+      "bus_id": "bus.provider",
+      "relationship": "permissioned-child"
+    },
+    {
+      "node_id": "node.provider.claude",
+      "bus_id": "bus.provider",
+      "relationship": "permissioned-child"
+    },
+    {
+      "node_id": "node.provider.cursor",
+      "bus_id": "bus.provider",
+      "relationship": "permissioned-child"
+    },
+    {
+      "node_id": "node.provider.grok",
+      "bus_id": "bus.provider",
+      "relationship": "permissioned-child"
+    },
+    {
+      "node_id": "node.provider.opencode",
+      "bus_id": "bus.provider",
+      "relationship": "permissioned-child"
+    },
+    {
+      "node_id": "node.rpc",
+      "bus_id": "bus.rpc",
+      "relationship": "authority"
+    },
+    {
+      "node_id": "node.mcp",
+      "bus_id": "bus.rpc",
+      "relationship": "authority"
+    },
+    {
+      "node_id": "node.auth",
+      "bus_id": "bus.control",
+      "relationship": "authority"
+    },
+    {
+      "node_id": "node.provider",
+      "bus_id": "bus.provider",
+      "relationship": "authority"
+    },
+    {
+      "node_id": "node.preview",
+      "bus_id": "bus.rpc",
+      "relationship": "authority"
+    },
+    {
+      "node_id": "node.relay",
+      "bus_id": "bus.network",
+      "relationship": "authority"
+    },
+    {
+      "node_id": "node.lifecycle",
+      "bus_id": "bus.control",
+      "relationship": "authority"
+    },
+    {
+      "node_id": "node.t2-observer",
+      "bus_id": "bus.observer",
+      "relationship": "linked"
+    },
+    {
+      "node_id": "node.t3-observer",
+      "bus_id": "bus.observer",
+      "relationship": "linked"
+    },
+    {
+      "node_id": "node.analytics",
+      "bus_id": "bus.observer",
+      "relationship": "linked"
+    },
+    {
+      "node_id": "node.resource-telemetry",
+      "bus_id": "bus.observer",
+      "relationship": "linked"
+    }
+  ]
+}

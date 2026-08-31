@@ -1,0 +1,518 @@
+{
+  "schemaVersion": 1,
+  "gate": "G1A",
+  "frozenAt": "2026-08-24",
+  "note": "Authoritative frozen retained-result registry. G1B coverage IDs must equal this set.",
+  "results": [
+    {
+      "id": "G1A-LOAD-CONTRACTS",
+      "mechanismClass": "rpc-service-interfaces",
+      "evidenceRef": "docs/scm/g1a/evidence.md#loaded-workspace-communication-host-boundary-correction",
+      "quote": "Published RPC/HTTP schemas consumed by `ws.ts` / `http.ts`"
+    },
+    {
+      "id": "G1A-LOAD-RELAY-CLIENT",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#loaded-workspace-communication-host-boundary-correction",
+      "quote": "HTTP download of cloudflared; `ChildProcessSpawner` for the binary; `T3CODE_CLOUDFLARED_PATH`"
+    },
+    {
+      "id": "G1A-LOAD-NET",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#loaded-workspace-communication-host-boundary-correction",
+      "quote": "TCP/port scan used by `server.ts`, `opencodeRuntime.ts`, `preview/PortScanner.ts`"
+    },
+    {
+      "id": "G1A-LOAD-SHARED-HELPERS",
+      "mechanismClass": "rpc-service-interfaces",
+      "evidenceRef": "docs/scm/g1a/evidence.md#loaded-workspace-communication-host-boundary-correction",
+      "quote": "git URL/label helpers, schema JSON, host-process labels: internal computation, not extra transports"
+    },
+    {
+      "id": "G1A-LOAD-TAILSCALE",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#loaded-workspace-communication-host-boundary-correction",
+      "quote": "`ensureTailscaleServe` / `disableTailscaleServe` from `server.ts`"
+    },
+    {
+      "id": "G1A-LOAD-ACP",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#loaded-workspace-communication-host-boundary-correction",
+      "quote": "ACP JSON-RPC over stdio for Cursor and Grok (`AcpSessionRuntime.ts`)"
+    },
+    {
+      "id": "G1A-LOAD-CODEX-APP-SERVER",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#loaded-workspace-communication-host-boundary-correction",
+      "quote": "Codex app-server JSON-RPC over stdio (`CodexSessionRuntime.ts`)"
+    },
+    {
+      "id": "G1A-LOAD-WEB",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#loaded-workspace-communication-host-boundary-correction",
+      "quote": "No `apps/server/src` import. Vite build-order only."
+    },
+    {
+      "id": "G1A-PEER-CLIENT",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#loaded-workspace-communication-host-boundary-correction",
+      "quote": "Peer client trees remain EX-CLIENT-RUNTIME"
+    },
+    {
+      "id": "G1A-DRV-CODEX",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#provider--runtime-variants-static",
+      "quote": "`effect-codex-app-server` `app-server` stdio; `T3CODE_CODEX_LAUNCH_ARGS`; `CodexTextGeneration` CLI/`codex exec`"
+    },
+    {
+      "id": "G1A-DRV-CLAUDE",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#provider--runtime-variants-static",
+      "quote": "`@anthropic-ai/claude-agent-sdk` `query()` in `ClaudeAdapter.ts`"
+    },
+    {
+      "id": "G1A-DRV-CURSOR",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#provider--runtime-variants-static",
+      "quote": "ACP stdio (`agent acp`) via `effect-acp`"
+    },
+    {
+      "id": "G1A-DRV-GROK",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#provider--runtime-variants-static",
+      "quote": "ACP stdio (`grok agent stdio`) via `effect-acp`"
+    },
+    {
+      "id": "G1A-DRV-OPENCODE",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#provider--runtime-variants-static",
+      "quote": "`opencodeRuntime.ts` spawn + `NetService`; `@opencode-ai/sdk`"
+    },
+    {
+      "id": "G1A-NO-LIVE-ADMISSION",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md#proposed-otel-path-names",
+      "quote": "Tests only: `T2Observability.test.ts` uses `\"t2.admission\"`."
+    },
+    {
+      "id": "G1A-NO-LIVE-EVIDENCE",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md#proposed-otel-path-names",
+      "quote": "No production server symbol found that performs T2 evidence evaluation as a cross-component communication."
+    },
+    {
+      "id": "G1A-NO-LIVE-AUTHORITY",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md#proposed-otel-path-names",
+      "quote": "No production server symbol found for T2 authority evaluation as communication."
+    },
+    {
+      "id": "G1A-CLI-STE",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/exclusions.md",
+      "quote": "`scripts/asd-ste100/**`"
+    },
+    {
+      "id": "G1A-CLI-REGISTRY",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/exclusions.md",
+      "quote": "`scripts/work-registry/**`"
+    },
+    {
+      "id": "G1A-PROJECT-LIVE",
+      "mechanismClass": "rpc-service-interfaces",
+      "evidenceRef": "docs/scm/g1a/evidence.md#proposed-otel-path-names",
+      "quote": "`OrchestrationProjectionPipeline` and `ProjectionSnapshotQuery` used from `OrchestrationEngine.ts`"
+    },
+    {
+      "id": "G1A-RPC-WS",
+      "mechanismClass": "rpc-service-interfaces",
+      "evidenceRef": "docs/scm/g1a/evidence.md#1-rpc-service-interfaces",
+      "quote": "WebSocket RPC group `WsRpcGroup` in `apps/server/src/ws.ts`"
+    },
+    {
+      "id": "G1A-RPC-CATALOG-WRAP",
+      "mechanismClass": "rpc-service-interfaces",
+      "evidenceRef": "docs/scm/g1a/evidence.md#1-rpc-service-interfaces",
+      "quote": "`apps/server/src/observability/RpcInstrumentation.ts` uses `withCatalogBridge(\"rpc\")`"
+    },
+    {
+      "id": "G1A-HTTP-ENV",
+      "mechanismClass": "rpc-service-interfaces",
+      "evidenceRef": "docs/scm/g1a/evidence.md#1-rpc-service-interfaces",
+      "quote": "HTTP API `EnvironmentHttpApi` groups: `metadata`, `auth`, `orchestration`, `pullRequests`, `connect`."
+    },
+    {
+      "id": "G1A-PROJECT-RPC",
+      "mechanismClass": "rpc-service-interfaces",
+      "evidenceRef": "docs/scm/g1a/evidence.md#1-rpc-service-interfaces",
+      "quote": "Projection snapshot reads over RPC/HTTP via `ProjectionSnapshotQuery`"
+    },
+    {
+      "id": "G1A-CATALOG-REGISTRY",
+      "mechanismClass": "rpc-service-interfaces",
+      "evidenceRef": "docs/scm/g1a/evidence.md#1-rpc-service-interfaces",
+      "quote": "`T2_CATALOG_BOUNDARIES` = `rpc`, `orchestration`, `provider-turn`, `git`, `sqlite`, `terminal`."
+    },
+    {
+      "id": "G1A-RPC-STREAMS",
+      "mechanismClass": "streams",
+      "evidenceRef": "docs/scm/g1a/evidence.md#2-streams",
+      "quote": "RPC streams: `subscribeVcsStatus`, `subscribeTerminalEvents`"
+    },
+    {
+      "id": "G1A-TERM-STREAM",
+      "mechanismClass": "streams",
+      "evidenceRef": "docs/scm/g1a/evidence.md#2-streams",
+      "quote": "Terminal PTY data stream (`terminal/Manager.ts` `onData`)."
+    },
+    {
+      "id": "G1A-ORCH-LIVE",
+      "mechanismClass": "streams",
+      "evidenceRef": "docs/scm/g1a/evidence.md#2-streams",
+      "quote": "Orchestration live buffers in `ws.ts` (`Queue` + `Stream` for thread/shell live items)."
+    },
+    {
+      "id": "G1A-PROVIDER-STREAMS",
+      "mechanismClass": "streams",
+      "evidenceRef": "docs/scm/g1a/evidence.md#2-streams",
+      "quote": "Provider session event streams: Codex app-server, Claude SDK query stream, Cursor/Grok ACP session events."
+    },
+    {
+      "id": "G1A-STREAM-WRAP",
+      "mechanismClass": "streams",
+      "evidenceRef": "docs/scm/g1a/evidence.md#2-streams",
+      "quote": "`withCatalogBridgeStream(\"rpc\")` for traced RPC streams."
+    },
+    {
+      "id": "G1A-ORCH-QUEUE",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`OrchestrationEngine` command `Queue` and event `PubSub`"
+    },
+    {
+      "id": "G1A-PROJECT-QUEUE",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`OrchestrationProjectionPipeline` (projection work queued from engine events)."
+    },
+    {
+      "id": "G1A-PROVIDER-EVENTS",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`ProviderService` runtime event `PubSub`."
+    },
+    {
+      "id": "G1A-VCS-EVENTS",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`VcsStatusBroadcaster` changes `PubSub`."
+    },
+    {
+      "id": "G1A-SETTINGS-EVENTS",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`serverSettings` changes `PubSub`."
+    },
+    {
+      "id": "G1A-LIFECYCLE-EVENTS",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`serverLifecycleEvents` `PubSub`."
+    },
+    {
+      "id": "G1A-PROVIDER-LIST-EVENTS",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`ProviderRegistry` provider-list `PubSub`."
+    },
+    {
+      "id": "G1A-MANAGED-PROVIDER-PUBSUB",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`makeManagedServerProvider` provider `PubSub`."
+    },
+    {
+      "id": "G1A-WS-LIVE-QUEUE",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`ws.ts` live buffers (`Queue.unbounded`) bridging streams to RPC."
+    },
+    {
+      "id": "G1A-RECEIPT-BUS",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "`RuntimeReceiptBusLive` is a **no-op** publisher"
+    },
+    {
+      "id": "G1A-NO-REDIS-KAFKA",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/evidence.md#3-queues",
+      "quote": "No Redis or Kafka in `apps/server`."
+    },
+    {
+      "id": "G1A-HHPE-KAFKA",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/exclusions.md",
+      "quote": "EX-HHPE-KAFKA"
+    },
+    {
+      "id": "G1A-TERM-CB",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md#4-callbacks",
+      "quote": "`terminalManager.subscribe` / `subscribeMetadata` / `attachStream` from `ws.ts`."
+    },
+    {
+      "id": "G1A-PTY-CB",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md#4-callbacks",
+      "quote": "PTY `onData` / `onExit` in `terminal/Manager.ts`."
+    },
+    {
+      "id": "G1A-PROVIDER-PERM",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md#4-callbacks",
+      "quote": "Provider permission/approval callbacks (ACP `session/request_permission`, Claude SDK callbacks, Codex app-server callbacks)."
+    },
+    {
+      "id": "G1A-PREVIEW-AUTO",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md#4-callbacks",
+      "quote": "`PreviewAutomationBroker` request/response (preview automation RPC)."
+    },
+    {
+      "id": "G1A-SUBSCRIBE-BEFORE-SNAPSHOT",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md#4-callbacks",
+      "quote": "`subscribeBeforeSnapshot` helper over PubSub (`utils/subscribeBeforeSnapshot.ts`)."
+    },
+    {
+      "id": "G1A-OWNED-SPAN-NONE",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md#4-callbacks",
+      "quote": "Production call sites: none found. Tests use `\"t2.admission\"`."
+    },
+    {
+      "id": "G1A-SQLITE",
+      "mechanismClass": "persistence",
+      "evidenceRef": "docs/scm/g1a/evidence.md#5-persistence",
+      "quote": "SQLite via `persistence/Layers/Sqlite.ts` / `NodeSqliteClient.ts`."
+    },
+    {
+      "id": "G1A-PROJECT-SQL",
+      "mechanismClass": "persistence",
+      "evidenceRef": "docs/scm/g1a/evidence.md#5-persistence",
+      "quote": "Projection SQL services consumed by `ProjectionSnapshotQuery.ts`."
+    },
+    {
+      "id": "G1A-DERIVED-FILES",
+      "mechanismClass": "persistence",
+      "evidenceRef": "docs/scm/g1a/evidence.md#5-persistence",
+      "quote": "Derived files: `stateDir`, `dbPath`, `keybindingsConfigPath`, `settingsPath`, `providerStatusCacheDir`, `worktreesDir`, `attachmentsDir`, `logsDir`, `serverLogPath`, `serverTracePath`, `providerLogsDir`, `providerEventLogPath`, `terminalLogsDir`, `anonymousIdPath`, `environmentIdPath`, `serverRuntimeStatePath`, `secretsDir`."
+    },
+    {
+      "id": "G1A-T2-NDJSON",
+      "mechanismClass": "persistence",
+      "evidenceRef": "docs/scm/g1a/evidence.md#5-persistence",
+      "quote": "T2 observer file `t2.trace.ndjson`"
+    },
+    {
+      "id": "G1A-CHECKPOINTS",
+      "mechanismClass": "persistence",
+      "evidenceRef": "docs/scm/g1a/evidence.md#5-persistence",
+      "quote": "Checkpoint store (`checkpointing/CheckpointStore.ts`)."
+    },
+    {
+      "id": "G1A-PROVIDER-SESSION-DIR",
+      "mechanismClass": "persistence",
+      "evidenceRef": "docs/scm/g1a/evidence.md#5-persistence",
+      "quote": "Provider session directory / runtime persistence (varies by driver)."
+    },
+    {
+      "id": "G1A-FLAG-T2",
+      "mechanismClass": "process-flags",
+      "evidenceRef": "docs/scm/g1a/evidence.md#6-process-flags",
+      "quote": "`T2CODE_TRACE_FILE`, `T2CODE_OTLP_TRACES_URL`, `T2CODE_OTLP_SERVICE_NAME` (T2 observer)."
+    },
+    {
+      "id": "G1A-FLAG-T3",
+      "mechanismClass": "process-flags",
+      "evidenceRef": "docs/scm/g1a/evidence.md#6-process-flags",
+      "quote": "`T3CODE_OTLP_*`, `T3CODE_POSTHOG_*`, `T3CODE_TELEMETRY_*` (T3 observer / analytics)."
+    },
+    {
+      "id": "G1A-FLAG-SERVER-CONFIG",
+      "mechanismClass": "process-flags",
+      "evidenceRef": "docs/scm/g1a/evidence.md#6-process-flags",
+      "quote": "`ServerConfig.mode` (`web`/`desktop`), `startupPresentation`, `noBrowser`, `tailscaleServeEnabled`"
+    },
+    {
+      "id": "G1A-FLAG-CODEX",
+      "mechanismClass": "process-flags",
+      "evidenceRef": "docs/scm/g1a/evidence.md#6-process-flags",
+      "quote": "`T3CODE_CODEX_LAUNCH_ARGS`; `T3CODE_CLOUDFLARED_PATH`."
+    },
+    {
+      "id": "G1A-FLAG-TERM-ENV",
+      "mechanismClass": "process-flags",
+      "evidenceRef": "docs/scm/g1a/evidence.md#6-process-flags",
+      "quote": "Terminal env keys starting `T3CODE_` forwarded in `terminal/Manager.ts`"
+    },
+    {
+      "id": "G1A-SUB-TERM",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "`terminal/Manager.ts` via `PtyAdapter` / `ProcessRunner`."
+    },
+    {
+      "id": "G1A-SUB-GIT",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "`vcs/GitVcsDriverCore.ts` git spawn"
+    },
+    {
+      "id": "G1A-SUB-VCS-PROCESS",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "`vcs/VcsProcess.ts` + `ProcessRunner`."
+    },
+    {
+      "id": "G1A-SUB-PROVIDERS",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "Codex app-server / `codex exec`; Claude CLI probe + Agent SDK child; Cursor `agent acp`; Grok `grok agent stdio`; OpenCode runtime spawn."
+    },
+    {
+      "id": "G1A-SUB-SC-CLIS",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "Source-control CLIs: `GitHubCli`, `GitLabCli`, `AzureDevOpsCli` (ChildProcess spawn)."
+    },
+    {
+      "id": "G1A-SUB-PORTSCAN",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "`preview/PortScanner.ts` via `ProcessRunner`."
+    },
+    {
+      "id": "G1A-SUB-SETUP",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "`project/ProjectSetupScriptRunner.ts`."
+    },
+    {
+      "id": "G1A-SUB-TAILSCALE",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "`@t3tools/tailscale` `ensureTailscaleServe` / `disableTailscaleServe`."
+    },
+    {
+      "id": "G1A-SUB-CLOUDFLARED",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "`@t3tools/shared/relayClient` cloudflared spawn."
+    },
+    {
+      "id": "G1A-SUB-RES-MONITOR",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "`resourceTelemetry/ResourceMonitorBinary.ts`."
+    },
+    {
+      "id": "G1A-SUB-EDITOR",
+      "mechanismClass": "subprocess",
+      "evidenceRef": "docs/scm/g1a/evidence.md#7-subprocess",
+      "quote": "`process/externalLauncher.ts` (editor launch)."
+    },
+    {
+      "id": "G1A-EXT-HTTP-SERVE",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "WebSocket RPC (`ws.ts`) and HTTP `HttpRouter.serve` (`server.ts`)."
+    },
+    {
+      "id": "G1A-EXT-STATIC",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "Static `staticDir` file serving (built web assets)."
+    },
+    {
+      "id": "G1A-EXT-MCP",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "`apps/server/src/mcp/McpHttpServer.ts` (MCP HTTP; not in `T2_CATALOG_BOUNDARIES`; no `withCatalogBridge` in that file)."
+    },
+    {
+      "id": "G1A-EXT-RELAY",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "`cloud/http.ts`, `relay/AgentAwarenessRelay.ts`, `@t3tools/shared/relayClient` HTTP"
+    },
+    {
+      "id": "G1A-EXT-OTLP",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "T3 OTLP and T2 OTLP (`ObservabilityLive`, `T2ObservabilityLive`)."
+    },
+    {
+      "id": "G1A-EXT-ANALYTICS",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "Analytics (`telemetry/AnalyticsService.ts`)."
+    },
+    {
+      "id": "G1A-EXT-DESKTOP-FD",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "`resourceTelemetry/DesktopTelemetryReceiver.ts`, `NativeTelemetryClient.ts`"
+    },
+    {
+      "id": "G1A-EXT-PREVIEW-HTTP",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "MCP preview automation over HTTP (`PreviewAutomationBroker`)."
+    },
+    {
+      "id": "G1A-EXT-BITBUCKET",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "`BitbucketApi` (`apps/server/src/sourceControl/BitbucketApi.ts`): Effect `HttpClient` against Bitbucket HTTP API"
+    },
+    {
+      "id": "G1A-EXT-NET",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "`@t3tools/shared/Net` TCP used by OpenCode runtime and port scan."
+    },
+    {
+      "id": "G1A-EXT-TAILSCALE-BIND",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "Tailscale serve as a host/network binding (with subprocess above)."
+    },
+    {
+      "id": "G1A-EXT-PROVIDER-HTTPS",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/evidence.md#8-external-transport",
+      "quote": "Provider HTTPS to model vendors is SDK/CLI I/O under the matching driver variant (catalog `provider-turn` on `ProviderService.sendTurn`)."
+    },
+    {
+      "id": "G1A-EX-RELAY-DEPLOY",
+      "mechanismClass": "external-transport",
+      "evidenceRef": "docs/scm/g1a/exclusions.md",
+      "quote": "`infra/relay` process"
+    },
+    {
+      "id": "G1A-EX-TEST-PUBSUB",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/exclusions.md",
+      "quote": "`PubSub` / `Queue` constructed only in `*.test.ts`"
+    },
+    {
+      "id": "G1A-EX-HHPE-REDIS",
+      "mechanismClass": "queues",
+      "evidenceRef": "docs/scm/g1a/exclusions.md",
+      "quote": "Redis and B0/Kafka are empty canonical HHPE seeds. No live T2-host equivalent was found."
+    }
+  ]
+}

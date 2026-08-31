@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "gate": "G1B",
+  "frozenAt": "2026-08-24",
+  "status": "g1-closed",
+  "g1Closed": true,
+  "g3Authorized": false,
+  "g4toG7Authorized": false,
+  "doesNotClaim": "every live communication has an inventory row",
+  "plan": "docs/plans/2026-08-23-002-feat-scm-dod-gates-plan.md",
+  "g1aRef": "docs/scm/g1a/completeness-manifest.json",
+  "inventoryRef": "docs/scm/g1b/inventory.json",
+  "coverageRef": "docs/scm/g1b/coverage.json",
+  "aggregationRef": "docs/scm/g1b/aggregation.md",
+  "negativeControlPathId": "NC-MCP-HTTP",
+  "a7": {
+    "g1aApprovalIdentity": "codex-independent-review",
+    "g1ExitReview": "approved",
+    "identity": "codex-independent-review",
+    "note": "Final narrow Codex review approved G1 exit after closure-tuple, RPC-stream split, structured aggregation, and derived-file mapping corrections. G1 closure does not authorize G3 or G4-G7. Non-human review is not human-operator attestation."
+  }
+}

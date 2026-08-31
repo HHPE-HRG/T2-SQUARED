@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "gate": "G5",
+  "status": "completed",
+  "authorized": true,
+  "completed": true,
+  "doesNotAuthorizeLaterGates": true,
+  "g6toG10Authorized": false,
+  "plan": "docs/plans/2026-08-23-002-feat-scm-dod-gates-plan.md",
+  "authorization": {
+    "identity": "human-operator",
+    "scope": "g4-g5-vertical-slice",
+    "note": "Human authorized constrained G4/G5 vertical slice on 2026-08-29. G2/G3 g4toG7Authorized stays false. Not G6-G10. Not human A7 attestation."
+  },
+  "review": {
+    "status": "approved",
+    "identity": "codex-independent-review",
+    "independentOfImplementationAuthor": true,
+    "reviewedArtifactHash": "ece681b9b58b8433297e1890566cc9cd6c4d438ec34f971a351cc5177f7f2e1e",
+    "note": "Independent G4/G5 completion review: T+1 visibility, unsatisfied repeat, option-2 word_id publish/receive observe, observer-not-admit, artifact-bound review hash. Not human A7 attestation. Does not authorize G6-G10."
+  }
+}
