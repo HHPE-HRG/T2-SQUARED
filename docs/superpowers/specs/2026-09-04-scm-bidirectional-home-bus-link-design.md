@@ -65,7 +65,7 @@ Requirements:
 - Only registered, locally originated W1 words are eligible.
 - Invalid W1 words fail before destination write.
 - Imported words are never forwarded again.
-- Duplicate `word_id` on one route is forwarded at most once.
+- One publication instance, identified by route, origin timestep, and `word_id`, is forwarded at most once. A lawful cyclic repeat with the same content hash on a later origin timestep is forwarded again.
 - Disabled route forwards nothing.
 - Route failure does not alter source-bus state.
 
@@ -80,7 +80,6 @@ state_age
 request_age
 origin node identity
 origin bus identity
-source authority class
 word_id
 origin timestep
 ```
@@ -95,14 +94,15 @@ bridge_hop
 forwarded_at_timestep
 ```
 
-The destination copy must not replace original `node_id` or origin bus identity with bridge identity. A bridge contributes no authority. Traveling through an authority-named bus cannot upgrade a word's authority.
+The destination copy must not replace original `node_id` or origin bus identity with bridge identity. W1 does not carry an `authority_class` field; later authority evaluation continues to derive source classification from preserved governed node/bus identity. A bridge contributes no authority. Traveling through an authority-named bus cannot upgrade a word's authority.
 
 ## Storage and collision rules
 
 - Local bus storage remains keyed by full origin node identity.
 - A remote word cannot overwrite a destination-local node's word.
 - Last-write-wins applies only to repeated writes from the same origin node in the same fundamental timestep.
-- Repeated delivery of the same `word_id` on the same route is ignored.
+- Repeated delivery of the same route, origin-timestep, and `word_id` tuple is ignored.
+- Reuse of the same content-derived `word_id` on a later fundamental timestep is a lawful cyclic publication, not a duplicate.
 - Different origins remain distinct even when W1 content is equal.
 - Cross-node semantic equality remains unresolved; this design does not invent it.
 
@@ -145,7 +145,7 @@ Therefore:
 - A-to-B must reject that imported B-origin word.
 - Forward count remains bounded by eligible local-origin publications.
 
-Route provenance includes `route_id` and `bridge_hop: 1`. Multi-hop route paths and hop counts greater than one are excluded from this slice.
+Route provenance includes `route_id`, `origin_timestep`, and `bridge_hop: 1`. The delivery-instance key is `route_id + origin_bus_id + origin_node_id + origin_timestep + word_id`. Multi-hop route paths and hop counts greater than one are excluded from this slice.
 
 ## Dissemination and receive policy
 
@@ -161,7 +161,7 @@ This prototype has no DIP mute behavior. All route-eligible words are forwarded.
 - Missing destination bus: record route failure; do not ACK or retry.
 - Duplicate route delivery: ignore duplicate; do not emit another destination publish.
 - Telemetry failure: must not retract a completed destination write.
-- One route failure: reverse route and unrelated local publishers continue.
+- One route input failure: record the rejected route/node input; reverse route and unrelated eligible inputs continue.
 - Clock stop: no later phase or extra timestep runs.
 - Reentrant advance: reject or serialize according to existing clock contract; never overlap phases.
 
@@ -174,11 +174,9 @@ Use the shipped isolated T2 provider.
 Required observations:
 
 ```text
-t2.scm.publish          source-bus publication
-t2.scm.receive          source endpoint reads visible word
-t2.scm.bridge.forward   route forwards source to destination
-t2.scm.publish          destination-bus publication
-t2.scm.receive          destination node reads visible word
+t2.scm.publish          source-node publication
+t2.scm.bridge.forward   route reads source and writes destination
+t2.scm.receive          destination-node receive
 ```
 
 Bridge-forward attributes:
@@ -195,7 +193,7 @@ t2.scm.origin_timestep
 t2.scm.forwarded_at_timestep
 ```
 
-Publish and receive observations retain existing G5 attributes. `word_id` correlates the path. No receive `SpanLink` is introduced. No global tracer provider or T3 trace payload is used.
+Publish and receive observations retain existing G5 attributes. `word_id` correlates the three observations. The bridge write is infrastructure forwarding, not a second node-authored `t2.scm.publish`. No receive `SpanLink` is introduced. No global tracer provider or T3 trace payload is used.
 
 ## Minimal components
 
@@ -223,7 +221,7 @@ Do not introduce dependency, generalized graph router, dynamic registry, persist
 ### Identity
 
 - Forwarded W1 content is unchanged.
-- `word_id`, origin node, origin bus, authority, and origin timestep are preserved.
+- `word_id`, origin node, origin bus, and origin timestep are preserved; no authority field is invented or elevated.
 - Route metadata identifies direction without replacing origin.
 - Remote origin cannot overwrite a local destination origin.
 
@@ -232,7 +230,8 @@ Do not introduce dependency, generalized graph router, dynamic registry, persist
 - A-origin word is not returned by B-to-A.
 - B-origin word is not returned by A-to-B.
 - Imported word is never re-forwarded.
-- Duplicate `word_id` on one route does not create duplicate destination publication.
+- Duplicate delivery of one route/origin-timestep/`word_id` tuple does not create duplicate destination publication.
+- Identical W1 content published on consecutive timesteps crosses once per timestep.
 - Repeated timesteps do not cause unbounded publish growth.
 
 ### Admission and failure
