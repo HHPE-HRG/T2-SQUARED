@@ -13,11 +13,11 @@
   "g1InventoryRef": "docs/scm/g1b/inventory.json",
   "g1Inputs": {
     "inventoryPath": "docs/scm/g1b/inventory.json",
-    "inventorySha256": "7af3228176474b925c4d0fc11ba62632f1f8b9e76539af4c6fd35b46a840d2bd",
+    "inventorySha256": "c4cd741c95a841443fdb8dcd8a7551a71a656185d70e2bfcc27195ab18b745c8",
     "g1bManifestPath": "docs/scm/g1b/manifest.json",
     "g1bManifestSha256": "d2f79ebe4d574db95c6edba9f421502181272480761546c14dde643932aaf494",
     "g1aDir": "docs/scm/g1a",
-    "g1aFilesSha256": "ce7591ba1e7c909544e291f7947614fe63381258f60e757292bf38add8fec444"
+    "g1aFilesSha256": "1784c5874ec7c001efe0e72c426c1c55b7adf01cdd35413c670e9d92818e763c"
   },
   "authorization": {
     "identity": "human-operator",
@@ -28,7 +28,7 @@
     "status": "approved",
     "identity": "codex-independent-review",
     "independentOfImplementationAuthor": true,
-    "reviewedArtifactHash": "b820456f26284b2f586bf3a7a6b75476f5e7d946302610f5e61347159c00cebd",
+    "reviewedArtifactHash": "c92e5526730496fd61731181a6c1b731d2980babfd18dfccfab207274cfb00b6",
     "note": "Human-authorized narrow completion review after live_g1_comm_ids member validation, artifact-bound review hash, closed node placement, and remaining shape-throw guards. Not human A7 attestation. Does not authorize G4-G7."
   }
 }
