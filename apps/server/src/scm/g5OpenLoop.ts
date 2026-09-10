@@ -4,9 +4,9 @@
  * One word per active node per fundamental timestep. Write at T is
  * readable at T+1. No delivery ACK. Not DIP, halt, clocks, or live fabric.
  */
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import * as NodeCrypto from "node:crypto";
+import * as NodeFS from "node:fs";
+import * as NodePath from "node:path";
 
 import type { Attributes } from "@opentelemetry/api";
 import * as Effect from "effect/Effect";
@@ -109,8 +109,25 @@ export class InProcessOpenLoopBus {
   }
 }
 
-const wordId = (word: W1Word): string =>
-  createHash("sha256")
+/**
+ * Content-derived W1 correlation identity.
+ *
+ * Parameters
+ * ----------
+ * word : W1Word
+ *     Word whose governed fields feed the digest.
+ *
+ * Returns
+ * -------
+ * string
+ *     SHA-256 hex used by G5 spans and later bridge correlation.
+ *
+ * Example
+ * -------
+ * const id = w1WordId(word);
+ */
+export const w1WordId = (word: W1Word): string =>
+  NodeCrypto.createHash("sha256")
     .update(
       [
         word.bus_id,
@@ -128,7 +145,7 @@ const canAttributes = (word: W1Word): Attributes => ({
   "t2.scm.node_id": word.node_id,
   "t2.scm.fundamental_request": word.fundamental_request,
   "t2.scm.request_age": word.request_age,
-  "t2.scm.word_id": wordId(word),
+  "t2.scm.word_id": w1WordId(word),
 });
 
 /**
@@ -274,7 +291,7 @@ const manifestForHash = (manifest: G5Manifest): unknown => {
  * const digest = computeG5ReviewedArtifactHash(loadG5Package(repoRoot));
  */
 export const computeG5ReviewedArtifactHash = (pkg: G5Package): string =>
-  createHash("sha256")
+  NodeCrypto.createHash("sha256")
     .update(canonicalJson(manifestForHash(pkg.manifest)))
     .digest("hex");
 
@@ -311,7 +328,7 @@ const legalManifestTuple = (manifest: G5Manifest): boolean => {
 export const loadG5Package = (repoRoot: string): G5Package => ({
   repoRoot,
   manifest: JSON.parse(
-    readFileSync(join(repoRoot, "docs/scm/g5/manifest.json"), "utf8"),
+    NodeFS.readFileSync(NodePath.join(repoRoot, "docs/scm/g5/manifest.json"), "utf8"),
   ) as G5Manifest,
 });
 

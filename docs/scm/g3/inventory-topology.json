@@ -733,6 +733,16 @@
       "row_authority_class": "observer",
       "origin_relationship": "home",
       "intended_bus_relationship": "linked"
+    },
+    {
+      "comm_id": "INV-T2-SCM-HOME-BUS-LINK",
+      "node_id": "node.scm.home-a",
+      "home_bus_id": "bus.scm.a",
+      "origin_bus_id": "bus.scm.a",
+      "placementStatus": "placed",
+      "row_authority_class": "A2",
+      "origin_relationship": "home",
+      "intended_bus_relationship": "home"
     }
   ]
 }

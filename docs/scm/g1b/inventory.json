@@ -1183,6 +1183,26 @@
       "home_or_authority": "unknown",
       "mechanism_classes": ["external-transport"],
       "symbols": ["packages/shared/src/Net.ts"]
+    },
+    {
+      "comm_id": "INV-T2-SCM-HOME-BUS-LINK",
+      "source_system": "t2-scm",
+      "name": "Bidirectional in-process SCM home-bus link prototype",
+      "owner": "t2-server-host",
+      "sender": "node.scm.home-a local-origin W1 publish",
+      "receiver": "node.scm.home-b destination bus via BidirectionalHomeBusLink",
+      "transport_boundary": "in-process inverse home-bus routes under SharedFundamentalClock",
+      "authority_class": "A2",
+      "equality_object": "unspecified",
+      "home_or_authority": "unknown",
+      "notes": "Bounded prototype under docs/scm/home-bus-link. Does not complete G6/G8, claim live cutover, DIP, halt, codec, or physical transport. Bridge coordinator is infrastructure, not a node. Reverse B\u2192A path is the inverse route on the same link.",
+      "mechanism_classes": ["callbacks", "queues"],
+      "symbols": [
+        "apps/server/src/scm/g6HomeBusLink.ts",
+        "apps/server/src/scm/g8SharedClock.ts",
+        "apps/server/src/scm/g5OpenLoop.ts",
+        "docs/scm/home-bus-link/README.md"
+      ]
     }
   ]
 }

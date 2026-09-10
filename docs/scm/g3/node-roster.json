@@ -163,6 +163,18 @@
       "placementStatus": "placed"
     },
     {
+      "node_id": "node.scm.home-a",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
+      "node_id": "node.scm.home-b",
+      "halt_initiator": "open",
+      "baseline_authority": "A2",
+      "placementStatus": "placed"
+    },
+    {
       "node_id": "node.observer.404",
       "halt_initiator": "no",
       "baseline_authority": "observer",

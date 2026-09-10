@@ -4,10 +4,10 @@
  * Two nodes, one in-process bus, unsatisfied repetition without
  * request_age bump. OTEL observes. No ACK. No G6 DIP.
  */
-import { mkdtempSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+import * as NodeURL from "node:url";
 
 import { assert, describe, it } from "@effect/vitest";
 import { trace } from "@opentelemetry/api";
@@ -24,10 +24,15 @@ import {
   loadG5Package,
   observePublish,
   observeReceive,
+  w1WordId,
 } from "./g5OpenLoop.ts";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const makeFilePath = (): string => join(mkdtempSync(join(tmpdir(), "t2-scm-")), "t2.trace.ndjson");
+const repoRoot = NodePath.join(
+  NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)),
+  "../../../..",
+);
+const makeFilePath = (): string =>
+  NodePath.join(NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t2-scm-")), "t2.trace.ndjson");
 
 const word = (node_id: string, request: string, request_age: number) => {
   const result = checkW1Word({
@@ -47,6 +52,16 @@ const word = (node_id: string, request: string, request_age: number) => {
 };
 
 describe("G5 open-loop publish", () => {
+  it("exports stable content-derived word correlation identity", () => {
+    const first = word("node.a", "need-b", 0);
+    const same = word("node.a", "need-b", 0);
+    const changed = word("node.a", "need-b", 1);
+
+    assert.equal(w1WordId(first), w1WordId(same));
+    assert.notEqual(w1WordId(first), w1WordId(changed));
+    assert.match(w1WordId(first), /^[a-f0-9]{64}$/);
+  });
+
   it("rejects delivery ACK and retry APIs", () => {
     const bus = new InProcessOpenLoopBus();
     for (const key of [
@@ -111,17 +126,17 @@ describe("G5 open-loop publish", () => {
     assert.equal(bus.fundamentalTimestep, 5);
   });
 
-  it("delivers a word even when T2 observation is absent", () => {
+  it.effect("delivers a word even when T2 observation is absent", () => {
     const bus = new InProcessOpenLoopBus();
     const request = word("node.a", "need-b", 0);
-    Effect.runSync(
-      observePublish(
+    return Effect.gen(function* () {
+      yield* observePublish(
         request,
         Effect.sync(() => bus.publish(request)),
-      ),
-    );
-    bus.advanceFundamentalTimestep();
-    assert.equal(bus.read("node.a")?.fundamental_request, "need-b");
+      );
+      bus.advanceFundamentalTimestep();
+      assert.equal(bus.read("node.a")?.fundamental_request, "need-b");
+    });
   });
 
   it.effect(
@@ -209,10 +224,13 @@ describe("G5 package completeness", () => {
     completed.manifest.completed = true;
 
     const withheld = structuredClone(completed);
+    const withheldReview = withheld.manifest.review;
     withheld.manifest.review = {
-      ...withheld.manifest.review,
       status: "withheld",
+      identity: withheldReview?.identity ?? "codex-independent-review",
+      independentOfImplementationAuthor: withheldReview?.independentOfImplementationAuthor ?? true,
       reviewedArtifactHash: "",
+      ...(withheldReview?.note !== undefined ? { note: withheldReview.note } : {}),
     };
     const withheldResult = checkG5(withheld);
     assert.equal(withheldResult.ok, false);

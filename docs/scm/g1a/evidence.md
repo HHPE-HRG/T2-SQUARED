@@ -162,3 +162,13 @@ No Redis or Kafka in `apps/server`. HHPE Redis / B0/Kafka seeds are empty; see E
 - Tailscale serve as a host/network binding (with subprocess above).
 
 Provider HTTPS to model vendors is SDK/CLI I/O under the matching driver variant (catalog `provider-turn` on `ProviderService.sendTurn`).
+
+## SCM home-bus link prototype
+
+**Procedure:** static inspection of `apps/server/src/scm` after the bounded bidirectional home-bus link landed.
+
+**Retained:**
+
+- `BidirectionalHomeBusLink` (`apps/server/src/scm/g6HomeBusLink.ts`) forwards locally originated W1 words across two explicit inverse in-process home-bus routes. Bridge coordinator is infrastructure, not a node.
+- `SharedFundamentalClock` (`apps/server/src/scm/g8SharedClock.ts`) advances N fundamental timesteps per process interval for that link.
+- Bounded prototype only (`docs/scm/home-bus-link/README.md`). Not live cutover, G6/G8 completion, DIP, halt, codec, or physical transport.

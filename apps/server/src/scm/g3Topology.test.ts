@@ -31,7 +31,7 @@ describe("G3 node and bus overlay", () => {
     assert.equal(g1b.manifest.g4toG7Authorized, false);
     const g1Ids = g1b.inventory.rows.map((row) => row.comm_id).sort();
     const overlayIds = pkg.topology.mappings.map((row) => row.comm_id).sort();
-    assert.equal(g1Ids.length, 73);
+    assert.equal(g1Ids.length, 74);
     assert.deepEqual(overlayIds, g1Ids);
     const inventoryText = readFileSync(g1InventoryPath, "utf8");
     assert.equal(inventoryText.includes('"home_bus_id"'), false);

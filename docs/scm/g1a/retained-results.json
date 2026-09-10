@@ -513,6 +513,12 @@
       "mechanismClass": "queues",
       "evidenceRef": "docs/scm/g1a/exclusions.md",
       "quote": "Redis and B0/Kafka are empty canonical HHPE seeds. No live T2-host equivalent was found."
+    },
+    {
+      "id": "G1A-SCM-HOME-BUS-LINK",
+      "mechanismClass": "callbacks",
+      "evidenceRef": "docs/scm/g1a/evidence.md",
+      "quote": "`BidirectionalHomeBusLink` (`apps/server/src/scm/g6HomeBusLink.ts`) forwards locally originated W1 words across two explicit inverse in-process home-bus routes. Bridge coordinator is infrastructure, not a node."
     }
   ]
 }

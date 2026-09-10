@@ -39,6 +39,16 @@
       "bus_id": "bus.vcs",
       "steward": "t2-server-host",
       "permanent": false
+    },
+    {
+      "bus_id": "bus.scm.a",
+      "steward": "t2-server-host",
+      "permanent": false
+    },
+    {
+      "bus_id": "bus.scm.b",
+      "steward": "t2-server-host",
+      "permanent": false
     }
   ],
   "nodeBusBindings": [
@@ -256,6 +266,16 @@
       "node_id": "node.resource-telemetry",
       "bus_id": "bus.observer",
       "relationship": "linked"
+    },
+    {
+      "node_id": "node.scm.home-a",
+      "bus_id": "bus.scm.a",
+      "relationship": "home"
+    },
+    {
+      "node_id": "node.scm.home-b",
+      "bus_id": "bus.scm.b",
+      "relationship": "home"
     }
   ]
 }

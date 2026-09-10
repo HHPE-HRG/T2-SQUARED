@@ -143,6 +143,7 @@
         "INV-T2-PROJECT-QUEUE",
         "INV-T2-PROVIDER-EVENTS",
         "INV-T2-PROVIDER-LIST-EVENTS",
+        "INV-T2-SCM-HOME-BUS-LINK",
         "INV-T2-SETTINGS-EVENTS",
         "INV-T2-VCS-EVENTS"
       ],
@@ -158,6 +159,7 @@
         "INV-T2-PREVIEW-AUTO",
         "INV-T2-PROVIDER-PERM",
         "INV-T2-PROVIDER-TURN",
+        "INV-T2-SCM-HOME-BUS-LINK",
         "INV-T2-SETTINGS-EVENTS",
         "INV-T2-TERM"
       ],
