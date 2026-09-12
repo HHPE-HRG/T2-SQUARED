@@ -41,6 +41,8 @@ export interface W1Word {
   readonly request_age: number;
   readonly modifier_start: "modifier_start";
   readonly null: "null";
+  /** Prototype semantic representation for G6 mute-modifiers only; not codec/wire. */
+  readonly modifiers: ReadonlyArray<string>;
 }
 
 export interface W1Failure {
@@ -101,8 +103,20 @@ export const checkW1Word = (value: unknown): W1CheckResult => {
   for (const key of Object.keys(value)) {
     if (FORBIDDEN_ENCODING_KEYS.has(key)) {
       push("encoding", "G4 forbids nibble alphabets, codecs, dictionary, and encoding fields");
-    } else if (!REQUIRED_W1_KEY_SET.has(key)) {
+    } else if (key !== "modifiers" && !REQUIRED_W1_KEY_SET.has(key)) {
       push("slot", `unknown W1 field ${key}`);
+    }
+  }
+  // Prototype semantic representation for G6 mute-modifiers only; not codec/wire.
+  let modifiers: ReadonlyArray<string> = [];
+  if ("modifiers" in value) {
+    if (
+      !Array.isArray(value.modifiers) ||
+      !value.modifiers.every((entry) => typeof entry === "string" && entry.length > 0)
+    ) {
+      push("modifiers", "modifiers must be an array of non-empty strings when present");
+    } else {
+      modifiers = value.modifiers;
     }
   }
   if (value.modifier_start !== "modifier_start" || value.null !== "null") {
@@ -141,6 +155,7 @@ export const checkW1Word = (value: unknown): W1CheckResult => {
       request_age: value.request_age,
       modifier_start: "modifier_start",
       null: "null",
+      modifiers,
     },
   };
 };

@@ -176,6 +176,28 @@ describe("G4 W1 word types", () => {
     assert.ok(result.ok === true);
     assert.notEqual(result.word.fundamental_request, CANONICAL_ABSENCE);
   });
+
+  it("accepts optional prototype modifiers between placeholders", () => {
+    const result = checkW1Word({ ...validWord, modifiers: ["attn-low"] });
+    assert.equal(
+      result.ok,
+      true,
+      result.ok ? "" : result.failures.map((f) => f.message).join("\n"),
+    );
+    assert.ok(result.ok === true);
+    assert.deepEqual(result.word.modifiers, ["attn-low"]);
+  });
+
+  it("defaults missing modifiers to empty array", () => {
+    const result = checkW1Word(validWord);
+    assert.ok(result.ok === true);
+    assert.deepEqual(result.word.modifiers, []);
+  });
+
+  it("rejects non-array or empty-string modifiers", () => {
+    assert.equal(checkW1Word({ ...validWord, modifiers: "x" }).ok, false);
+    assert.equal(checkW1Word({ ...validWord, modifiers: [""] }).ok, false);
+  });
 });
 
 describe("G4 package completeness", () => {
