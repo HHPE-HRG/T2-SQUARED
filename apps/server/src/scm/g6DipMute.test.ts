@@ -1,15 +1,18 @@
 /**
- * G6 DIP store mute-law tests plus hear-path projection (Tasks 2–3).
+ * G6 DIP store mute-law tests, hear-path projection, and two-home
+ * bridge proof matrix (Tasks 2–4).
  *
  * Proves D12 set-time validation, concrete-over-wildcard resolve,
- * immutable-row protection, and hear-only mute. Does not cover OTEL,
- * two-home bridge matrix, or G6 package docs.
+ * immutable-row protection, hear-only mute, and mute one/both/none on
+ * BidirectionalHomeBusLink without muting publish or bridge forward.
+ * Does not cover OTEL or G6 package docs.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assert, describe, it } from "@effect/vitest";
+import * as Effect from "effect/Effect";
 
 import { checkW1Word, type W1Word } from "./g4Word.ts";
 import { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
@@ -21,6 +24,7 @@ import {
   type DipRow,
   type GovernedClasses,
 } from "./g6DipMute.ts";
+import { BidirectionalHomeBusLink, type BridgeRoute } from "./g6HomeBusLink.ts";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
@@ -376,4 +380,248 @@ describe("G6 DIP hear projection", () => {
     assert.deepEqual(heard, word);
     assert.deepEqual(bus.read("node.scm.home-b"), word);
   });
+});
+
+/**
+ * Inverse child-home routes for the G6 proof matrix. Intended: exactly
+ * two inverse routes so BidirectionalHomeBusLink can construct. Observed:
+ * authority traffic is not a third linked bus; it is published locally.
+ */
+const routeScmAtoB: BridgeRoute = {
+  route_id: "route.scm.a-to-b",
+  source_bus_id: "bus.scm.a",
+  destination_bus_id: "bus.scm.b",
+  allowed_origin_node_ids: ["node.scm.home-a"],
+  enabled: true,
+};
+
+const routeScmBtoA: BridgeRoute = {
+  route_id: "route.scm.b-to-a",
+  source_bus_id: "bus.scm.b",
+  destination_bus_id: "bus.scm.a",
+  allowed_origin_node_ids: ["node.scm.home-b"],
+  enabled: true,
+};
+
+/**
+ * Two A2 home buses plus inverse link. Intended: publish on a source is
+ * readable on the destination after two link.advanceFundamentalTimestep
+ * calls (T+2). Observed: first advance delivers; second makes dest read
+ * visible. Does not include bus.scm.authority (link requires two buses).
+ *
+ * Returns
+ * -------
+ * { busA, busB, link }
+ *     Child homes keyed bus.scm.a / bus.scm.b.
+ *
+ * Example
+ * -------
+ * const { busA, busB, link } = twoHomeFixture();
+ */
+const twoHomeFixture = (): {
+  readonly busA: InProcessOpenLoopBus;
+  readonly busB: InProcessOpenLoopBus;
+  readonly link: BidirectionalHomeBusLink;
+} => {
+  const busA = new InProcessOpenLoopBus();
+  const busB = new InProcessOpenLoopBus();
+  const link = new BidirectionalHomeBusLink({
+    buses: new Map([
+      ["bus.scm.a", busA],
+      ["bus.scm.b", busB],
+    ]),
+    routes: [routeScmAtoB, routeScmBtoA],
+  });
+  return { busA, busB, link };
+};
+
+/**
+ * B→A mute-source row (inverse of a2PeerMute). Intended: bus.scm.b
+ * mutes node.scm.home-a. Observed: same A2 classes as fixture JSON.
+ */
+const bMutesA = (overrides: Partial<DipRow> = {}): DipRow =>
+  a2PeerMute({
+    receiving_bus_id: "bus.scm.b",
+    source_bus_id: "bus.scm.a",
+    source_node_id: "node.scm.home-a",
+    ...overrides,
+  });
+
+/**
+ * Two-home bridge proof matrix (Task 4).
+ *
+ * Mute is hear-only: publish and BidirectionalHomeBusLink forward stay
+ * unfiltered. Destination read after T+2 still holds bridged words when
+ * hear is silenced. Authority parent is never a third linked bus;
+ * authority-origin words are published directly onto a child bus.
+ */
+describe("G6 DIP two-home bridge proof matrix", () => {
+  it.effect("1. no mute: each hear()s the other after T+2", () =>
+    Effect.gen(function* () {
+      const store = new DipMuteStore(loadFixtureGoverned());
+      const { busA, busB, link } = twoHomeFixture();
+      const fromA = checkedWord("bus.scm.a", "node.scm.home-a");
+      const fromB = checkedWord("bus.scm.b", "node.scm.home-b");
+
+      busA.publish(fromA);
+      busB.publish(fromB);
+      assert.equal(hear(busA, store, "bus.scm.a", "node.scm.home-b"), undefined);
+      assert.equal(hear(busB, store, "bus.scm.b", "node.scm.home-a"), undefined);
+
+      const first = yield* link.advanceFundamentalTimestep();
+      assert.equal(first.deliveries.length, 2);
+      assert.deepEqual(first.failures, []);
+      assert.equal(busA.read("node.scm.home-b"), undefined);
+      assert.equal(busB.read("node.scm.home-a"), undefined);
+
+      yield* link.advanceFundamentalTimestep();
+      assert.deepEqual(busA.read("node.scm.home-b"), fromB);
+      assert.deepEqual(busB.read("node.scm.home-a"), fromA);
+      assert.deepEqual(hear(busA, store, "bus.scm.a", "node.scm.home-b"), fromB);
+      assert.deepEqual(hear(busB, store, "bus.scm.b", "node.scm.home-a"), fromA);
+    }),
+  );
+
+  it.effect("2. mute one side: A mute-source B; A hear B undefined; B hear A present", () =>
+    Effect.gen(function* () {
+      const store = new DipMuteStore(loadFixtureGoverned());
+      store.setDip(a2PeerMute({ mode: "mute-source" }));
+      const { busA, busB, link } = twoHomeFixture();
+      const fromA = checkedWord("bus.scm.a", "node.scm.home-a");
+      const fromB = checkedWord("bus.scm.b", "node.scm.home-b");
+
+      busA.publish(fromA);
+      busB.publish(fromB);
+      const first = yield* link.advanceFundamentalTimestep();
+      assert.equal(first.deliveries.length, 2);
+      assert.deepEqual(first.failures, []);
+      yield* link.advanceFundamentalTimestep();
+
+      assert.deepEqual(busA.read("node.scm.home-b"), fromB);
+      assert.deepEqual(busB.read("node.scm.home-a"), fromA);
+      assert.equal(hear(busA, store, "bus.scm.a", "node.scm.home-b"), undefined);
+      assert.deepEqual(hear(busB, store, "bus.scm.b", "node.scm.home-a"), fromA);
+    }),
+  );
+
+  it.effect("3. mute both: neither hears the other; read still sees peer", () =>
+    Effect.gen(function* () {
+      const store = new DipMuteStore(loadFixtureGoverned());
+      store.setDip(a2PeerMute({ mode: "mute-source" }));
+      store.setDip(bMutesA({ mode: "mute-source" }));
+      const { busA, busB, link } = twoHomeFixture();
+      const fromA = checkedWord("bus.scm.a", "node.scm.home-a");
+      const fromB = checkedWord("bus.scm.b", "node.scm.home-b");
+
+      busA.publish(fromA);
+      busB.publish(fromB);
+      const first = yield* link.advanceFundamentalTimestep();
+      assert.equal(first.deliveries.length, 2);
+      yield* link.advanceFundamentalTimestep();
+
+      assert.deepEqual(busA.read("node.scm.home-b"), fromB);
+      assert.deepEqual(busB.read("node.scm.home-a"), fromA);
+      assert.equal(hear(busA, store, "bus.scm.a", "node.scm.home-b"), undefined);
+      assert.equal(hear(busB, store, "bus.scm.b", "node.scm.home-a"), undefined);
+    }),
+  );
+
+  it.effect(
+    "4. mute-modifiers: A hears B fundamentals; hear.modifiers []; read keeps modifiers",
+    () =>
+      Effect.gen(function* () {
+        const store = new DipMuteStore(loadFixtureGoverned());
+        store.setDip(a2PeerMute({ mode: "mute-modifiers" }));
+        const { busA, busB, link } = twoHomeFixture();
+        const fromA = checkedWord("bus.scm.a", "node.scm.home-a");
+        const fromB = checkedWord("bus.scm.b", "node.scm.home-b", ["attn-low"]);
+
+        busA.publish(fromA);
+        busB.publish(fromB);
+        const first = yield* link.advanceFundamentalTimestep();
+        assert.equal(first.deliveries.length, 2);
+        yield* link.advanceFundamentalTimestep();
+
+        const stored = busA.read("node.scm.home-b");
+        assert.deepEqual(stored?.modifiers, ["attn-low"]);
+        const heard = hear(busA, store, "bus.scm.a", "node.scm.home-b");
+        assert.ok(heard !== undefined);
+        assert.deepEqual(heard.modifiers, []);
+        assert.equal(heard.bus_id, fromB.bus_id);
+        assert.equal(heard.node_id, fromB.node_id);
+        assert.equal(heard.fundamental_state, fromB.fundamental_state);
+        assert.deepEqual(busA.read("node.scm.home-b")?.modifiers, ["attn-low"]);
+      }),
+  );
+
+  it("5. authority mute attempt: setDip throws; authority word still heard on child", () => {
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const busA = new InProcessOpenLoopBus();
+    const authorityWord = checkedWord("bus.scm.authority", "node.scm.authority");
+    busA.publish(authorityWord);
+    busA.advanceFundamentalTimestep();
+
+    const authorityMute = (mode: "mute-source" | "mute-modifiers"): DipRow => ({
+      receiving_bus_id: "bus.scm.a",
+      receiving_authority_class: "A2",
+      source_bus_id: "bus.scm.authority",
+      source_node_id: "node.scm.authority",
+      source_authority_class: "A0",
+      mode,
+      steward: "steward.test",
+      runtime_mutable: true,
+    });
+    assert.throws(() => store.setDip(authorityMute("mute-source")), DipMuteFailure);
+    assert.throws(() => store.setDip(authorityMute("mute-modifiers")), DipMuteFailure);
+    assert.deepEqual(busA.read("node.scm.authority"), authorityWord);
+    assert.deepEqual(hear(busA, store, "bus.scm.a", "node.scm.authority"), authorityWord);
+  });
+
+  it("6. higher-class mute-modifiers: setDip throws (A2 receiving, A1 source)", () => {
+    const governed = governedFromJson({
+      authority_bus_id: "bus.scm.authority",
+      buses: { "bus.scm.a": "A2", "bus.scm.higher": "A1" },
+      nodes: { "node.scm.home-a": "A2", "node.scm.higher": "A1" },
+    });
+    const store = new DipMuteStore(governed);
+    assert.throws(
+      () =>
+        store.setDip({
+          receiving_bus_id: "bus.scm.a",
+          receiving_authority_class: "A2",
+          source_bus_id: "bus.scm.higher",
+          source_node_id: "node.scm.higher",
+          source_authority_class: "A1",
+          mode: "mute-modifiers",
+          steward: "steward.test",
+          runtime_mutable: true,
+        }),
+      DipMuteFailure,
+    );
+    assert.equal(store.listDip("bus.scm.a").length, 0);
+  });
+
+  it.effect("7. publish continues while muted: storage/read updates; hear stays undefined", () =>
+    Effect.gen(function* () {
+      const store = new DipMuteStore(loadFixtureGoverned());
+      store.setDip(a2PeerMute({ mode: "mute-source" }));
+      const { busA, busB, link } = twoHomeFixture();
+      const firstWord = checkedWord("bus.scm.b", "node.scm.home-b", ["attn-low"]);
+      busB.publish(firstWord);
+      yield* link.advanceFundamentalTimestep();
+      yield* link.advanceFundamentalTimestep();
+      assert.deepEqual(busA.read("node.scm.home-b"), firstWord);
+      assert.equal(hear(busA, store, "bus.scm.a", "node.scm.home-b"), undefined);
+
+      const nextWord = checkedWord("bus.scm.b", "node.scm.home-b", ["attn-high"]);
+      busB.publish(nextWord);
+      const third = yield* link.advanceFundamentalTimestep();
+      assert.equal(third.deliveries.length, 1);
+      assert.equal(third.deliveries[0]?.origin_node_id, "node.scm.home-b");
+      yield* link.advanceFundamentalTimestep();
+      assert.deepEqual(busA.read("node.scm.home-b"), nextWord);
+      assert.notDeepEqual(busA.read("node.scm.home-b"), firstWord);
+      assert.equal(hear(busA, store, "bus.scm.a", "node.scm.home-b"), undefined);
+    }),
+  );
 });
