@@ -1,10 +1,14 @@
 /**
- * G6 DIP store with D12 mute-law validation at set time.
+ * G6 DIP store with D12 mute-law validation and hear-path mute.
  *
  * Receivers may mute same-or-lower sources; never a greater class and
- * never the authority parent bus. Mute is not applied here — later
- * tasks add hear() and OTEL. Validation fails closed and retains prior DIP.
+ * never the authority parent bus. setDip fails closed and retains prior DIP.
+ * hear() applies mute-source / mute-modifiers on the receiving bus only;
+ * InProcessOpenLoopBus.read stays unfiltered. OTEL is a later task.
  */
+import type { W1Word } from "./g4Word.ts";
+import type { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
+
 export type AuthorityClass = "A0" | "A1" | "A2" | "observer";
 export type DipMode = "hear" | "mute-source" | "mute-modifiers";
 
@@ -83,7 +87,7 @@ export class DipMuteFailure extends Error {
  * Returns
  * -------
  * DipMuteStore
- *     Validating upsert store. Hear projection is a later task.
+ *     Validating upsert store plus lookup/shouldSuppress for hear().
  *
  * Example
  * -------
@@ -199,15 +203,90 @@ export class DipMuteStore {
    * store.resolveMode("bus.scm.a", "bus.scm.b", "node.scm.home-b");
    */
   resolveMode(receiving_bus_id: string, origin_bus_id: string, origin_node_id: string): DipMode {
+    return this.lookupRow(receiving_bus_id, origin_bus_id, origin_node_id)?.mode ?? "hear";
+  }
+
+  /**
+   * Winning DIP row: concrete source_node_id overrides "*"; else undefined.
+   *
+   * Parameters
+   * ----------
+   * receiving_bus_id : string
+   *     Bus applying DIP.
+   * origin_bus_id : string
+   *     Word origin bus (preserved through bridge).
+   * origin_node_id : string
+   *     Word origin node.
+   *
+   * Returns
+   * -------
+   * DipRow | undefined
+   *     Concrete row, else wildcard, else none.
+   *
+   * Example
+   * -------
+   * store.lookupRow("bus.scm.a", "bus.scm.b", "node.scm.home-b");
+   */
+  lookupRow(
+    receiving_bus_id: string,
+    origin_bus_id: string,
+    origin_node_id: string,
+  ): DipRow | undefined {
     const concrete = this.rows.get(dipKey(receiving_bus_id, origin_bus_id, origin_node_id));
     if (concrete !== undefined) {
-      return concrete.mode;
+      return concrete;
     }
-    const wildcard = this.rows.get(dipKey(receiving_bus_id, origin_bus_id, "*"));
-    if (wildcard !== undefined) {
-      return wildcard.mode;
+    return this.rows.get(dipKey(receiving_bus_id, origin_bus_id, "*"));
+  }
+
+  /**
+   * Whether hear should apply a suppressive mode for this row.
+   *
+   * False when mode is hear, or DIP classes disagree with governed
+   * (stale mismatch: fail-open hear). True only for mute-source /
+   * mute-modifiers whose classes still match governed.
+   *
+   * Parameters
+   * ----------
+   * row : DipRow
+   *     Winning DIP row for the origin word.
+   * governed : GovernedClasses
+   *     Class table at hear time (constructor table or options.governed).
+   *
+   * Returns
+   * -------
+   * boolean
+   *     True only when suppression is legal to apply.
+   *
+   * Example
+   * -------
+   * store.shouldSuppress(row, governed);
+   */
+  shouldSuppress(row: DipRow, governed: GovernedClasses): boolean {
+    if (!SUPPRESSIVE_MODES.has(row.mode)) {
+      return false;
     }
-    return "hear";
+    return rowClassesMatchGoverned(row, governed);
+  }
+
+  /**
+   * Constructor governed table for hear when options.governed is omitted.
+   *
+   * Parameters
+   * ----------
+   * none
+   *
+   * Returns
+   * -------
+   * GovernedClasses
+   *     Same maps passed to the constructor.
+   *
+   * Example
+   * -------
+   * hear(bus, store, receiving, origin); // uses store.governedClasses()
+   */
+  governedClasses(): GovernedClasses {
+    return this.governed;
   }
 
   /**
@@ -273,3 +352,88 @@ export class DipMuteStore {
     }
   }
 }
+
+/**
+ * DIP row classes still agree with a governed table.
+ *
+ * Parameters
+ * ----------
+ * row : DipRow
+ *     Installed switch (may be stale vs current governed).
+ * governed : GovernedClasses
+ *     Hear-time or set-time class maps.
+ *
+ * Returns
+ * -------
+ * boolean
+ *     True when receiving and source classes match governed ids.
+ *
+ * Example
+ * -------
+ * rowClassesMatchGoverned(row, governed);
+ */
+const rowClassesMatchGoverned = (row: DipRow, governed: GovernedClasses): boolean => {
+  const receivingGoverned = governed.buses.get(row.receiving_bus_id);
+  if (receivingGoverned === undefined || receivingGoverned !== row.receiving_authority_class) {
+    return false;
+  }
+  if (row.source_node_id === "*") {
+    const sourceBusClass = governed.buses.get(row.source_bus_id);
+    return sourceBusClass !== undefined && sourceBusClass === row.source_authority_class;
+  }
+  const sourceNodeClass = governed.nodes.get(row.source_node_id);
+  return sourceNodeClass !== undefined && sourceNodeClass === row.source_authority_class;
+};
+
+/**
+ * DIP-filtered hear beside unfiltered bus.read. Never mutes on a mismatched row.
+ *
+ * Parameters
+ * ----------
+ * bus : InProcessOpenLoopBus
+ *     Receiving-bus storage (read remains raw).
+ * store : DipMuteStore
+ *     DIP rows for this receiving bus.
+ * receiving_bus_id : string
+ *     Bus whose DIP set is applied.
+ * origin_node_id : string
+ *     Storage key / origin node (process-globally unique in this slice).
+ * options : { governed?: GovernedClasses }
+ *     Optional hear-time class table; defaults to the store constructor table.
+ *
+ * Returns
+ * -------
+ * W1Word | undefined
+ *     Stored word, modifiers-cleared word, or absence under mute-source.
+ *
+ * Example
+ * -------
+ * const heard = hear(bus, store, "bus.scm.a", "node.scm.home-b");
+ */
+export const hear = (
+  bus: InProcessOpenLoopBus,
+  store: DipMuteStore,
+  receiving_bus_id: string,
+  origin_node_id: string,
+  options?: { governed?: GovernedClasses },
+): W1Word | undefined => {
+  const word = bus.read(origin_node_id);
+  if (word === undefined) {
+    return undefined;
+  }
+  const row = store.lookupRow(receiving_bus_id, word.bus_id, word.node_id);
+  if (row === undefined) {
+    return word;
+  }
+  const governed = options?.governed ?? store.governedClasses();
+  if (!store.shouldSuppress(row, governed)) {
+    return word;
+  }
+  if (row.mode === "mute-source") {
+    return undefined;
+  }
+  if (row.mode === "mute-modifiers") {
+    return { ...word, modifiers: [] };
+  }
+  return word;
+};
