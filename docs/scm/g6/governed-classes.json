@@ -1,0 +1,13 @@
+{
+  "authority_bus_id": "bus.scm.authority",
+  "buses": {
+    "bus.scm.authority": "A0",
+    "bus.scm.a": "A2",
+    "bus.scm.b": "A2"
+  },
+  "nodes": {
+    "node.scm.authority": "A0",
+    "node.scm.home-a": "A2",
+    "node.scm.home-b": "A2"
+  }
+}
