@@ -8,4 +8,7 @@ The route preserves W1 content, origin node, origin bus, and content-derived `wo
 
 T2 OpenTelemetry observes successful forwarding with `t2.scm.bridge.forward`. Observation does not admit, route, mute, satisfy, halt, acknowledge, retry, or retract delivery.
 
-Not implemented or authorized here: DIP mute, G7 halt/freeze, independent or production clock sources, clock-domain crossing, dynamic or multi-hop routing, a manifold node, codec, physical transport, semantic parity, live cutover, G6 completion, or G8 completion.
+Not implemented here: DIP mute, G7 halt/freeze, independent or production clock sources, clock-domain crossing, dynamic or multi-hop routing, a manifold node, codec, physical transport, semantic parity, live cutover, G6 completion, or G8 completion.
+
+G6 DIP mute is human-authorized as a separate gate (`docs/scm/g6/authorization.md`).
+Mute applies to bus hear/read, not to this bridge infra path.

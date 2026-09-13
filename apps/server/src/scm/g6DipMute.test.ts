@@ -4,8 +4,8 @@
  *
  * Proves D12 set-time validation, concrete-over-wildcard resolve,
  * immutable-row protection, hear-only mute, mute one/both/none on
- * BidirectionalHomeBusLink, and isolated layerTest spans
- * (t2.scm.dip.set, t2.scm.hear.muted). Does not cover G6 package docs.
+ * BidirectionalHomeBusLink, isolated layerTest spans
+ * (t2.scm.dip.set, t2.scm.hear.muted), and G6 package barrier checks.
  */
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,13 +19,15 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 
 import { T2Observability, layerTest } from "../t2Observability/T2Observability.ts";
-import { checkW1Word, type W1Word } from "./g4Word.ts";
-import { InProcessOpenLoopBus, w1WordId } from "./g5OpenLoop.ts";
+import { checkW1Word, loadG4Package, type W1Word } from "./g4Word.ts";
+import { InProcessOpenLoopBus, loadG5Package, w1WordId } from "./g5OpenLoop.ts";
 import {
   DipMuteFailure,
   DipMuteStore,
+  checkG6,
   hear,
   hearObserved,
+  loadG6Package,
   observeDipSet,
   type AuthorityClass,
   type DipRow,
@@ -741,5 +743,51 @@ describe("G6 DIP T2 OTEL observe", () => {
       assert.equal(store.listDip("bus.scm.a").length, 1);
       assert.equal(store.listDip("bus.scm.a")[0]?.mode, "mute-source");
     });
+  });
+});
+
+describe("G6 package completeness", () => {
+  it("checkG6 accepts the legal completed tuple without a review hash", () => {
+    const pkg = loadG6Package(repoRoot);
+    const result = checkG6(pkg);
+    assert.equal(
+      result.ok,
+      true,
+      result.ok ? "" : result.failures.map((row) => row.message).join("\n"),
+    );
+    assert.equal(pkg.manifest.schemaVersion, 1);
+    assert.equal(pkg.manifest.gate, "G6");
+    assert.equal(pkg.manifest.status, "completed");
+    assert.equal(pkg.manifest.authorized, true);
+    assert.equal(pkg.manifest.completed, true);
+    assert.equal(pkg.manifest.doesNotAuthorizeLaterGates, true);
+    assert.equal(pkg.manifest.g7toG10Authorized, false);
+    assert.equal(pkg.manifest.plan, "docs/superpowers/plans/2026-09-12-scm-g6-dip-mute.md");
+    assert.equal(pkg.manifest.authorization.identity, "human-operator");
+    assert.equal(pkg.manifest.authorization.scope, "G6 DIP mute");
+    assert.ok(pkg.manifest.authorization.note.includes("2026-09-11"));
+  });
+
+  it("keeps G4/G5 g6toG10Authorized false", () => {
+    assert.equal(loadG4Package(repoRoot).manifest.g6toG10Authorized, false);
+    assert.equal(loadG5Package(repoRoot).manifest.g6toG10Authorized, false);
+  });
+
+  it("README states hear-only mute, unchanged bridge, prototype modifiers, and non-goals", () => {
+    const readme = readFileSync(join(repoRoot, "docs/scm/g6/README.md"), "utf8");
+    assert.ok(readme.includes("hear-only"));
+    assert.ok(readme.includes("bridge"));
+    assert.ok(readme.includes("modifiers"));
+    assert.ok(readme.includes("non-goals"));
+  });
+
+  it("rejects later-gate authorization flags", () => {
+    const pkg = loadG6Package(repoRoot);
+    const mutated = structuredClone(pkg);
+    mutated.manifest.g7toG10Authorized = true as unknown as false;
+    mutated.manifest.doesNotAuthorizeLaterGates = false as unknown as true;
+    const result = checkG6(mutated);
+    assert.equal(result.ok, false);
+    assert.ok(result.ok === false && result.failures.some((row) => row.code === "later-gates"));
   });
 });

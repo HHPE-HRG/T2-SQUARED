@@ -6,7 +6,14 @@
  * hear() applies mute-source / mute-modifiers on the receiving bus only;
  * InProcessOpenLoopBus.read stays unfiltered. observeDipSet / hearObserved
  * emit spans after successful mute decisions; they must not perform mute.
+ *
+ * Package check is completeness for this DIP-mute slice: legal tuple, gate G6,
+ * later-gates locked. No independent-review hash. Does not flip G4/G5
+ * g6toG10Authorized and does not authorize G7–G10.
  */
+import * as NodeFS from "node:fs";
+import * as NodePath from "node:path";
+
 import type { Attributes } from "@opentelemetry/api";
 import * as Effect from "effect/Effect";
 
@@ -604,4 +611,139 @@ export const hearObserved = (
     },
     Effect.succeed(heard),
   );
+};
+
+const MANIFEST_STATUSES = new Set(["authorized", "in-progress", "completed"]);
+
+export interface G6Authorization {
+  identity: string;
+  scope: string;
+  note: string;
+}
+
+/**
+ * G6 DIP-mute package manifest. No review hash field: completed means
+ * proof-matrix package completeness, not independent Codex review or A7.
+ */
+export interface G6Manifest {
+  schemaVersion: 1;
+  gate: "G6";
+  status: "authorized" | "in-progress" | "completed";
+  authorized: boolean;
+  completed: boolean;
+  doesNotAuthorizeLaterGates: true;
+  g7toG10Authorized: false;
+  plan: string;
+  authorization: G6Authorization;
+}
+
+export interface G6Package {
+  repoRoot: string;
+  manifest: G6Manifest;
+}
+
+export interface G6Failure {
+  readonly code: string;
+  readonly message: string;
+}
+
+export type G6CheckResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly failures: ReadonlyArray<G6Failure> };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Legal (status, authorized, completed) combinations for G6.
+ *
+ * Parameters
+ * ----------
+ * manifest : G6Manifest
+ *     Parsed G6 manifest.
+ *
+ * Returns
+ * -------
+ * boolean
+ *     True when the tuple matches authorized/in-progress vs completed.
+ *
+ * Example
+ * -------
+ * legalManifestTuple(pkg.manifest)
+ */
+const legalManifestTuple = (manifest: G6Manifest): boolean => {
+  if (!MANIFEST_STATUSES.has(manifest.status)) {
+    return false;
+  }
+  if (manifest.status === "authorized" || manifest.status === "in-progress") {
+    return manifest.authorized === true && manifest.completed === false;
+  }
+  return manifest.authorized === true && manifest.completed === true;
+};
+
+/**
+ * Load the G6 DIP-mute package.
+ *
+ * Parameters
+ * ----------
+ * repoRoot : string
+ *     T2-SQUARED repository root.
+ *
+ * Returns
+ * -------
+ * G6Package
+ *     Manifest only. README is explanatory and is not a reviewed digest.
+ *
+ * Example
+ * -------
+ * const pkg = loadG6Package(repoRoot);
+ */
+export const loadG6Package = (repoRoot: string): G6Package => ({
+  repoRoot,
+  manifest: JSON.parse(
+    NodeFS.readFileSync(NodePath.join(repoRoot, "docs/scm/g6/manifest.json"), "utf8"),
+  ) as G6Manifest,
+});
+
+/**
+ * Check G6 DIP-mute package completeness.
+ *
+ * Legal tuple, gate G6, and later-gate barrier only. Completed does not
+ * require an independent review hash. G7–G10 stay locked.
+ *
+ * Parameters
+ * ----------
+ * pkg : G6Package
+ *     Loaded G6 package.
+ *
+ * Returns
+ * -------
+ * G6CheckResult
+ *     `ok: true` when the legal tuple and later-gate barrier hold.
+ *
+ * Example
+ * -------
+ * const result = checkG6(loadG6Package(repoRoot));
+ */
+export const checkG6 = (pkg: G6Package): G6CheckResult => {
+  const failures: G6Failure[] = [];
+  const push = (code: string, message: string) => {
+    failures.push({ code, message });
+  };
+  if (!isRecord(pkg.manifest) || pkg.manifest.gate !== "G6") {
+    push("manifest-gate", "expected G6 package");
+  }
+  if (!legalManifestTuple(pkg.manifest)) {
+    push(
+      "manifest-tuple",
+      `illegal tuple status=${pkg.manifest.status} authorized=${String(pkg.manifest.authorized)} completed=${String(pkg.manifest.completed)}`,
+    );
+  }
+  if (!pkg.manifest.doesNotAuthorizeLaterGates || pkg.manifest.g7toG10Authorized) {
+    push("later-gates", "G6 must keep doesNotAuthorizeLaterGates true and g7toG10Authorized false");
+  }
+  if (failures.length > 0) {
+    return { ok: false, failures };
+  }
+  return { ok: true };
 };
