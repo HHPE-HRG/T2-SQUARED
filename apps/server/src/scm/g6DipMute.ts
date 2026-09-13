@@ -1,13 +1,18 @@
 /**
- * G6 DIP store with D12 mute-law validation and hear-path mute.
+ * G6 DIP store with D12 mute-law validation, hear-path mute, and T2 OTEL.
  *
  * Receivers may mute same-or-lower sources; never a greater class and
  * never the authority parent bus. setDip fails closed and retains prior DIP.
  * hear() applies mute-source / mute-modifiers on the receiving bus only;
- * InProcessOpenLoopBus.read stays unfiltered. OTEL is a later task.
+ * InProcessOpenLoopBus.read stays unfiltered. observeDipSet / hearObserved
+ * emit spans after successful mute decisions; they must not perform mute.
  */
+import type { Attributes } from "@opentelemetry/api";
+import * as Effect from "effect/Effect";
+
+import { withOwnedSpan, type T2Observability } from "../t2Observability/T2Observability.ts";
 import type { W1Word } from "./g4Word.ts";
-import type { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
+import { w1WordId, type InProcessOpenLoopBus } from "./g5OpenLoop.ts";
 
 export type AuthorityClass = "A0" | "A1" | "A2" | "observer";
 export type DipMode = "hear" | "mute-source" | "mute-modifiers";
@@ -436,4 +441,167 @@ export const hear = (
     return { ...word, modifiers: [] };
   }
   return word;
+};
+
+/**
+ * Span attributes for a successful DIP set. Intended: identity + mode only.
+ * Observed: four t2.scm.* keys; observation never writes the store.
+ */
+const dipSetAttributes = (row: DipRow): Attributes => ({
+  "t2.scm.receiving_bus_id": row.receiving_bus_id,
+  "t2.scm.source_bus_id": row.source_bus_id,
+  "t2.scm.source_node_id": row.source_node_id,
+  "t2.scm.dip.mode": row.mode,
+});
+
+/**
+ * Span attributes for a mute-source hear suppression. Intended: receiving
+ * bus, source, mode, origins, optional word_id. Observed: omits word_id
+ * when the caller did not supply one.
+ */
+const hearMutedAttributes = (attrs: {
+  receiving_bus_id: string;
+  source_bus_id: string;
+  source_node_id: string;
+  mode: DipMode;
+  word_id?: string;
+  origin_node_id: string;
+  origin_bus_id: string;
+}): Attributes => {
+  const attributes: Attributes = {
+    "t2.scm.receiving_bus_id": attrs.receiving_bus_id,
+    "t2.scm.source_bus_id": attrs.source_bus_id,
+    "t2.scm.source_node_id": attrs.source_node_id,
+    "t2.scm.dip.mode": attrs.mode,
+    "t2.scm.origin_node_id": attrs.origin_node_id,
+    "t2.scm.origin_bus_id": attrs.origin_bus_id,
+  };
+  if (attrs.word_id !== undefined) {
+    attributes["t2.scm.word_id"] = attrs.word_id;
+  }
+  return attributes;
+};
+
+/**
+ * Observe a DIP set on the existing T2 OTEL plane after the effect succeeds.
+ *
+ * Observation must not install or mutate DIP. The wrapped effect runs first;
+ * t2.scm.dip.set is emitted only on success (mirrors observePublish).
+ *
+ * Parameters
+ * ----------
+ * row : DipRow
+ *     Row identity used for span attributes (not written by this helper).
+ * effect : Effect.Effect
+ *     Caller-owned setDip (or other) side effect.
+ *
+ * Returns
+ * -------
+ * Effect.Effect
+ *     Same result, then `t2.scm.dip.set` when T2 observability is present.
+ *
+ * Example
+ * -------
+ * yield* observeDipSet(row, Effect.sync(() => store.setDip(row)));
+ */
+export const observeDipSet = <A, E, R>(
+  row: DipRow,
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
+  Effect.flatMap(effect, (result) =>
+    withOwnedSpan("t2.scm.dip.set", Effect.succeed(result), dipSetAttributes(row)),
+  );
+
+/**
+ * Observe mute-source hear suppression after the hear decision succeeds.
+ *
+ * Observation must not perform mute. Emit `t2.scm.hear.muted` only after
+ * the wrapped effect succeeds.
+ *
+ * Parameters
+ * ----------
+ * attrs : object
+ *     Receiving/source/origin ids, DIP mode, optional word_id.
+ * effect : Effect.Effect
+ *     Caller-owned hear result (already muted or not).
+ *
+ * Returns
+ * -------
+ * Effect.Effect
+ *     Same result, then `t2.scm.hear.muted` when T2 observability is present.
+ *
+ * Example
+ * -------
+ * yield* observeHearMuted(attrs, Effect.succeed(undefined));
+ */
+export const observeHearMuted = <A, E, R>(
+  attrs: {
+    receiving_bus_id: string;
+    source_bus_id: string;
+    source_node_id: string;
+    mode: DipMode;
+    word_id?: string;
+    origin_node_id: string;
+    origin_bus_id: string;
+  },
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
+  Effect.flatMap(effect, (result) =>
+    withOwnedSpan("t2.scm.hear.muted", Effect.succeed(result), hearMutedAttributes(attrs)),
+  );
+
+/**
+ * hear() then emit t2.scm.hear.muted when mute-source hid a stored word.
+ *
+ * Intended: read present + hear undefined → muted span with w1WordId of
+ * the stored word. Observed: does not mute; hear() already applied DIP.
+ * No span when hear admits or storage is empty.
+ *
+ * Parameters
+ * ----------
+ * bus : InProcessOpenLoopBus
+ *     Receiving-bus storage (read remains raw).
+ * store : DipMuteStore
+ *     DIP rows for this receiving bus.
+ * receiving_bus_id : string
+ *     Bus whose DIP set was applied.
+ * origin_node_id : string
+ *     Storage key / origin node.
+ * options : { governed?: GovernedClasses }
+ *     Optional hear-time class table; defaults to the store constructor table.
+ *
+ * Returns
+ * -------
+ * Effect.Effect<W1Word | undefined, never, T2Observability>
+ *     Same word as hear(); muted span when T2 observability is present.
+ *
+ * Example
+ * -------
+ * const heard = yield* hearObserved(bus, store, "bus.scm.a", "node.scm.home-b");
+ */
+export const hearObserved = (
+  bus: InProcessOpenLoopBus,
+  store: DipMuteStore,
+  receiving_bus_id: string,
+  origin_node_id: string,
+  options?: { governed?: GovernedClasses },
+): Effect.Effect<W1Word | undefined, never, T2Observability> => {
+  const stored = bus.read(origin_node_id);
+  const heard = hear(bus, store, receiving_bus_id, origin_node_id, options);
+  if (stored === undefined || heard !== undefined) {
+    return Effect.succeed(heard);
+  }
+  const row = store.lookupRow(receiving_bus_id, stored.bus_id, stored.node_id);
+  return observeHearMuted(
+    {
+      receiving_bus_id,
+      source_bus_id: stored.bus_id,
+      source_node_id: stored.node_id,
+      mode: row?.mode ?? "mute-source",
+      word_id: w1WordId(stored),
+      origin_node_id,
+      origin_bus_id: stored.bus_id,
+    },
+    Effect.succeed(heard),
+  );
 };

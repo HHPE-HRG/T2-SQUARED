@@ -1,25 +1,32 @@
 /**
- * G6 DIP store mute-law tests, hear-path projection, and two-home
- * bridge proof matrix (Tasks 2–4).
+ * G6 DIP store mute-law tests, hear-path projection, two-home
+ * bridge proof matrix, and T2 OTEL observe for DIP set / muted hear.
  *
  * Proves D12 set-time validation, concrete-over-wildcard resolve,
- * immutable-row protection, hear-only mute, and mute one/both/none on
- * BidirectionalHomeBusLink without muting publish or bridge forward.
- * Does not cover OTEL or G6 package docs.
+ * immutable-row protection, hear-only mute, mute one/both/none on
+ * BidirectionalHomeBusLink, and isolated layerTest spans
+ * (t2.scm.dip.set, t2.scm.hear.muted). Does not cover G6 package docs.
  */
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assert, describe, it } from "@effect/vitest";
+import { trace } from "@opentelemetry/api";
+import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 
+import { T2Observability, layerTest } from "../t2Observability/T2Observability.ts";
 import { checkW1Word, type W1Word } from "./g4Word.ts";
-import { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
+import { InProcessOpenLoopBus, w1WordId } from "./g5OpenLoop.ts";
 import {
   DipMuteFailure,
   DipMuteStore,
   hear,
+  hearObserved,
+  observeDipSet,
   type AuthorityClass,
   type DipRow,
   type GovernedClasses,
@@ -624,4 +631,115 @@ describe("G6 DIP two-home bridge proof matrix", () => {
       assert.equal(hear(busA, store, "bus.scm.a", "node.scm.home-b"), undefined);
     }),
   );
+});
+
+/**
+ * Isolated T2 layerTest exporter file. Intended: never T3 server.trace.ndjson.
+ * Observed: unique tmp path per test; tests do not call setGlobalTracerProvider.
+ */
+const makeOtelFilePath = (): string =>
+  join(mkdtempSync(join(tmpdir(), "t2-scm-g6-")), "t2.trace.ndjson");
+
+describe("G6 DIP T2 OTEL observe", () => {
+  it.effect("successful setDip wrapped in observeDipSet emits t2.scm.dip.set", () => {
+    const exporter = new InMemorySpanExporter();
+    const before = trace.getTracerProvider();
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const row = a2PeerMute({ mode: "mute-source" });
+    return Effect.gen(function* () {
+      yield* observeDipSet(
+        row,
+        Effect.sync(() => {
+          store.setDip(row);
+        }),
+      );
+      const t2 = yield* T2Observability;
+      yield* t2.forceFlush;
+      const sets = exporter.getFinishedSpans().filter((span) => span.name === "t2.scm.dip.set");
+      assert.equal(sets.length, 1);
+      assert.equal(sets[0]?.attributes["t2.scm.receiving_bus_id"], "bus.scm.a");
+      assert.equal(sets[0]?.attributes["t2.scm.source_bus_id"], "bus.scm.b");
+      assert.equal(sets[0]?.attributes["t2.scm.source_node_id"], "node.scm.home-b");
+      assert.equal(sets[0]?.attributes["t2.scm.dip.mode"], "mute-source");
+      assert.equal(trace.getTracerProvider(), before);
+      assert.equal(store.listDip("bus.scm.a").length, 1);
+    }).pipe(Effect.provide(layerTest({ exporter, filePath: makeOtelFilePath() })));
+  });
+
+  it.effect("hearObserved after mute-source emits t2.scm.hear.muted; read keeps word", () => {
+    const exporter = new InMemorySpanExporter();
+    const before = trace.getTracerProvider();
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const row = a2PeerMute({ mode: "mute-source" });
+    store.setDip(row);
+    const bus = new InProcessOpenLoopBus();
+    const word = checkedWord("bus.scm.b", "node.scm.home-b");
+    bus.publish(word);
+    bus.advanceFundamentalTimestep();
+    return Effect.gen(function* () {
+      const heard = yield* hearObserved(bus, store, "bus.scm.a", "node.scm.home-b");
+      assert.equal(heard, undefined);
+      assert.deepEqual(bus.read("node.scm.home-b"), word);
+      const t2 = yield* T2Observability;
+      yield* t2.forceFlush;
+      const muted = exporter.getFinishedSpans().filter((span) => span.name === "t2.scm.hear.muted");
+      assert.equal(muted.length, 1);
+      assert.equal(muted[0]?.attributes["t2.scm.receiving_bus_id"], "bus.scm.a");
+      assert.equal(muted[0]?.attributes["t2.scm.source_bus_id"], "bus.scm.b");
+      assert.equal(muted[0]?.attributes["t2.scm.source_node_id"], "node.scm.home-b");
+      assert.equal(muted[0]?.attributes["t2.scm.dip.mode"], "mute-source");
+      assert.equal(muted[0]?.attributes["t2.scm.word_id"], w1WordId(word));
+      assert.equal(muted[0]?.attributes["t2.scm.origin_node_id"], "node.scm.home-b");
+      assert.equal(muted[0]?.attributes["t2.scm.origin_bus_id"], "bus.scm.b");
+      assert.equal(trace.getTracerProvider(), before);
+    }).pipe(Effect.provide(layerTest({ exporter, filePath: makeOtelFilePath() })));
+  });
+
+  it.effect("failed illegal setDip inside observeDipSet emits no t2.scm.dip.set", () => {
+    const exporter = new InMemorySpanExporter();
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const illegal: DipRow = {
+      receiving_bus_id: "bus.scm.a",
+      receiving_authority_class: "A2",
+      source_bus_id: "bus.scm.authority",
+      source_node_id: "node.scm.authority",
+      source_authority_class: "A0",
+      mode: "mute-source",
+      steward: "steward.test",
+      runtime_mutable: true,
+    };
+    return Effect.gen(function* () {
+      const exit = yield* observeDipSet(
+        illegal,
+        Effect.try({
+          try: () => {
+            store.setDip(illegal);
+          },
+          catch: (error) => (error instanceof Error ? error : new Error(String(error))),
+        }),
+      ).pipe(Effect.exit);
+      assert.equal(Exit.isFailure(exit), true);
+      assert.equal(store.listDip("bus.scm.a").length, 0);
+      const t2 = yield* T2Observability;
+      yield* t2.forceFlush;
+      const sets = exporter.getFinishedSpans().filter((span) => span.name === "t2.scm.dip.set");
+      assert.equal(sets.length, 0);
+    }).pipe(Effect.provide(layerTest({ exporter, filePath: makeOtelFilePath() })));
+  });
+
+  it.effect("observation failure after setDip does not roll back DIP", () => {
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const row = a2PeerMute({ mode: "mute-source" });
+    return Effect.gen(function* () {
+      const exit = yield* observeDipSet(
+        row,
+        Effect.sync(() => {
+          store.setDip(row);
+        }).pipe(Effect.flatMap(() => Effect.fail("otel-down"))),
+      ).pipe(Effect.exit);
+      assert.equal(Exit.isFailure(exit), true);
+      assert.equal(store.listDip("bus.scm.a").length, 1);
+      assert.equal(store.listDip("bus.scm.a")[0]?.mode, "mute-source");
+    });
+  });
 });
