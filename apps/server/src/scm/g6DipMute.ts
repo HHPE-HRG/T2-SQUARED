@@ -10,8 +10,8 @@
  * G7 bus-level position (live / frozen / halted) lives on this store.
  * Governed buses default live. Observer and node.observer.404 cannot
  * freeze or halt. Frozen/halted buses reject setDip/removeDip and
- * assertMutable; there is no unfreeze/unhalt. OTEL, bus mutationGuard,
- * and bridge DIP consult are not in this module yet.
+ * assertMutable; there is no unfreeze/unhalt. observeBusPosition emits
+ * freeze/halt spans after a successful set; recommendStop is OTEL only.
  *
  * Package check is completeness for this DIP-mute slice: legal tuple, gate G6,
  * later-gates locked. No independent-review hash. Does not flip G4/G5
@@ -797,6 +797,89 @@ export const hearObserved = (
     Effect.succeed(heard),
   );
 };
+
+/**
+ * Span attributes for freeze/halt/recommend-stop observation.
+ * Intended: bus + actor identity only. Observed: never writes DIP.
+ */
+const busPositionAttributes = (attrs: {
+  bus_id: string;
+  position: DipBusPosition;
+  reason: string;
+  node_id: string;
+}): Attributes => ({
+  "t2.scm.bus_id": attrs.bus_id,
+  "t2.scm.position": attrs.position,
+  "t2.scm.reason": attrs.reason,
+  "t2.scm.node_id": attrs.node_id,
+});
+
+/**
+ * Observe a DIP bus-position latch after the wrapped effect succeeds.
+ *
+ * Observation must not freeze or halt. Span name is t2.scm.freeze when
+ * position is frozen, t2.scm.halt when halted. live emits no span.
+ *
+ * Parameters
+ * ----------
+ * attrs : object
+ *     bus_id, target position, reason, actor node_id.
+ * effect : Effect.Effect
+ *     Caller-owned setBusPosition (or other) side effect.
+ *
+ * Returns
+ * -------
+ * Effect.Effect
+ *     Same result, then freeze/halt span when T2 observability is present.
+ *
+ * Example
+ * -------
+ * yield* observeBusPosition(attrs, Effect.sync(() => store.setBusPosition(...)));
+ */
+export const observeBusPosition = <A, E, R>(
+  attrs: { bus_id: string; position: DipBusPosition; reason: string; node_id: string },
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
+  Effect.flatMap(effect, (result) => {
+    if (attrs.position === "frozen") {
+      return withOwnedSpan("t2.scm.freeze", Effect.succeed(result), busPositionAttributes(attrs));
+    }
+    if (attrs.position === "halted") {
+      return withOwnedSpan("t2.scm.halt", Effect.succeed(result), busPositionAttributes(attrs));
+    }
+    return Effect.succeed(result);
+  });
+
+/**
+ * Emit t2.scm.recommend_stop only. Must not call setBusPosition.
+ *
+ * 404 / observer recommend-stop is observational. DIP stays live unless
+ * a steward later latches freeze/halt.
+ *
+ * Parameters
+ * ----------
+ * from_node_id : string
+ *     Recommending node (typically node.observer.404).
+ * reason : string
+ *     Why stop was recommended.
+ *
+ * Returns
+ * -------
+ * Effect.Effect<void, never, T2Observability>
+ *     Void; t2.scm.recommend_stop when T2 observability is present.
+ *
+ * Example
+ * -------
+ * yield* recommendStop("node.observer.404", "404 recommend-stop");
+ */
+export const recommendStop = (
+  from_node_id: string,
+  reason: string,
+): Effect.Effect<void, never, T2Observability> =>
+  withOwnedSpan("t2.scm.recommend_stop", Effect.void, {
+    "t2.scm.node_id": from_node_id,
+    "t2.scm.reason": reason,
+  });
 
 const MANIFEST_STATUSES = new Set(["authorized", "in-progress", "completed"]);
 

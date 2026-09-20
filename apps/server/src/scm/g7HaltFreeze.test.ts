@@ -11,21 +11,30 @@
  *
  * Bridge cases: BidirectionalHomeBusLink optional dip skips frozen/halted
  * bus advance and does not destination.publish; mute-source is not freeze.
- * No OTEL or recommend-stop yet.
+ *
+ * OTEL: observeBusPosition emits t2.scm.freeze / t2.scm.halt after a
+ * successful set; recommendStop emits t2.scm.recommend_stop without DIP write.
  */
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assert, describe, it } from "@effect/vitest";
+import { trace } from "@opentelemetry/api";
+import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 
+import { T2Observability, layerTest } from "../t2Observability/T2Observability.ts";
 import { checkW1Word, type W1Word } from "./g4Word.ts";
 import { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
 import {
   DipMuteFailure,
   DipMuteStore,
   hear,
+  observeBusPosition,
+  recommendStop,
   STEWARD_ACTOR,
   type AuthorityClass,
   type DipActor,
@@ -438,4 +447,125 @@ describe("G7 home-bus bridge obeys DIP", () => {
       assert.equal(hear(busA, store, "bus.scm.a", "node.scm.home-b"), undefined);
     }),
   );
+});
+
+/**
+ * Isolated T2 layerTest exporter file. Intended: never T3 server.trace.ndjson.
+ * Observed: unique tmp path per test; tests do not call setGlobalTracerProvider.
+ */
+const makeOtelFilePath = (): string =>
+  join(mkdtempSync(join(tmpdir(), "t2-scm-g7-")), "t2.trace.ndjson");
+
+describe("G7 OTEL freeze/halt and 404 recommend-stop", () => {
+  it.effect(
+    "recommendStop emits t2.scm.recommend_stop; DIP stays live; bus still publishes",
+    () => {
+      const exporter = new InMemorySpanExporter();
+      const store = new DipMuteStore(loadFixtureGoverned());
+      const busA = new InProcessOpenLoopBus({
+        mutationGuard: () => store.assertMutable("bus.scm.a"),
+      });
+      return Effect.gen(function* () {
+        yield* recommendStop("node.observer.404", "404 recommend-stop");
+        assert.equal(store.busPosition("bus.scm.a"), "live");
+        const word = checkedWord("bus.scm.a", "node.scm.home-a", "after-recommend");
+        busA.publish(word);
+        busA.advanceFundamentalTimestep();
+        assert.deepEqual(busA.read("node.scm.home-a"), word);
+        const t2 = yield* T2Observability;
+        yield* t2.forceFlush;
+        const stops = exporter
+          .getFinishedSpans()
+          .filter((span) => span.name === "t2.scm.recommend_stop");
+        assert.equal(stops.length, 1);
+        assert.equal(stops[0]?.attributes["t2.scm.node_id"], "node.observer.404");
+        assert.equal(stops[0]?.attributes["t2.scm.reason"], "404 recommend-stop");
+        const freezes = exporter.getFinishedSpans().filter((span) => span.name === "t2.scm.freeze");
+        const halts = exporter.getFinishedSpans().filter((span) => span.name === "t2.scm.halt");
+        assert.equal(freezes.length, 0);
+        assert.equal(halts.length, 0);
+      }).pipe(Effect.provide(layerTest({ exporter, filePath: makeOtelFilePath() })));
+    },
+  );
+
+  it.effect("steward freeze wrapped in observeBusPosition emits t2.scm.freeze", () => {
+    const exporter = new InMemorySpanExporter();
+    const store = new DipMuteStore(loadFixtureGoverned());
+    return Effect.gen(function* () {
+      yield* observeBusPosition(
+        {
+          bus_id: "bus.scm.a",
+          position: "frozen",
+          reason: "steward freeze",
+          node_id: STEWARD_ACTOR.node_id,
+        },
+        Effect.sync(() => {
+          store.setBusPosition("bus.scm.a", "frozen", STEWARD_ACTOR);
+        }),
+      );
+      assert.equal(store.busPosition("bus.scm.a"), "frozen");
+      const t2 = yield* T2Observability;
+      yield* t2.forceFlush;
+      const freezes = exporter.getFinishedSpans().filter((span) => span.name === "t2.scm.freeze");
+      assert.equal(freezes.length, 1);
+      assert.equal(freezes[0]?.attributes["t2.scm.bus_id"], "bus.scm.a");
+      assert.equal(freezes[0]?.attributes["t2.scm.position"], "frozen");
+      assert.equal(freezes[0]?.attributes["t2.scm.reason"], "steward freeze");
+      assert.equal(freezes[0]?.attributes["t2.scm.node_id"], "steward.test");
+      const halts = exporter.getFinishedSpans().filter((span) => span.name === "t2.scm.halt");
+      assert.equal(halts.length, 0);
+    }).pipe(Effect.provide(layerTest({ exporter, filePath: makeOtelFilePath() })));
+  });
+
+  it.effect("observer setBusPosition throws and emits no freeze span", () => {
+    const exporter = new InMemorySpanExporter();
+    const store = new DipMuteStore(loadFixtureGoverned());
+    return Effect.gen(function* () {
+      const exit = yield* observeBusPosition(
+        {
+          bus_id: "bus.scm.a",
+          position: "frozen",
+          reason: "observer freeze",
+          node_id: OBSERVER_ACTOR.node_id,
+        },
+        Effect.try({
+          try: () => {
+            store.setBusPosition("bus.scm.a", "frozen", OBSERVER_ACTOR);
+          },
+          catch: (error) => (error instanceof Error ? error : new Error(String(error))),
+        }),
+      ).pipe(Effect.exit);
+      assert.equal(Exit.isFailure(exit), true);
+      assert.equal(store.busPosition("bus.scm.a"), "live");
+      const t2 = yield* T2Observability;
+      yield* t2.forceFlush;
+      const freezes = exporter.getFinishedSpans().filter((span) => span.name === "t2.scm.freeze");
+      assert.equal(freezes.length, 0);
+    }).pipe(Effect.provide(layerTest({ exporter, filePath: makeOtelFilePath() })));
+  });
+
+  it.effect("tracer provider identity unchanged", () => {
+    const exporter = new InMemorySpanExporter();
+    const before = trace.getTracerProvider();
+    const store = new DipMuteStore(loadFixtureGoverned());
+    return Effect.gen(function* () {
+      yield* recommendStop("node.observer.404", "identity check");
+      yield* observeBusPosition(
+        {
+          bus_id: "bus.scm.a",
+          position: "halted",
+          reason: "steward halt",
+          node_id: STEWARD_ACTOR.node_id,
+        },
+        Effect.sync(() => {
+          store.setBusPosition("bus.scm.a", "halted", STEWARD_ACTOR);
+        }),
+      );
+      const t2 = yield* T2Observability;
+      yield* t2.forceFlush;
+      const halts = exporter.getFinishedSpans().filter((span) => span.name === "t2.scm.halt");
+      assert.equal(halts.length, 1);
+      assert.equal(trace.getTracerProvider(), before);
+    }).pipe(Effect.provide(layerTest({ exporter, filePath: makeOtelFilePath() })));
+  });
 });
