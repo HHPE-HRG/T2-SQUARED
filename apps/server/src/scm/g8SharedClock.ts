@@ -66,6 +66,66 @@ export const loadG8FramingParameters = (repoRoot: string): G8FramingParameters =
     readFileSync(join(repoRoot, "docs/scm/g8/framing-parameters.json"), "utf8"),
   ) as G8FramingParameters;
 
+/**
+ * Integer ages for the next published word.
+ *
+ * First word is `{0, 0}`. Same request keeps `request_age`; a new request
+ * resets it to 0. Same state increments `state_age`; a new state resets it.
+ * The two columns are independent: a request change does not reset
+ * `state_age` by itself.
+ */
+export interface AgePair {
+  readonly state_age: number;
+  readonly request_age: number;
+}
+
+/**
+ * Apply the G8 age/repeat table to the next state and request values.
+ *
+ * Parameters
+ * ----------
+ * previous : { fundamental_state, fundamental_request, state_age, request_age } | undefined
+ *     Prior published word, or undefined for the first word on a node.
+ * nextState : string
+ *     Next `fundamental_state`.
+ * nextRequest : string
+ *     Next `fundamental_request`.
+ *
+ * Returns
+ * -------
+ * AgePair
+ *     `state_age` and `request_age` for the next word.
+ *
+ * Example
+ * -------
+ * nextAges(undefined, "active", "need-control");
+ * nextAges(
+ *   { fundamental_state: "active", fundamental_request: "need-control", state_age: 5, request_age: 2 },
+ *   "active",
+ *   "need-halt",
+ * );
+ */
+export const nextAges = (
+  previous:
+    | {
+        fundamental_state: string;
+        fundamental_request: string;
+        state_age: number;
+        request_age: number;
+      }
+    | undefined,
+  nextState: string,
+  nextRequest: string,
+): AgePair => {
+  if (previous === undefined) {
+    return { state_age: 0, request_age: 0 };
+  }
+  return {
+    state_age: previous.fundamental_state === nextState ? previous.state_age + 1 : 0,
+    request_age: previous.fundamental_request === nextRequest ? previous.request_age : 0,
+  };
+};
+
 export class SharedClockFailure extends Error {
   readonly _tag = "SharedClockFailure";
 }

@@ -12,6 +12,7 @@ import { BidirectionalHomeBusLink } from "./g6HomeBusLink.ts";
 import {
   G8_PRODUCER_NAME,
   loadG8FramingParameters,
+  nextAges,
   SharedFundamentalClock,
 } from "./g8SharedClock.ts";
 
@@ -147,4 +148,53 @@ describe("shared SCM fundamental clock", () => {
       assert.equal(clock.currentFundamentalTimestep, 0);
     }),
   );
+});
+
+const previousWord = (
+  fundamental_state: string,
+  fundamental_request: string,
+  state_age: number,
+  request_age: number,
+) => ({
+  fundamental_state,
+  fundamental_request,
+  state_age,
+  request_age,
+});
+
+describe("G8 nextAges table", () => {
+  it("resets both ages on the first word", () => {
+    assert.deepEqual(nextAges(undefined, "active", "need-control"), {
+      state_age: 0,
+      request_age: 0,
+    });
+  });
+
+  it("increments state_age and keeps request_age when both values repeat", () => {
+    assert.deepEqual(
+      nextAges(previousWord("active", "need-control", 3, 4), "active", "need-control"),
+      { state_age: 4, request_age: 4 },
+    );
+  });
+
+  it("resets state_age on state change without touching request_age", () => {
+    assert.deepEqual(
+      nextAges(previousWord("active", "need-control", 5, 2), "halted", "need-control"),
+      { state_age: 0, request_age: 2 },
+    );
+  });
+
+  it("resets request_age on request change and still increments state_age", () => {
+    assert.deepEqual(
+      nextAges(previousWord("active", "need-control", 5, 2), "active", "need-halt"),
+      { state_age: 6, request_age: 0 },
+    );
+  });
+
+  it("resets both ages when state and request both change", () => {
+    assert.deepEqual(
+      nextAges(previousWord("active", "need-control", 5, 2), "halted", "need-halt"),
+      { state_age: 0, request_age: 0 },
+    );
+  });
 });
