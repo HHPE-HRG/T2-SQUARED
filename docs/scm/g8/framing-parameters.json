@@ -1,0 +1,6 @@
+{
+  "producer_name": "scm.fundamental-clock",
+  "modifier_start": "modifier_start",
+  "null": "null",
+  "words_per_node_per_fundamental_timestep": 1
+}

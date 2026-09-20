@@ -3,6 +3,9 @@
  *
  * One process interval may advance N timesteps. No production clock.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import * as Effect from "effect/Effect";
 
 import {
@@ -11,6 +14,57 @@ import {
   type BridgeRouteFailure,
   type HomeBusLinkFailure,
 } from "./g6HomeBusLink.ts";
+
+/**
+ * In-process G8 timestep producer name. Prototype string, not a node_id.
+ *
+ * Parameters
+ * ----------
+ * none
+ *
+ * Returns
+ * -------
+ * "scm.fundamental-clock"
+ *
+ * Example
+ * -------
+ * assert.equal(clock.producer_name, G8_PRODUCER_NAME);
+ */
+export const G8_PRODUCER_NAME = "scm.fundamental-clock" as const;
+
+/**
+ * Framing placeholders loaded from docs/scm/g8/framing-parameters.json.
+ *
+ * Named strings only; G8 does not encode modifier_start or null as wire values.
+ */
+export interface G8FramingParameters {
+  readonly producer_name: typeof G8_PRODUCER_NAME;
+  readonly modifier_start: "modifier_start";
+  readonly null: "null";
+  readonly words_per_node_per_fundamental_timestep: 1;
+}
+
+/**
+ * Load G8 framing placeholders from the repo fixture.
+ *
+ * Parameters
+ * ----------
+ * repoRoot : string
+ *     T2-SQUARED repository root.
+ *
+ * Returns
+ * -------
+ * G8FramingParameters
+ *     Producer name and named placeholders (not encodings).
+ *
+ * Example
+ * -------
+ * const framing = loadG8FramingParameters(repoRoot);
+ */
+export const loadG8FramingParameters = (repoRoot: string): G8FramingParameters =>
+  JSON.parse(
+    readFileSync(join(repoRoot, "docs/scm/g8/framing-parameters.json"), "utf8"),
+  ) as G8FramingParameters;
 
 export class SharedClockFailure extends Error {
   readonly _tag = "SharedClockFailure";
@@ -45,6 +99,7 @@ export interface FundamentalTimestepTarget {
  * yield* clock.advanceProcessInterval(2);
  */
 export class SharedFundamentalClock {
+  readonly producer_name = G8_PRODUCER_NAME;
   currentFundamentalTimestep = 0;
   private running = false;
   private advancing = false;

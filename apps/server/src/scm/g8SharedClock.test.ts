@@ -1,4 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -7,7 +9,13 @@ import * as Fiber from "effect/Fiber";
 import { checkW1Word } from "./g4Word.ts";
 import { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
 import { BidirectionalHomeBusLink } from "./g6HomeBusLink.ts";
-import { SharedFundamentalClock } from "./g8SharedClock.ts";
+import {
+  G8_PRODUCER_NAME,
+  loadG8FramingParameters,
+  SharedFundamentalClock,
+} from "./g8SharedClock.ts";
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 const fixture = () => {
   const busA = new InProcessOpenLoopBus();
@@ -38,6 +46,18 @@ const fixture = () => {
 };
 
 describe("shared SCM fundamental clock", () => {
+  it("names the in-process producer scm.fundamental-clock and loads framing placeholders", () => {
+    const { clock } = fixture();
+    assert.equal(G8_PRODUCER_NAME, "scm.fundamental-clock");
+    assert.equal(clock.producer_name, G8_PRODUCER_NAME);
+    assert.deepEqual(loadG8FramingParameters(repoRoot), {
+      producer_name: "scm.fundamental-clock",
+      modifier_start: "modifier_start",
+      null: "null",
+      words_per_node_per_fundamental_timestep: 1,
+    });
+  });
+
   it.effect("advances every elapsed fundamental timestep in order", () =>
     Effect.gen(function* () {
       const { busA, busB, clock } = fixture();
