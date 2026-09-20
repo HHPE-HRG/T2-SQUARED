@@ -1,5 +1,5 @@
 /**
- * G7 DIP bus-level position and bus mutationGuard tests.
+ * G7 DIP bus-level position, bus mutationGuard, and home-bus bridge tests.
  *
  * Store cases: governed buses default to live, steward freeze/halt,
  * observer and node.observer.404 denial, unknown-bus fail-closed, mute
@@ -7,13 +7,18 @@
  *
  * Bus cases: InProcessOpenLoopBus optional mutationGuard refuses
  * publish/advance after freeze; read/hear keep the pre-freeze snapshot.
- * No G5→G6 import. No bridge DIP consult, OTEL, or recommend-stop yet.
+ * No G5→G6 import.
+ *
+ * Bridge cases: BidirectionalHomeBusLink optional dip skips frozen/halted
+ * bus advance and does not destination.publish; mute-source is not freeze.
+ * No OTEL or recommend-stop yet.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assert, describe, it } from "@effect/vitest";
+import * as Effect from "effect/Effect";
 
 import { checkW1Word, type W1Word } from "./g4Word.ts";
 import { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
@@ -27,6 +32,7 @@ import {
   type DipRow,
   type GovernedClasses,
 } from "./g6DipMute.ts";
+import { BidirectionalHomeBusLink, type BridgeRoute } from "./g6HomeBusLink.ts";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
@@ -306,4 +312,130 @@ describe("G7 bus mutationGuard", () => {
     bus.advanceFundamentalTimestep();
     assert.equal(bus.read("node.scm.home-a")?.fundamental_request, "ungarded");
   });
+});
+
+/**
+ * Inverse routes over fixture homes bus.scm.a / bus.scm.b.
+ *
+ * Parameters
+ * ----------
+ * none
+ *
+ * Returns
+ * -------
+ * [BridgeRoute, BridgeRoute]
+ *     Unique inverse pair for BidirectionalHomeBusLink.
+ *
+ * Example
+ * -------
+ * routes: g7HomeRoutes()
+ */
+const g7HomeRoutes = (): readonly [BridgeRoute, BridgeRoute] => [
+  {
+    route_id: "route.scm.a-to-b",
+    source_bus_id: "bus.scm.a",
+    destination_bus_id: "bus.scm.b",
+    allowed_origin_node_ids: ["node.scm.home-a"],
+    enabled: true,
+  },
+  {
+    route_id: "route.scm.b-to-a",
+    source_bus_id: "bus.scm.b",
+    destination_bus_id: "bus.scm.a",
+    allowed_origin_node_ids: ["node.scm.home-b"],
+    enabled: true,
+  },
+];
+
+/**
+ * Two guarded home buses plus a DIP-aware inverse link.
+ *
+ * Parameters
+ * ----------
+ * store : DipMuteStore
+ *     Governed DIP used for mutationGuard and optional bridge consult.
+ *
+ * Returns
+ * -------
+ * { busA, busB, link }
+ *     bus.scm.a / bus.scm.b with assertMutable guards and dip on the link.
+ *
+ * Example
+ * -------
+ * const { busA, busB, link } = g7LinkedHomes(store);
+ */
+const g7LinkedHomes = (
+  store: DipMuteStore,
+): {
+  readonly busA: InProcessOpenLoopBus;
+  readonly busB: InProcessOpenLoopBus;
+  readonly link: BidirectionalHomeBusLink;
+} => {
+  const busA = new InProcessOpenLoopBus({
+    mutationGuard: () => store.assertMutable("bus.scm.a"),
+  });
+  const busB = new InProcessOpenLoopBus({
+    mutationGuard: () => store.assertMutable("bus.scm.b"),
+  });
+  const link = new BidirectionalHomeBusLink({
+    buses: new Map([
+      ["bus.scm.a", busA],
+      ["bus.scm.b", busB],
+    ]),
+    routes: g7HomeRoutes(),
+    dip: store,
+  });
+  return { busA, busB, link };
+};
+
+describe("G7 home-bus bridge obeys DIP", () => {
+  it.effect("freeze A before publish: neither direction delivers; B still publishes locally", () =>
+    Effect.gen(function* () {
+      const store = new DipMuteStore(loadFixtureGoverned());
+      const { busA, busB, link } = g7LinkedHomes(store);
+      store.setBusPosition("bus.scm.a", "frozen", STEWARD_ACTOR);
+
+      const fromA = checkedWord("bus.scm.a", "node.scm.home-a", "blocked-a");
+      const fromB = checkedWord("bus.scm.b", "node.scm.home-b", "local-b");
+      assert.throws(() => busA.publish(fromA), DipMuteFailure);
+      busB.publish(fromB);
+
+      const first = yield* link.advanceFundamentalTimestep();
+      assert.equal(first.deliveries.length, 0);
+      assert.equal(first.failures.length, 2);
+      for (const failure of first.failures) {
+        assert.equal(
+          failure.message.includes("frozen") || failure.message.includes("halted"),
+          true,
+        );
+      }
+      assert.deepEqual(busB.read("node.scm.home-b"), fromB);
+
+      const second = yield* link.advanceFundamentalTimestep();
+      assert.equal(second.deliveries.length, 0);
+      assert.equal(busA.read("node.scm.home-b"), undefined);
+      assert.equal(busB.read("node.scm.home-a"), undefined);
+    }),
+  );
+
+  it.effect("mute-source on live buses: bridge still forwards", () =>
+    Effect.gen(function* () {
+      const store = new DipMuteStore(loadFixtureGoverned());
+      store.setDip(a2PeerMute({ mode: "mute-source" }));
+      const { busA, busB, link } = g7LinkedHomes(store);
+      const fromA = checkedWord("bus.scm.a", "node.scm.home-a", "live-a");
+      const fromB = checkedWord("bus.scm.b", "node.scm.home-b", "live-b");
+
+      busA.publish(fromA);
+      busB.publish(fromB);
+      const first = yield* link.advanceFundamentalTimestep();
+      assert.equal(first.deliveries.length, 2);
+      assert.deepEqual(first.failures, []);
+      yield* link.advanceFundamentalTimestep();
+
+      assert.deepEqual(busA.read("node.scm.home-b"), fromB);
+      assert.deepEqual(busB.read("node.scm.home-a"), fromA);
+      assert.equal(hear(busA, store, "bus.scm.a", "node.scm.home-b"), undefined);
+    }),
+  );
 });

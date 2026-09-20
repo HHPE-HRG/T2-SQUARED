@@ -1,7 +1,9 @@
 /**
  * Bounded bidirectional in-process home-bus link.
  *
- * Two explicit inverse routes. No G6 completion, DIP, halt, or codec.
+ * Two explicit inverse routes. Optional DIP consult skips frozen/halted
+ * bus advance and does not destination.publish on those routes.
+ * Mute rows stay hear-only and do not block forward. No codec.
  */
 import type { Attributes } from "@opentelemetry/api";
 import * as Effect from "effect/Effect";
@@ -9,6 +11,7 @@ import * as Effect from "effect/Effect";
 import { withOwnedSpan } from "../t2Observability/T2Observability.ts";
 import { checkW1Word, type W1Word } from "./g4Word.ts";
 import { InProcessOpenLoopBus, w1WordId } from "./g5OpenLoop.ts";
+import type { DipMuteStore } from "./g6DipMute.ts";
 
 export interface BridgeRoute {
   readonly route_id: string;
@@ -97,6 +100,26 @@ export const observeBridgeForward = <A, E, R>(
   );
 
 /**
+ * True when a DIP bus-level position must not be advanced or forwarded into.
+ *
+ * Parameters
+ * ----------
+ * position : string
+ *     Result of DipMuteStore.busPosition.
+ *
+ * Returns
+ * -------
+ * boolean
+ *     Frozen or halted latches. Live (or absent dip) is false.
+ *
+ * Example
+ * -------
+ * if (dipFrozenOrHalted(store.busPosition(busId))) continue;
+ */
+const dipFrozenOrHalted = (position: string): boolean =>
+  position === "frozen" || position === "halted";
+
+/**
  * Two-bus coordinator for explicit inverse home-bus routes.
  *
  * Parameters
@@ -105,6 +128,8 @@ export const observeBridgeForward = <A, E, R>(
  *     Known in-process buses keyed by bus_id.
  * config.routes : [BridgeRoute, BridgeRoute]
  *     Unique inverse routes over those buses.
+ * config.dip : DipMuteStore
+ *     Optional. Absent treats every bus as live (existing G6 tests).
  *
  * Returns
  * -------
@@ -113,7 +138,7 @@ export const observeBridgeForward = <A, E, R>(
  *
  * Example
  * -------
- * const link = new BidirectionalHomeBusLink({ buses, routes: [aToB, bToA] });
+ * const link = new BidirectionalHomeBusLink({ buses, routes: [aToB, bToA], dip });
  */
 export class BidirectionalHomeBusLink {
   private fundamentalTimestep = 0;
@@ -121,11 +146,13 @@ export class BidirectionalHomeBusLink {
   private readonly config: {
     readonly buses: ReadonlyMap<string, InProcessOpenLoopBus>;
     readonly routes: readonly [BridgeRoute, BridgeRoute];
+    readonly dip?: DipMuteStore;
   };
 
   constructor(config: {
     readonly buses: ReadonlyMap<string, InProcessOpenLoopBus>;
     readonly routes: readonly [BridgeRoute, BridgeRoute];
+    readonly dip?: DipMuteStore;
   }) {
     this.config = config;
     const [forward, reverse] = config.routes;
@@ -156,6 +183,10 @@ export class BidirectionalHomeBusLink {
   /**
    * Advance one shared fundamental timestep and forward eligible local origins.
    *
+   * Frozen/halted DIP buses are not advanced. Enabled routes whose source
+   * or destination is frozen/halted record BridgeRouteFailure and do not
+   * destination.publish. Absent dip: every bus is live.
+   *
    * Parameters
    * ----------
    * none
@@ -185,7 +216,11 @@ export class BidirectionalHomeBusLink {
     };
 
     return Effect.gen(function* () {
-      for (const bus of config.buses.values()) {
+      const dip = config.dip;
+      for (const [busId, bus] of config.buses) {
+        if (dip !== undefined && dipFrozenOrHalted(dip.busPosition(busId))) {
+          continue;
+        }
         bus.advanceFundamentalTimestep();
       }
 
@@ -198,6 +233,18 @@ export class BidirectionalHomeBusLink {
 
       for (const route of config.routes) {
         if (!route.enabled) continue;
+        if (
+          dip !== undefined &&
+          (dipFrozenOrHalted(dip.busPosition(route.source_bus_id)) ||
+            dipFrozenOrHalted(dip.busPosition(route.destination_bus_id)))
+        ) {
+          failures.push({
+            route_id: route.route_id,
+            origin_node_id: route.allowed_origin_node_ids[0] ?? "",
+            message: "source or destination DIP is frozen or halted",
+          });
+          continue;
+        }
         const source = config.buses.get(route.source_bus_id)!;
         const destination = config.buses.get(route.destination_bus_id)!;
 
