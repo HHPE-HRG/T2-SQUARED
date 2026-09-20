@@ -51,7 +51,7 @@ export class InProcessOpenLoopBus {
   fundamentalTimestep = 0;
   private readable = new Map<string, W1Word>();
   private writing = new Map<string, W1Word>();
-  private readonly mutationGuard?: () => void;
+  private readonly mutationGuard: (() => void) | undefined;
 
   /**
    * Construct an in-process open-loop bus.

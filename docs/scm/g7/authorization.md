@@ -1,6 +1,8 @@
 # G7 human authorization
 
-Status: **authorized** (human operator, 2026-09-20). Not completed.
+Status: **authorized** (human operator, 2026-09-20). Package completeness:
+**completed** for this DIP freeze/halt slice (`docs/scm/g7/manifest.json`).
+Not human A7 attestation.
 
 ## Authorization
 
@@ -31,4 +33,4 @@ G7 authorization lives in this package. Compound later-gate flags stay false.
 
 See `docs/scm/g7/decisions.md`.
 
-README is explanatory. Not a reviewed-package digest until G7 completion review.
+README is explanatory. Not a reviewed-package digest / human A7 attestation.
