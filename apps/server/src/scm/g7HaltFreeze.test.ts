@@ -17,6 +17,10 @@
  *
  * admitPublish: known identity publishes; unknown node_id freezes that bus
  * without writing the word; already-frozen buses stay frozen.
+ *
+ * Package: loadG7Package/checkG7 legal completed tuple, G4/G5/G6 later-gate
+ * flags stay false, G3 halt_initiator never yes. Halt both homes needs two
+ * DIP writes. Mute-source is not freeze (bridge still forwards).
  */
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -30,13 +34,14 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 
 import { T2Observability, layerTest } from "../t2Observability/T2Observability.ts";
-import { checkW1Word, type W1Word } from "./g4Word.ts";
-import { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
+import { checkW1Word, loadG4Package, type W1Word } from "./g4Word.ts";
+import { InProcessOpenLoopBus, loadG5Package } from "./g5OpenLoop.ts";
 import {
   admitPublish,
   DipMuteFailure,
   DipMuteStore,
   hear,
+  loadG6Package,
   observeBusPosition,
   recommendStop,
   STEWARD_ACTOR,
@@ -46,6 +51,7 @@ import {
   type GovernedClasses,
 } from "./g6DipMute.ts";
 import { BidirectionalHomeBusLink, type BridgeRoute } from "./g6HomeBusLink.ts";
+import { checkG7, loadG7Package } from "./g7HaltFreeze.ts";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
@@ -618,5 +624,84 @@ describe("G7 admitPublish unknown identity freeze", () => {
     assert.equal(store.busPosition("bus.scm.a"), "frozen");
     assert.throws(() => bus.advanceFundamentalTimestep(), DipMuteFailure);
     assert.equal(bus.read("node.scm.home-a"), undefined);
+  });
+});
+
+describe("G7 halt both homes and package barrier", () => {
+  it("halt both homes via two setBusPosition halted writes; both refuse publish", () => {
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const { busA, busB } = g7LinkedHomes(store);
+    store.setBusPosition("bus.scm.a", "halted", STEWARD_ACTOR);
+    store.setBusPosition("bus.scm.b", "halted", STEWARD_ACTOR);
+    assert.equal(store.busPosition("bus.scm.a"), "halted");
+    assert.equal(store.busPosition("bus.scm.b"), "halted");
+    assert.throws(
+      () => busA.publish(checkedWord("bus.scm.a", "node.scm.home-a", "halted-a")),
+      DipMuteFailure,
+    );
+    assert.throws(
+      () => busB.publish(checkedWord("bus.scm.b", "node.scm.home-b", "halted-b")),
+      DipMuteFailure,
+    );
+  });
+
+  it("keeps G4/G5 g6toG10Authorized false", () => {
+    assert.equal(loadG4Package(repoRoot).manifest.g6toG10Authorized, false);
+    assert.equal(loadG5Package(repoRoot).manifest.g6toG10Authorized, false);
+  });
+
+  it("keeps G6 g7toG10Authorized false", () => {
+    assert.equal(loadG6Package(repoRoot).manifest.g7toG10Authorized, false);
+  });
+
+  it("G3 node-roster.json has no halt_initiator yes", () => {
+    const roster = JSON.parse(
+      readFileSync(join(repoRoot, "docs/scm/g3/node-roster.json"), "utf8"),
+    ) as { readonly nodes: ReadonlyArray<{ readonly halt_initiator: string }> };
+    for (const node of roster.nodes) {
+      assert.notEqual(node.halt_initiator, "yes");
+    }
+  });
+
+  it("checkG7 accepts the legal completed tuple without a review hash", () => {
+    const pkg = loadG7Package(repoRoot);
+    const result = checkG7(pkg);
+    assert.equal(
+      result.ok,
+      true,
+      result.ok ? "" : result.failures.map((row) => row.message).join("\n"),
+    );
+    assert.equal(pkg.manifest.schemaVersion, 1);
+    assert.equal(pkg.manifest.gate, "G7");
+    assert.equal(pkg.manifest.status, "completed");
+    assert.equal(pkg.manifest.authorized, true);
+    assert.equal(pkg.manifest.completed, true);
+    assert.equal(pkg.manifest.doesNotAuthorizeLaterGates, true);
+    assert.equal(pkg.manifest.g8toG10Authorized, false);
+    assert.equal(pkg.manifest.plan, "docs/superpowers/plans/2026-09-20-scm-g7-halt-freeze.md");
+    assert.equal(pkg.manifest.authorization.identity, "human-operator");
+    assert.equal(pkg.manifest.authorization.scope, "G7 halt vs 404");
+    assert.ok(pkg.manifest.authorization.note.includes("2026-09-20"));
+  });
+
+  it("rejects later-gate authorization flags", () => {
+    const pkg = loadG7Package(repoRoot);
+    const mutated = structuredClone(pkg);
+    mutated.manifest.g8toG10Authorized = true as unknown as false;
+    mutated.manifest.doesNotAuthorizeLaterGates = false as unknown as true;
+    const result = checkG7(mutated);
+    assert.equal(result.ok, false);
+    assert.ok(result.ok === false && result.failures.some((row) => row.code === "later-gates"));
+  });
+
+  it("README states DIP freeze/halt, bridge obeys, no campaign, OTEL, 404, G8-G10 locked", () => {
+    const readme = readFileSync(join(repoRoot, "docs/scm/g7/README.md"), "utf8");
+    assert.ok(readme.includes("DIP"));
+    assert.ok(readme.includes("bridge"));
+    assert.ok(readme.includes("campaign"));
+    assert.ok(readme.includes("OTEL"));
+    assert.ok(readme.includes("404"));
+    assert.ok(readme.includes("recommend-stop"));
+    assert.ok(readme.includes("G8"));
   });
 });

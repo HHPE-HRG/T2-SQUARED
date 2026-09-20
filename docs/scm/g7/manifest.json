@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "gate": "G7",
+  "status": "completed",
+  "authorized": true,
+  "completed": true,
+  "doesNotAuthorizeLaterGates": true,
+  "g8toG10Authorized": false,
+  "plan": "docs/superpowers/plans/2026-09-20-scm-g7-halt-freeze.md",
+  "authorization": {
+    "identity": "human-operator",
+    "scope": "G7 halt vs 404",
+    "note": "Human authorized G7 on 2026-09-20. DIP bus-level freeze/halt; bridge obeys; 404 recommend-stop observational. G8–G10 locked. Not human A7 attestation."
+  }
+}
