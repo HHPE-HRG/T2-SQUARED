@@ -12,6 +12,8 @@
  * freeze or halt. Frozen/halted buses reject setDip/removeDip and
  * assertMutable; there is no unfreeze/unhalt. observeBusPosition emits
  * freeze/halt spans after a successful set; recommendStop is OTEL only.
+ * admitPublish freezes the target bus on unknown node_id or bus_id and
+ * does not publish; other buses stay live.
  *
  * Package check is completeness for this DIP-mute slice: legal tuple, gate G6,
  * later-gates locked. No independent-review hash. Does not flip G4/G5
@@ -633,6 +635,48 @@ export const hear = (
     return { ...word, modifiers: [] };
   }
   return word;
+};
+
+/**
+ * Admit a W1 word onto a DIP-governed bus, or freeze that bus.
+ *
+ * Unknown node_id or word.bus_id is fail-closed: freeze this bus_id via
+ * STEWARD_ACTOR and throw without bus.publish. Other buses are not halted.
+ *
+ * Parameters
+ * ----------
+ * bus : InProcessOpenLoopBus
+ *     Target writing bus.
+ * store : DipMuteStore
+ *     DIP positions and governed class tables.
+ * bus_id : string
+ *     Governed bus being admitted onto; must still be mutable.
+ * word : W1Word
+ *     Candidate origin identity (node_id and bus_id).
+ *
+ * Returns
+ * -------
+ * void
+ *
+ * Example
+ * -------
+ * admitPublish(bus, store, "bus.scm.a", word);
+ */
+export const admitPublish = (
+  bus: InProcessOpenLoopBus,
+  store: DipMuteStore,
+  bus_id: string,
+  word: W1Word,
+): void => {
+  store.assertMutable(bus_id);
+  const governed = store.governedClasses();
+  if (!governed.nodes.has(word.node_id) || !governed.buses.has(word.bus_id)) {
+    store.setBusPosition(bus_id, "frozen", STEWARD_ACTOR);
+    throw new DipMuteFailure(
+      `unknown publish identity node_id=${word.node_id} bus_id=${word.bus_id}`,
+    );
+  }
+  bus.publish(word);
 };
 
 /**

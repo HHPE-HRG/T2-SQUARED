@@ -14,6 +14,9 @@
  *
  * OTEL: observeBusPosition emits t2.scm.freeze / t2.scm.halt after a
  * successful set; recommendStop emits t2.scm.recommend_stop without DIP write.
+ *
+ * admitPublish: known identity publishes; unknown node_id freezes that bus
+ * without writing the word; already-frozen buses stay frozen.
  */
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -30,6 +33,7 @@ import { T2Observability, layerTest } from "../t2Observability/T2Observability.t
 import { checkW1Word, type W1Word } from "./g4Word.ts";
 import { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
 import {
+  admitPublish,
   DipMuteFailure,
   DipMuteStore,
   hear,
@@ -567,5 +571,52 @@ describe("G7 OTEL freeze/halt and 404 recommend-stop", () => {
       assert.equal(halts.length, 1);
       assert.equal(trace.getTracerProvider(), before);
     }).pipe(Effect.provide(layerTest({ exporter, filePath: makeOtelFilePath() })));
+  });
+});
+
+describe("G7 admitPublish unknown identity freeze", () => {
+  it("known identity publishes onto the writing bus", () => {
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const bus = new InProcessOpenLoopBus({
+      mutationGuard: () => store.assertMutable("bus.scm.a"),
+    });
+    const word = checkedWord("bus.scm.a", "node.scm.home-a", "known-identity");
+    admitPublish(bus, store, "bus.scm.a", word);
+    bus.advanceFundamentalTimestep();
+    assert.deepEqual(bus.read("node.scm.home-a"), word);
+    assert.equal(store.busPosition("bus.scm.a"), "live");
+  });
+
+  it("unknown node_id freezes that bus only; word never reaches writing or readable", () => {
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const busA = new InProcessOpenLoopBus({
+      mutationGuard: () => store.assertMutable("bus.scm.a"),
+    });
+    const busB = new InProcessOpenLoopBus({
+      mutationGuard: () => store.assertMutable("bus.scm.b"),
+    });
+    const unknown = checkedWord("bus.scm.a", "node.unknown.intruder", "unknown-identity");
+    assert.throws(() => admitPublish(busA, store, "bus.scm.a", unknown), DipMuteFailure);
+    assert.equal(store.busPosition("bus.scm.a"), "frozen");
+    assert.equal(store.busPosition("bus.scm.b"), "live");
+    assert.throws(() => busA.advanceFundamentalTimestep(), DipMuteFailure);
+    assert.equal(busA.read("node.unknown.intruder"), undefined);
+    const liveB = checkedWord("bus.scm.b", "node.scm.home-b", "still-live");
+    busB.publish(liveB);
+    busB.advanceFundamentalTimestep();
+    assert.deepEqual(busB.read("node.scm.home-b"), liveB);
+  });
+
+  it("already frozen: admitPublish throws and position stays frozen", () => {
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const bus = new InProcessOpenLoopBus({
+      mutationGuard: () => store.assertMutable("bus.scm.a"),
+    });
+    store.setBusPosition("bus.scm.a", "frozen", STEWARD_ACTOR);
+    const word = checkedWord("bus.scm.a", "node.scm.home-a", "after-freeze");
+    assert.throws(() => admitPublish(bus, store, "bus.scm.a", word), DipMuteFailure);
+    assert.equal(store.busPosition("bus.scm.a"), "frozen");
+    assert.throws(() => bus.advanceFundamentalTimestep(), DipMuteFailure);
+    assert.equal(bus.read("node.scm.home-a"), undefined);
   });
 });
