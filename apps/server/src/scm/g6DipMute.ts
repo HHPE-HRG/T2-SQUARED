@@ -7,6 +7,12 @@
  * InProcessOpenLoopBus.read stays unfiltered. observeDipSet / hearObserved
  * emit spans after successful mute decisions; they must not perform mute.
  *
+ * G7 bus-level position (live / frozen / halted) lives on this store.
+ * Governed buses default live. Observer and node.observer.404 cannot
+ * freeze or halt. Frozen/halted buses reject setDip/removeDip and
+ * assertMutable; there is no unfreeze/unhalt. OTEL, bus mutationGuard,
+ * and bridge DIP consult are not in this module yet.
+ *
  * Package check is completeness for this DIP-mute slice: legal tuple, gate G6,
  * later-gates locked. No independent-review hash. Does not flip G4/G5
  * g6toG10Authorized and does not authorize G7–G10.
@@ -23,6 +29,70 @@ import { w1WordId, type InProcessOpenLoopBus } from "./g5OpenLoop.ts";
 
 export type AuthorityClass = "A0" | "A1" | "A2" | "observer";
 export type DipMode = "hear" | "mute-source" | "mute-modifiers";
+
+/**
+ * Bus-level DIP safety position. Intended: one latch per governed bus.
+ * Observed: unknown bus_id is not live; callers must use busPosition.
+ *
+ * Parameters
+ * ----------
+ * none
+ *
+ * Returns
+ * -------
+ * "live" | "frozen" | "halted"
+ *     Safety latch for that receiving bus.
+ *
+ * Example
+ * -------
+ * const position: DipBusPosition = "frozen";
+ */
+export type DipBusPosition = "live" | "frozen" | "halted";
+
+/**
+ * Actor attempting a DIP bus-position write.
+ *
+ * Parameters
+ * ----------
+ * node_id : string
+ *     Caller identity (steward.test vs node.observer.404).
+ * authority_class : AuthorityClass
+ *     Caller class; observer cannot freeze or halt.
+ *
+ * Returns
+ * -------
+ * DipActor
+ *     Identity used by setBusPosition.
+ *
+ * Example
+ * -------
+ * const actor: DipActor = STEWARD_ACTOR;
+ */
+export interface DipActor {
+  readonly node_id: string;
+  readonly authority_class: AuthorityClass;
+}
+
+/**
+ * Steward actor allowed to freeze or halt a governed bus.
+ *
+ * Parameters
+ * ----------
+ * none
+ *
+ * Returns
+ * -------
+ * DipActor
+ *     node_id steward.test, class A2 (not observer).
+ *
+ * Example
+ * -------
+ * store.setBusPosition("bus.scm.a", "frozen", STEWARD_ACTOR);
+ */
+export const STEWARD_ACTOR: DipActor = {
+  node_id: "steward.test",
+  authority_class: "A2",
+};
 
 export interface DipRow {
   readonly receiving_bus_id: string;
@@ -78,6 +148,7 @@ const dipKey = (receiving_bus_id: string, source_bus_id: string, source_node_id:
  * Example
  * -------
  * throw new DipMuteFailure("source class exceeds receiving class");
+ * throw new DipMuteFailure("observer cannot freeze or halt DIP");
  */
 export class DipMuteFailure extends Error {
   readonly _tag = "DipMuteFailure";
@@ -99,19 +170,107 @@ export class DipMuteFailure extends Error {
  * Returns
  * -------
  * DipMuteStore
- *     Validating upsert store plus lookup/shouldSuppress for hear().
+ *     Validating upsert store, bus-level position, lookup/shouldSuppress.
  *
  * Example
  * -------
  * const store = new DipMuteStore(governed);
  * store.setDip(row);
+ * store.setBusPosition("bus.scm.a", "frozen", STEWARD_ACTOR);
  */
 export class DipMuteStore {
   private readonly governed: GovernedClasses;
   private readonly rows = new Map<string, DipRow>();
+  /** Latched frozen/halted positions; absent governed bus means live. */
+  private readonly positions = new Map<string, DipBusPosition>();
 
   constructor(governed: GovernedClasses) {
     this.governed = governed;
+  }
+
+  /**
+   * Governed-bus safety position. Unknown bus_id fails closed.
+   *
+   * Parameters
+   * ----------
+   * bus_id : string
+   *     Must exist in governed.buses.
+   *
+   * Returns
+   * -------
+   * DipBusPosition
+   *     live until set; else frozen or halted.
+   *
+   * Example
+   * -------
+   * store.busPosition("bus.scm.a");
+   */
+  busPosition(bus_id: string): DipBusPosition {
+    this.assertGovernedBus(bus_id);
+    return this.positions.get(bus_id) ?? "live";
+  }
+
+  /**
+   * Latch freeze/halt on a governed bus. No unfreeze/unhalt.
+   *
+   * Observer class and node.observer.404 cannot set frozen/halted.
+   * Same-position writes are idempotent. live → frozen/halted is allowed.
+   *
+   * Parameters
+   * ----------
+   * bus_id : string
+   *     Governed bus to latch.
+   * position : DipBusPosition
+   *     Target position.
+   * actor : DipActor
+   *     Caller identity and class.
+   *
+   * Returns
+   * -------
+   * void
+   *
+   * Example
+   * -------
+   * store.setBusPosition("bus.scm.a", "halted", STEWARD_ACTOR);
+   */
+  setBusPosition(bus_id: string, position: DipBusPosition, actor: DipActor): void {
+    this.assertGovernedBus(bus_id);
+    const current = this.positions.get(bus_id) ?? "live";
+    if (position === "frozen" || position === "halted") {
+      if (actor.authority_class === "observer" || actor.node_id === "node.observer.404") {
+        throw new DipMuteFailure("observer cannot freeze or halt DIP");
+      }
+    }
+    if (current === position) {
+      return;
+    }
+    if (current === "frozen" || current === "halted") {
+      throw new DipMuteFailure("DIP bus position cannot be changed after freeze or halt");
+    }
+    this.positions.set(bus_id, position);
+  }
+
+  /**
+   * Fail closed when the governed bus is frozen or halted.
+   *
+   * Parameters
+   * ----------
+   * bus_id : string
+   *     Governed bus that must still accept mutation.
+   *
+   * Returns
+   * -------
+   * void
+   *
+   * Example
+   * -------
+   * store.assertMutable("bus.scm.a");
+   */
+  assertMutable(bus_id: string): void {
+    const position = this.busPosition(bus_id);
+    if (position === "frozen" || position === "halted") {
+      throw new DipMuteFailure(`DIP bus ${bus_id} is ${position}`);
+    }
   }
 
   /**
@@ -132,6 +291,7 @@ export class DipMuteStore {
    */
   setDip(row: DipRow): void {
     this.assertValidRow(row);
+    this.assertMutable(row.receiving_bus_id);
     const key = dipKey(row.receiving_bus_id, row.source_bus_id, row.source_node_id);
     const existing = this.rows.get(key);
     if (existing !== undefined && !existing.runtime_mutable) {
@@ -161,6 +321,9 @@ export class DipMuteStore {
    * store.removeDip("bus.scm.a", "bus.scm.b", "node.scm.home-b");
    */
   removeDip(receiving_bus_id: string, source_bus_id: string, source_node_id: string): void {
+    if (this.governed.buses.has(receiving_bus_id)) {
+      this.assertMutable(receiving_bus_id);
+    }
     const key = dipKey(receiving_bus_id, source_bus_id, source_node_id);
     const existing = this.rows.get(key);
     if (existing === undefined) {
@@ -299,6 +462,28 @@ export class DipMuteStore {
    */
   governedClasses(): GovernedClasses {
     return this.governed;
+  }
+
+  /**
+   * Fail closed when bus_id is absent from governed.buses.
+   *
+   * Parameters
+   * ----------
+   * bus_id : string
+   *     Candidate receiving bus.
+   *
+   * Returns
+   * -------
+   * void
+   *
+   * Example
+   * -------
+   * this.assertGovernedBus("bus.scm.a");
+   */
+  private assertGovernedBus(bus_id: string): void {
+    if (!this.governed.buses.has(bus_id)) {
+      throw new DipMuteFailure(`unknown bus: ${bus_id}`);
+    }
   }
 
   /**
