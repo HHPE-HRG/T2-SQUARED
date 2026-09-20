@@ -1,10 +1,13 @@
 /**
- * G7 DIP bus-level position tests (store only for this task).
+ * G7 DIP bus-level position and bus mutationGuard tests.
  *
- * Proves governed buses default to live, steward freeze/halt, observer
- * and node.observer.404 denial, unknown-bus fail-closed, mute while live,
- * and mute-row mutation blocked after freeze/halt. No bus guard, bridge
- * DIP consult, OTEL, or recommend-stop in this file yet.
+ * Store cases: governed buses default to live, steward freeze/halt,
+ * observer and node.observer.404 denial, unknown-bus fail-closed, mute
+ * while live, mute-row mutation blocked after freeze/halt.
+ *
+ * Bus cases: InProcessOpenLoopBus optional mutationGuard refuses
+ * publish/advance after freeze; read/hear keep the pre-freeze snapshot.
+ * No G5→G6 import. No bridge DIP consult, OTEL, or recommend-stop yet.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -12,9 +15,12 @@ import { fileURLToPath } from "node:url";
 
 import { assert, describe, it } from "@effect/vitest";
 
+import { checkW1Word, type W1Word } from "./g4Word.ts";
+import { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
 import {
   DipMuteFailure,
   DipMuteStore,
+  hear,
   STEWARD_ACTOR,
   type AuthorityClass,
   type DipActor,
@@ -230,5 +236,74 @@ describe("G7 DIP bus-level position (store)", () => {
       DipMuteFailure,
     );
     assert.equal(store.listDip("bus.scm.a")[0]?.mode, "mute-source");
+  });
+});
+
+/**
+ * Legal W1 word for a G7 snapshot on a home bus.
+ *
+ * Parameters
+ * ----------
+ * bus_id : string
+ *     Origin bus id stored on the word.
+ * node_id : string
+ *     Origin node id; also the bus.read / hear key.
+ * request : string
+ *     fundamental_request used to distinguish snapshots.
+ *
+ * Returns
+ * -------
+ * W1Word
+ *     Word accepted by checkW1Word.
+ *
+ * Example
+ * -------
+ * const word = checkedWord("bus.scm.a", "node.scm.home-a", "pre-freeze");
+ */
+const checkedWord = (bus_id: string, node_id: string, request: string): W1Word => {
+  const checked = checkW1Word({
+    bus_id,
+    node_id,
+    fundamental_state: "active",
+    fundamental_request: request,
+    state_age: 0,
+    request_age: 0,
+    modifier_start: "modifier_start",
+    null: "null",
+  });
+  if (!checked.ok) {
+    throw new Error(checked.failures.map((failure) => failure.message).join("\n"));
+  }
+  return checked.word;
+};
+
+describe("G7 bus mutationGuard", () => {
+  it("freeze then publish and advance throw; read and hear keep pre-freeze snapshot", () => {
+    const store = new DipMuteStore(loadFixtureGoverned());
+    const busA = new InProcessOpenLoopBus({
+      mutationGuard: () => store.assertMutable("bus.scm.a"),
+    });
+    const snapshot = checkedWord("bus.scm.a", "node.scm.home-a", "pre-freeze");
+    busA.publish(snapshot);
+    busA.advanceFundamentalTimestep();
+
+    store.setBusPosition("bus.scm.a", "frozen", STEWARD_ACTOR);
+    const afterFreeze = checkedWord("bus.scm.a", "node.scm.home-a", "post-freeze");
+    assert.throws(() => busA.publish(afterFreeze), DipMuteFailure);
+    assert.throws(() => busA.advanceFundamentalTimestep(), DipMuteFailure);
+
+    assert.equal(busA.read("node.scm.home-a")?.fundamental_request, "pre-freeze");
+    assert.equal(
+      hear(busA, store, "bus.scm.a", "node.scm.home-a")?.fundamental_request,
+      "pre-freeze",
+    );
+  });
+
+  it("unguarded bus still publishes and advances", () => {
+    const bus = new InProcessOpenLoopBus();
+    const word = checkedWord("bus.scm.a", "node.scm.home-a", "ungarded");
+    bus.publish(word);
+    bus.advanceFundamentalTimestep();
+    assert.equal(bus.read("node.scm.home-a")?.fundamental_request, "ungarded");
   });
 });

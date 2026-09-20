@@ -26,9 +26,15 @@ const MANIFEST_STATUSES = new Set([
 /**
  * Memoryless in-process home bus for the G5 prototype.
  *
+ * Optional mutationGuard runs before publish and advance only. G5 must
+ * not import DIP; G7 tests pass store.assertMutable as the guard.
+ * Unguarded construction stays always-mutable.
+ *
  * Parameters
  * ----------
- * none
+ * options.mutationGuard : () => void
+ *     Optional. Throw to abort the write or timestep advance. Never
+ *     invoked from read.
  *
  * Returns
  * -------
@@ -45,6 +51,30 @@ export class InProcessOpenLoopBus {
   fundamentalTimestep = 0;
   private readable = new Map<string, W1Word>();
   private writing = new Map<string, W1Word>();
+  private readonly mutationGuard?: () => void;
+
+  /**
+   * Construct an in-process open-loop bus.
+   *
+   * Parameters
+   * ----------
+   * options : { mutationGuard?: () => void }
+   *     Optional. Absent or missing mutationGuard means always mutable.
+   *
+   * Returns
+   * -------
+   * InProcessOpenLoopBus
+   *     New bus at fundamental timestep 0.
+   *
+   * Example
+   * -------
+   * const bus = new InProcessOpenLoopBus({
+   *   mutationGuard: () => store.assertMutable("bus.scm.a"),
+   * });
+   */
+  constructor(options?: { mutationGuard?: () => void }) {
+    this.mutationGuard = options?.mutationGuard;
+  }
 
   /**
    * Publish one word for the current fundamental timestep.
@@ -63,6 +93,7 @@ export class InProcessOpenLoopBus {
    * bus.publish(word);
    */
   publish(word: W1Word): void {
+    this.mutationGuard?.();
     this.writing.set(word.node_id, word);
   }
 
@@ -103,6 +134,7 @@ export class InProcessOpenLoopBus {
    * bus.advanceFundamentalTimestep();
    */
   advanceFundamentalTimestep(): void {
+    this.mutationGuard?.();
     this.readable = this.writing;
     this.writing = new Map();
     this.fundamentalTimestep += 1;
