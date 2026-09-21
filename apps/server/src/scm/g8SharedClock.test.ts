@@ -23,11 +23,16 @@ import {
 } from "./g6DipMute.ts";
 import {
   G8_PRODUCER_NAME,
+  checkG8,
   loadG8FramingParameters,
+  loadG8Package,
   nextAges,
   observeClockAdvance,
   SharedFundamentalClock,
 } from "./g8SharedClock.ts";
+import { loadG7Package } from "./g7HaltFreeze.ts";
+import { loadG4Package } from "./g4Word.ts";
+import { loadG5Package } from "./g5OpenLoop.ts";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
@@ -297,4 +302,36 @@ describe("G8 clock observation and frozen buses", () => {
       assert.ok(result.failures.length >= 1);
     }),
   );
+});
+
+describe("G8 package completeness", () => {
+  it("accepts the completed G8 tuple without unlocking G9-G10", () => {
+    const pkg = loadG8Package(repoRoot);
+    const result = checkG8(pkg);
+    assert.equal(
+      result.ok,
+      true,
+      result.ok ? "" : result.failures.map((row) => row.message).join("\n"),
+    );
+    assert.equal(pkg.manifest.g9toG10Authorized, false);
+    assert.equal(pkg.manifest.doesNotAuthorizeLaterGates, true);
+    assert.equal(loadG7Package(repoRoot).manifest.g8toG10Authorized, false);
+    assert.equal(loadG4Package(repoRoot).manifest.g6toG10Authorized, false);
+    assert.equal(loadG5Package(repoRoot).manifest.g6toG10Authorized, false);
+  });
+
+  it("still rejects encoding keys on W1", () => {
+    const encoded = checkW1Word({
+      bus_id: "bus.scm.a",
+      node_id: "node.scm.home-a",
+      fundamental_state: "active",
+      fundamental_request: "canonical-absence",
+      state_age: 0,
+      request_age: 0,
+      modifier_start: "modifier_start",
+      null: "null",
+      nibble_alphabet: "x",
+    });
+    assert.equal(encoded.ok, false);
+  });
 });

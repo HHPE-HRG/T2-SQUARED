@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "gate": "G8",
+  "status": "completed",
+  "authorized": true,
+  "completed": true,
+  "doesNotAuthorizeLaterGates": true,
+  "g9toG10Authorized": false,
+  "plan": "docs/superpowers/plans/2026-09-20-scm-g8-clocks-framing.md",
+  "authorization": {
+    "identity": "human-operator",
+    "scope": "G8 clocks and framing",
+    "note": "Human authorized G8 on 2026-09-20 after G1/D5/G2-record blockers cleared. Named producer scm.fundamental-clock; integer age table; framing placeholders without encodings. G9–G10 locked. Not human A7 attestation. Does not flip G7 g8toG10Authorized."
+  }
+}

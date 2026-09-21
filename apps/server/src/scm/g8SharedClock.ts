@@ -5,8 +5,8 @@
  * clock, codec, or new SCM node. Age table and framing parameters live here
  * with this gate file (canonical g8SharedClock.ts, not g8Ages.ts).
  */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import * as NodeFS from "node:fs";
+import * as NodePath from "node:path";
 
 import type { Attributes } from "@opentelemetry/api";
 import * as Effect from "effect/Effect";
@@ -68,7 +68,7 @@ export interface G8FramingParameters {
  */
 export const loadG8FramingParameters = (repoRoot: string): G8FramingParameters =>
   JSON.parse(
-    readFileSync(join(repoRoot, "docs/scm/g8/framing-parameters.json"), "utf8"),
+    NodeFS.readFileSync(NodePath.join(repoRoot, "docs/scm/g8/framing-parameters.json"), "utf8"),
   ) as G8FramingParameters;
 
 /**
@@ -309,3 +309,142 @@ export class SharedFundamentalClock {
     }).pipe(Effect.ensuring(Effect.sync(clearAdvancing)));
   }
 }
+
+const MANIFEST_STATUSES = new Set(["authorized", "in-progress", "completed"]);
+
+export interface G8Authorization {
+  identity: string;
+  scope: string;
+  note: string;
+}
+
+/**
+ * G8 clocks/framing package manifest. No review hash: completed means
+ * package completeness, not independent Codex review or A7.
+ */
+export interface G8Manifest {
+  schemaVersion: 1;
+  gate: "G8";
+  status: "authorized" | "in-progress" | "completed";
+  authorized: boolean;
+  completed: boolean;
+  doesNotAuthorizeLaterGates: true;
+  g9toG10Authorized: false;
+  plan: string;
+  authorization: G8Authorization;
+}
+
+export interface G8Package {
+  repoRoot: string;
+  manifest: G8Manifest;
+}
+
+export interface G8Failure {
+  readonly code: string;
+  readonly message: string;
+}
+
+export type G8CheckResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly failures: ReadonlyArray<G8Failure> };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Legal (status, authorized, completed) combinations for G8.
+ *
+ * Parameters
+ * ----------
+ * manifest : G8Manifest
+ *     Parsed G8 manifest.
+ *
+ * Returns
+ * -------
+ * boolean
+ *     True when the tuple matches authorized/in-progress vs completed.
+ *
+ * Example
+ * -------
+ * legalManifestTuple(pkg.manifest)
+ */
+const legalManifestTuple = (manifest: G8Manifest): boolean => {
+  if (!MANIFEST_STATUSES.has(manifest.status)) {
+    return false;
+  }
+  if (manifest.status === "authorized" || manifest.status === "in-progress") {
+    return manifest.authorized === true && manifest.completed === false;
+  }
+  return manifest.authorized === true && manifest.completed === true;
+};
+
+/**
+ * Load the G8 clocks/framing package.
+ *
+ * Parameters
+ * ----------
+ * repoRoot : string
+ *     T2-SQUARED repository root.
+ *
+ * Returns
+ * -------
+ * G8Package
+ *     Manifest only. README is explanatory.
+ *
+ * Example
+ * -------
+ * const pkg = loadG8Package(repoRoot);
+ */
+export const loadG8Package = (repoRoot: string): G8Package => ({
+  repoRoot,
+  manifest: JSON.parse(
+    NodeFS.readFileSync(NodePath.join(repoRoot, "docs/scm/g8/manifest.json"), "utf8"),
+  ) as G8Manifest,
+});
+
+/**
+ * Check G8 package completeness.
+ *
+ * Legal tuple, gate G8, later-gate barrier, and framing producer name.
+ * Does not authorize G9–G10.
+ *
+ * Parameters
+ * ----------
+ * pkg : G8Package
+ *     Loaded G8 package.
+ *
+ * Returns
+ * -------
+ * G8CheckResult
+ *     `ok: true` when the legal tuple and later-gate barrier hold.
+ *
+ * Example
+ * -------
+ * const result = checkG8(loadG8Package(repoRoot));
+ */
+export const checkG8 = (pkg: G8Package): G8CheckResult => {
+  const failures: G8Failure[] = [];
+  const push = (code: string, message: string) => {
+    failures.push({ code, message });
+  };
+  if (!isRecord(pkg.manifest) || pkg.manifest.gate !== "G8") {
+    push("manifest-gate", "expected G8 package");
+  }
+  if (!legalManifestTuple(pkg.manifest)) {
+    push(
+      "manifest-tuple",
+      `illegal tuple status=${pkg.manifest.status} authorized=${String(pkg.manifest.authorized)} completed=${String(pkg.manifest.completed)}`,
+    );
+  }
+  if (!pkg.manifest.doesNotAuthorizeLaterGates || pkg.manifest.g9toG10Authorized) {
+    push("later-gates", "G8 must keep doesNotAuthorizeLaterGates true and g9toG10Authorized false");
+  }
+  const framing = loadG8FramingParameters(pkg.repoRoot);
+  if (framing.producer_name !== G8_PRODUCER_NAME) {
+    push("producer", "framing-parameters.json producer_name must equal G8_PRODUCER_NAME");
+  }
+  if (failures.length > 0) {
+    return { ok: false, failures };
+  }
+  return { ok: true };
+};
