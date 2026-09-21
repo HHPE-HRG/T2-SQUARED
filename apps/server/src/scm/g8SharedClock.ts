@@ -1,12 +1,17 @@
 /**
- * Shared fundamental-clock driver for the bounded home-bus link.
+ * Shared fundamental-clock driver named scm.fundamental-clock (G8).
  *
- * One process interval may advance N timesteps. No production clock.
+ * One process interval may advance N fundamental timesteps. No production
+ * clock, codec, or new SCM node. Age table and framing parameters live here
+ * with this gate file (canonical g8SharedClock.ts, not g8Ages.ts).
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import type { Attributes } from "@opentelemetry/api";
 import * as Effect from "effect/Effect";
+
+import { withOwnedSpan } from "../t2Observability/T2Observability.ts";
 
 import {
   type BridgeAdvanceResult,
@@ -125,6 +130,47 @@ export const nextAges = (
     request_age: previous.fundamental_request === nextRequest ? previous.request_age : 0,
   };
 };
+
+const clockAdvanceAttributes = (attrs: {
+  elapsed_fundamental_timesteps: number;
+  producer_name: string;
+}): Attributes => ({
+  "t2.scm.elapsed_fundamental_timesteps": attrs.elapsed_fundamental_timesteps,
+  "t2.scm.producer_name": attrs.producer_name,
+});
+
+/**
+ * Observe a completed process-interval advance on the T2 plane.
+ *
+ * Observation must not produce time or admit words. Span name is
+ * t2.scm.clock.advance.
+ *
+ * Parameters
+ * ----------
+ * attrs : { elapsed_fundamental_timesteps, producer_name }
+ *     Interval width and G8 producer name.
+ * effect : Effect.Effect
+ *     Clock advance already decided by SCM.
+ *
+ * Returns
+ * -------
+ * Effect.Effect
+ *     Same result, then t2.scm.clock.advance when T2 observability is present.
+ *
+ * Example
+ * -------
+ * yield* observeClockAdvance(
+ *   { elapsed_fundamental_timesteps: 1, producer_name: clock.producer_name },
+ *   clock.advanceProcessInterval(1),
+ * );
+ */
+export const observeClockAdvance = <A, E, R>(
+  attrs: { elapsed_fundamental_timesteps: number; producer_name: string },
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
+  Effect.flatMap(effect, (result) =>
+    withOwnedSpan("t2.scm.clock.advance", Effect.succeed(result), clockAdvanceAttributes(attrs)),
+  );
 
 export class SharedClockFailure extends Error {
   readonly _tag = "SharedClockFailure";

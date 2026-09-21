@@ -1,18 +1,31 @@
-import { assert, describe, it } from "@effect/vitest";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { assert, describe, it } from "@effect/vitest";
+import { trace } from "@opentelemetry/api";
+import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 
+import { T2Observability, layerTest } from "../t2Observability/T2Observability.ts";
 import { checkW1Word } from "./g4Word.ts";
 import { InProcessOpenLoopBus } from "./g5OpenLoop.ts";
 import { BidirectionalHomeBusLink } from "./g6HomeBusLink.ts";
 import {
+  DipMuteStore,
+  STEWARD_ACTOR,
+  type AuthorityClass,
+  type GovernedClasses,
+} from "./g6DipMute.ts";
+import {
   G8_PRODUCER_NAME,
   loadG8FramingParameters,
   nextAges,
+  observeClockAdvance,
   SharedFundamentalClock,
 } from "./g8SharedClock.ts";
 
@@ -197,4 +210,91 @@ describe("G8 nextAges table", () => {
       { state_age: 0, request_age: 0 },
     );
   });
+});
+
+const makeOtelFilePath = (): string =>
+  join(mkdtempSync(join(tmpdir(), "t2-scm-g8-")), "t2.trace.ndjson");
+
+const loadFixtureGoverned = (): GovernedClasses => {
+  const raw = JSON.parse(
+    readFileSync(join(repoRoot, "docs/scm/g6/governed-classes.json"), "utf8"),
+  ) as {
+    readonly authority_bus_id: string;
+    readonly buses: Record<string, AuthorityClass>;
+    readonly nodes: Record<string, AuthorityClass>;
+  };
+  return {
+    authority_bus_id: raw.authority_bus_id,
+    buses: new Map(Object.entries(raw.buses)),
+    nodes: new Map(Object.entries(raw.nodes)),
+  };
+};
+
+describe("G8 clock observation and frozen buses", () => {
+  it.effect("emits t2.scm.clock.advance after a process interval", () => {
+    const exporter = new InMemorySpanExporter();
+    const before = trace.getTracerProvider();
+    const { clock } = fixture();
+    clock.start();
+    return Effect.gen(function* () {
+      yield* observeClockAdvance(
+        { elapsed_fundamental_timesteps: 1, producer_name: clock.producer_name },
+        clock.advanceProcessInterval(1),
+      );
+      const t2 = yield* T2Observability;
+      yield* t2.forceFlush;
+      const advances = exporter
+        .getFinishedSpans()
+        .filter((span) => span.name === "t2.scm.clock.advance");
+      assert.equal(advances.length, 1);
+      assert.equal(advances[0]?.attributes["t2.scm.producer_name"], G8_PRODUCER_NAME);
+      assert.equal(advances[0]?.attributes["t2.scm.elapsed_fundamental_timesteps"], 1);
+      assert.equal(trace.getTracerProvider(), before);
+    }).pipe(Effect.provide(layerTest({ exporter, filePath: makeOtelFilePath() })));
+  });
+
+  it.effect("does not advance a frozen DIP bus during a process interval", () =>
+    Effect.gen(function* () {
+      const store = new DipMuteStore(loadFixtureGoverned());
+      const busA = new InProcessOpenLoopBus({
+        mutationGuard: () => store.assertMutable("bus.scm.a"),
+      });
+      const busB = new InProcessOpenLoopBus({
+        mutationGuard: () => store.assertMutable("bus.scm.b"),
+      });
+      const link = new BidirectionalHomeBusLink({
+        buses: new Map([
+          ["bus.scm.a", busA],
+          ["bus.scm.b", busB],
+        ]),
+        routes: [
+          {
+            route_id: "route.scm.a-to-b",
+            source_bus_id: "bus.scm.a",
+            destination_bus_id: "bus.scm.b",
+            allowed_origin_node_ids: ["node.scm.home-a"],
+            enabled: true,
+          },
+          {
+            route_id: "route.scm.b-to-a",
+            source_bus_id: "bus.scm.b",
+            destination_bus_id: "bus.scm.a",
+            allowed_origin_node_ids: ["node.scm.home-b"],
+            enabled: true,
+          },
+        ],
+        dip: store,
+      });
+      store.setBusPosition("bus.scm.a", "frozen", STEWARD_ACTOR);
+      const timestepA = busA.fundamentalTimestep;
+      const clock = new SharedFundamentalClock(link);
+      clock.start();
+      const result = yield* clock.advanceProcessInterval(1);
+      assert.equal(store.busPosition("bus.scm.a"), "frozen");
+      assert.equal(busA.fundamentalTimestep, timestepA);
+      assert.equal(busB.fundamentalTimestep, timestepA + 1);
+      assert.equal(result.deliveries.length, 0);
+      assert.ok(result.failures.length >= 1);
+    }),
+  );
 });
