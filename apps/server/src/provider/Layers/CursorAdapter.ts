@@ -67,6 +67,10 @@ import {
 import { makeAcpNativeLoggerFactory } from "../acp/AcpNativeLogging.ts";
 import { applyCursorAcpModelSelection, makeCursorAcpRuntime } from "../acp/CursorAcpSupport.ts";
 import {
+  captureAcpProtocolEventIfKnown,
+  captureAcpProtocolRequestIfKnown,
+} from "../../scm/g9FamilyProviderProtocol.ts";
+import {
   CursorAskQuestionRequest,
   CursorCreatePlanRequest,
   CursorUpdateTodosRequest,
@@ -539,6 +543,10 @@ export function makeCursorAdapter(
             cwd,
             ...(resumeSessionId ? { resumeSessionId } : {}),
             clientInfo: { name: "t3-code", version: "0.0.0" },
+            // Agent: CURSOR spawn + protocol-request capture ownership.
+            g9SpawnCommId: "INV-T2-PROVIDER-CURSOR",
+            onG9ProtocolRequestSucceeded: (operation) =>
+              captureAcpProtocolRequestIfKnown("INV-T2-PROVIDER-CURSOR", operation),
             ...(mcpSession
               ? {
                   mcpServers: [
@@ -785,6 +793,10 @@ export function makeCursorAdapter(
           const nf = yield* Stream.runDrain(
             Stream.mapEffect(acp.getEvents(), (event) =>
               Effect.gen(function* () {
+                // Agent: INV-T2-PROVIDER-CURSOR protocol-event-decoded for session/update path.
+                if (event._tag !== "EventStreamBarrier" && event._tag !== "ModeChanged") {
+                  yield* captureAcpProtocolEventIfKnown("INV-T2-PROVIDER-CURSOR", "session/update");
+                }
                 switch (event._tag) {
                   case "EventStreamBarrier":
                     yield* Deferred.succeed(event.acknowledge, undefined);

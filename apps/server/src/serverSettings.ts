@@ -8,6 +8,10 @@
  * Follows the same pattern as `keybindings.ts`: JSON file + Cache + PubSub +
  * Semaphore + FileSystem.watch for concurrency and external edit detection.
  *
+ * G9 W5c (B1 lander): INV-T2-FILE-SETTINGS via B2 family helpers; INV-T2-SETTINGS-
+ * EVENTS via B1 family helpers. Optional G9CaptureService — absent ⇒ settings
+ * I/O and pub/sub unchanged. No path/bytes/JSON body in equality A.
+ *
  * @module ServerSettings
  */
 import {
@@ -51,6 +55,16 @@ import {
   isModelSelectionProviderEnabled,
 } from "@t3tools/shared/serverSettings";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
+import {
+  captureSettingsFileExistsSucceeded,
+  captureSettingsFileReadSucceeded,
+  captureSettingsFileWriteSucceeded,
+} from "./scm/g9FamilyFileDbProcessConfig.ts";
+import {
+  captureSettingsEmitChange,
+  captureSettingsSubscriptionEstablished,
+  captureWhenG9Present,
+} from "./scm/g9FamilyQueuePubSubCallback.ts";
 
 export { resolveSourceControlWriterModelSelection } from "@t3tools/shared/serverSettings";
 
@@ -263,9 +277,15 @@ const make = Effect.gen(function* () {
   const watcherScope = yield* Scope.make("sequential");
   yield* Effect.addFinalizer(() => Scope.close(watcherScope, Exit.void));
 
+  // SETTINGS-EVENTS: capture after PubSub.publish Effect succeeds (boolean discarded).
   const emitChange = (settings: ServerSettings) =>
-    PubSub.publish(changesPubSub, settings).pipe(Effect.asVoid);
+    Effect.gen(function* () {
+      yield* PubSub.publish(changesPubSub, settings).pipe(Effect.asVoid);
+      yield* captureWhenG9Present((capture) => captureSettingsEmitChange(capture));
+    });
 
+  // FILE-SETTINGS exists: capture once the exists check completes without error
+  // (boolean true/false both count; path stays out of A).
   const readConfigExists = fs.exists(settingsPath).pipe(
     Effect.mapError(
       (cause) =>
@@ -274,6 +294,9 @@ const make = Effect.gen(function* () {
           operation: "check-exists",
           cause,
         }),
+    ),
+    Effect.tap(() =>
+      captureWhenG9Present((capture) => captureSettingsFileExistsSucceeded(capture)),
     ),
   );
 
@@ -303,6 +326,8 @@ const make = Effect.gen(function* () {
       });
       return DEFAULT_SERVER_SETTINGS;
     }
+    // FILE-SETTINGS read: only after successful read+decode (usable settings).
+    yield* captureWhenG9Present((capture) => captureSettingsFileReadSucceeded(capture));
     return decoded.value;
   });
 
@@ -482,13 +507,15 @@ const make = Effect.gen(function* () {
         stripDefaultServerSettings(settings, DEFAULT_SERVER_SETTINGS) ?? {},
       );
 
-      return yield* writeFileStringAtomically({
+      // FILE-SETTINGS write: after atomic write completes; A.operation is "write".
+      yield* writeFileStringAtomically({
         filePath: settingsPath,
         contents: `${sparseSettingsJson}\n`,
       }).pipe(
         Effect.provideService(FileSystem.FileSystem, fs),
         Effect.provideService(Path.Path, pathService),
       );
+      yield* captureWhenG9Present((capture) => captureSettingsFileWriteSucceeded(capture));
     },
     Effect.mapError(
       (cause) =>
@@ -595,9 +622,12 @@ const make = Effect.gen(function* () {
       return materializeChanges(Stream.fromPubSub(changesPubSub));
     },
     get subscribeChanges() {
-      return PubSub.subscribe(changesPubSub).pipe(
-        Effect.map((subscription) => materializeChanges(Stream.fromSubscription(subscription))),
-      );
+      // SETTINGS-EVENTS: capture after a live listener is established.
+      return Effect.gen(function* () {
+        const subscription = yield* PubSub.subscribe(changesPubSub);
+        yield* captureWhenG9Present((capture) => captureSettingsSubscriptionEstablished(capture));
+        return materializeChanges(Stream.fromSubscription(subscription));
+      });
     },
   } satisfies ServerSettingsService["Service"];
 });

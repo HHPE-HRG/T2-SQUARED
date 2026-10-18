@@ -1,3 +1,6 @@
+// @effect-diagnostics nodeBuiltinImport:off
+// @effect-diagnostics globalErrorInEffectCatch:off
+// @effect-diagnostics globalErrorInEffectFailure:off
 /**
  * G6 DIP store mute-law tests, hear-path projection, two-home
  * bridge proof matrix, and T2 OTEL observe for DIP set / muted hear.
@@ -160,7 +163,7 @@ describe("G6 DIP store mute law", () => {
     assert.throws(() => store.setDip(authorityMute("mute-modifiers")), DipMuteFailure);
     assert.equal(store.listDip("bus.scm.a").length, 0);
     store.setDip({
-      ...authorityMute("hear"),
+      ...authorityMute("mute-source"),
       mode: "hear",
     });
     assert.equal(store.resolveMode("bus.scm.a", "bus.scm.authority", "node.scm.authority"), "hear");

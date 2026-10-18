@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * G3 topology overlay enforcement tests.
  *
@@ -25,6 +26,7 @@ describe("G3 node and bus overlay", () => {
     assert.equal(pkg.manifest.status, "completed");
     assert.equal(pkg.manifest.authorized, true);
     assert.equal(pkg.manifest.completed, true);
+    assert.ok(pkg.manifest.review);
     assert.equal(pkg.manifest.review.status, "approved");
     assert.equal(pkg.manifest.review.reviewedArtifactHash, computeG3ReviewedArtifactHash(pkg));
     assert.equal(g1b.manifest.g3Authorized, false);
@@ -470,8 +472,10 @@ describe("G3 node and bus overlay", () => {
   it("rejects G1 input hash drift while preserving overlay IDs", () => {
     const pkg = loadG3Package(repoRoot);
     const mutated = structuredClone(pkg);
+    const g1Inputs = mutated.manifest.g1Inputs;
+    assert.ok(g1Inputs);
     mutated.manifest.g1Inputs = {
-      ...mutated.manifest.g1Inputs,
+      ...g1Inputs,
       inventorySha256: "00".repeat(32),
     };
     const result = checkG3Topology(mutated);

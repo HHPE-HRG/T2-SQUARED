@@ -46,6 +46,11 @@ import {
   OrchestrationEngineService,
   type OrchestrationEngineShape,
 } from "../Services/OrchestrationEngine.ts";
+import { G9CaptureService, captureIfOfferAccepted } from "../../scm/g9OrchQueueCapture.ts";
+// Agent: INV-T2-ORCH-EVENTS live publishers (~129 reconcile, ~222 commit).
+// B1 owns the helper; Slice swaps raw PubSub.publish → this wrapper (Mode B).
+// Absent G9CaptureService ⇒ publish unchanged. Do not touch ORCH-QUEUE offer capture.
+import { publishOrchestrationEventWithCapture } from "../orchEventsPubSub.ts";
 const isOrchestrationCommandPreviouslyRejectedError = Schema.is(
   OrchestrationCommandPreviouslyRejectedError,
 );
@@ -122,7 +127,8 @@ const makeOrchestrationEngine = Effect.gen(function* () {
       commandReadModel = yield* projectEventsOntoReadModel(commandReadModel, persistedEvents);
 
       for (const persistedEvent of persistedEvents) {
-        yield* PubSub.publish(eventPubSub, persistedEvent);
+        // Agent: ORCH-EVENTS capture on true publish; A.member_id = event.type only.
+        yield* publishOrchestrationEventWithCapture(eventPubSub, persistedEvent);
       }
     });
 
@@ -215,7 +221,8 @@ const makeOrchestrationEngine = Effect.gen(function* () {
 
         commandReadModel = committedCommand.nextCommandReadModel;
         for (const [index, event] of committedCommand.committedEvents.entries()) {
-          yield* PubSub.publish(eventPubSub, event);
+          // Agent: ORCH-EVENTS capture on true publish; A.member_id = event.type only.
+          yield* publishOrchestrationEventWithCapture(eventPubSub, event);
           if (index === 0) {
             yield* Metric.update(
               Metric.withAttributes(
@@ -316,11 +323,19 @@ const makeOrchestrationEngine = Effect.gen(function* () {
   const dispatch: OrchestrationEngineShape["dispatch"] = (command) =>
     Effect.gen(function* () {
       const result = yield* Deferred.make<{ sequence: number }, OrchestrationDispatchError>();
-      yield* Queue.offer(commandQueue, {
+      // Agent: capture only after offer; live offer success is independent of G9.
+      // Optional G9CaptureService (RFC-023 Engine = Slice only). Absent ⇒ no-op.
+      const accepted = yield* Queue.offer(commandQueue, {
         command,
         result,
         startedAtMs: yield* Clock.currentTimeMillis,
       });
+      const capture = yield* Effect.serviceOption(G9CaptureService);
+      if (Option.isSome(capture)) {
+        yield* captureIfOfferAccepted(accepted, command, (input) =>
+          capture.value.captureOccurrence(input),
+        );
+      }
       return yield* Deferred.await(result);
     });
 

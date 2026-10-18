@@ -22,6 +22,10 @@
  *
  * Both fields are optional because observability must not prevent startup.
  *
+ * G9 W5c (B4 lander): after the shared NDJSON store is created for writing,
+ * capture INV-T2-FILE-LOGS / providerEventLogPath-writer-succeeded via B2
+ * helpers when G9CaptureService is present. Failed store setup → no capture.
+ *
  * @module provider/Layers/ProviderEventLoggers
  */
 import * as Context from "effect/Context";
@@ -30,6 +34,8 @@ import * as Layer from "effect/Layer";
 
 import { ServerConfig } from "../../config.ts";
 import * as ResourceAttribution from "../../resourceTelemetry/ResourceAttribution.ts";
+import { captureProviderEventLogWriterSucceeded } from "../../scm/g9FamilyFileDbProcessConfig.ts";
+import { captureWhenG9Present } from "../../scm/g9FamilyProviderProtocol.ts";
 import * as EventNdjsonLogger from "./EventNdjsonLogger.ts";
 
 /**
@@ -79,6 +85,9 @@ export const make = Effect.gen(function* () {
   if (!store) {
     return ProviderEventLoggers.of(NoOpProviderEventLoggers);
   }
+
+  // Agent: B2→B4 FILE-LOGS writer success; path/bytes never enter equality A.
+  yield* captureWhenG9Present((capture) => captureProviderEventLogWriterSucceeded(capture));
 
   yield* Effect.addFinalizer(() => store.close());
   return ProviderEventLoggers.of({

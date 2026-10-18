@@ -54,6 +54,7 @@ import {
 import type { ProviderInstance } from "../ProviderDriver.ts";
 import { makeManualOnlyProviderMaintenanceCapabilities } from "../providerMaintenance.ts";
 import type { ProviderSnapshotSource } from "../builtInProviderCatalog.ts";
+import { captureProviderListEventsPublished } from "../../scm/g9FamilyProviderProtocol.ts";
 
 const loadProviders = (
   providerSources: ReadonlyArray<ProviderSnapshotSource>,
@@ -395,6 +396,8 @@ export const ProviderRegistryLive = Layer.effect(
         }
         if (options?.publish !== false) {
           yield* PubSub.publish(changesPubSub, providers);
+          // Agent: INV-T2-PROVIDER-LIST-EVENTS after provider-list pubsub publish.
+          yield* captureProviderListEventsPublished();
         }
       }
 
@@ -617,6 +620,8 @@ export const ProviderRegistryLive = Layer.effect(
         );
         if (haveProvidersChanged(previousProviders, providers)) {
           yield* PubSub.publish(changesPubSub, providers);
+          // Agent: INV-T2-PROVIDER-LIST-EVENTS after provider-list pubsub publish.
+          yield* captureProviderListEventsPublished();
         }
         yield* Ref.update(maintenanceActionStatesRef, (previous) => {
           const next = new Map(previous);

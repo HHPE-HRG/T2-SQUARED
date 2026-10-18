@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * G1B inventory enforcement tests.
  *
@@ -17,6 +18,9 @@ import { checkG1bCompleteness, loadG1bPackage, NEGATIVE_CONTROL_PATH_ID } from "
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const g1bDir = join(repoRoot, "docs/scm/g1b");
+
+/** Mutable clone for negative-path completeness mutations (structuredClone keeps readonly). */
+const draft = (pkg: ReturnType<typeof loadG1bPackage>): any => structuredClone(pkg);
 
 const FORBIDDEN_NO_LIVE_COMM_IDS = [
   "INV-T2-ADMIT",
@@ -97,7 +101,9 @@ describe("G1B D15C inventory", () => {
       ...pkg,
       inventory: {
         ...pkg.inventory,
-        rows: pkg.inventory.rows.filter((row) => row.comm_id !== "INV-T2-MCP-HTTP"),
+        rows: pkg.inventory.rows.filter(
+          (row: { comm_id: string }) => row.comm_id !== "INV-T2-MCP-HTTP",
+        ),
       },
     };
     const result = checkG1bCompleteness(stripped);
@@ -115,7 +121,7 @@ describe("G1B D15C inventory", () => {
 
   it("fails completeness when a required D15C column is empty", () => {
     const pkg = loadG1bPackage(repoRoot);
-    const blanked = structuredClone(pkg);
+    const blanked = draft(pkg);
     const first = blanked.inventory.rows[0];
     assert.ok(first);
     first.name = "";
@@ -141,9 +147,9 @@ describe("G1B D15C inventory", () => {
     const coverageIds = pkg.coverage.results.map((row) => row.id).sort();
     assert.deepEqual(coverageIds, frozenIds);
 
-    const stripped = structuredClone(pkg);
+    const stripped = draft(pkg);
     stripped.coverage.results = stripped.coverage.results.filter(
-      (row) => row.id !== "G1A-PROVIDER-STREAMS",
+      (row: { id: string }) => row.id !== "G1A-PROVIDER-STREAMS",
     );
     const result = checkG1bCompleteness(stripped);
     assert.equal(result.ok, false);
@@ -157,16 +163,19 @@ describe("G1B D15C inventory", () => {
 
   it("rejects transferring MCP negative-control metadata onto another row", () => {
     const pkg = loadG1bPackage(repoRoot);
-    const transferred = structuredClone(pkg);
+    const transferred = draft(pkg);
     transferred.inventory.rows = transferred.inventory.rows.filter(
-      (row) => row.comm_id !== "INV-T2-MCP-HTTP",
+      (row: { comm_id: string }) => row.comm_id !== "INV-T2-MCP-HTTP",
     );
-    const host = transferred.inventory.rows.find((row) => row.comm_id === "INV-T2-HTTP-STATIC");
+    const host = transferred.inventory.rows.find(
+      (row: { comm_id: string }) => row.comm_id === "INV-T2-HTTP-STATIC",
+    );
     assert.ok(host);
     host.path_id = NEGATIVE_CONTROL_PATH_ID;
     host.negative_control = true;
-    transferred.coverage.results = transferred.coverage.results.map((row) =>
-      row.id === "G1A-EXT-MCP" ? { ...row, comm_ids: ["INV-T2-HTTP-STATIC"] } : row,
+    transferred.coverage.results = transferred.coverage.results.map(
+      (row: { id: string; comm_ids: string[] }) =>
+        row.id === "G1A-EXT-MCP" ? { ...row, comm_ids: ["INV-T2-HTTP-STATIC"] } : row,
     );
     const result = checkG1bCompleteness(transferred);
     assert.equal(result.ok, false);
@@ -181,8 +190,10 @@ describe("G1B D15C inventory", () => {
 
   it("rejects an arbitrary coverage disposition string", () => {
     const pkg = loadG1bPackage(repoRoot);
-    const mutated = structuredClone(pkg);
-    const target = mutated.coverage.results.find((row) => row.id === "G1A-NO-LIVE-ADMISSION");
+    const mutated = draft(pkg);
+    const target = mutated.coverage.results.find(
+      (row: { id: string }) => row.id === "G1A-NO-LIVE-ADMISSION",
+    );
     assert.ok(target);
     target.disposition = "skip";
     const result = checkG1bCompleteness(mutated);
@@ -290,8 +301,10 @@ describe("G1B D15C inventory", () => {
 
   it("rejects structured aggregation members whose D15C identity diverges from the row", () => {
     const pkg = loadG1bPackage(repoRoot);
-    const mutated = structuredClone(pkg);
-    const logs = mutated.inventory.rows.find((row) => row.comm_id === "INV-T2-FILE-LOGS");
+    const mutated = draft(pkg);
+    const logs = mutated.inventory.rows.find(
+      (row: { comm_id: string }) => row.comm_id === "INV-T2-FILE-LOGS",
+    );
     assert.ok(logs);
     assert.ok(Array.isArray(logs.aggregated_members) && logs.aggregated_members.length >= 2);
     const first = logs.aggregated_members[0];
@@ -311,7 +324,7 @@ describe("G1B D15C inventory", () => {
       readonly status: string;
       readonly g1Closed: boolean;
     }) => {
-      const mutated = structuredClone(pkg);
+      const mutated = draft(pkg);
       mutated.manifest.a7 = { ...mutated.manifest.a7, g1ExitReview: patch.review };
       mutated.manifest.status = patch.status;
       mutated.manifest.g1Closed = patch.g1Closed;
@@ -343,7 +356,7 @@ describe("G1B D15C inventory", () => {
       g1Closed: true,
     });
 
-    const approvedClosed = structuredClone(pkg);
+    const approvedClosed = draft(pkg);
     approvedClosed.manifest.a7 = { ...approvedClosed.manifest.a7, g1ExitReview: "approved" };
     approvedClosed.manifest.status = "g1-closed";
     approvedClosed.manifest.g1Closed = true;
@@ -356,7 +369,7 @@ describe("G1B D15C inventory", () => {
       approvedResult.ok ? "" : approvedResult.failures.map((row) => row.message).join("\n"),
     );
 
-    const authorized = structuredClone(approvedClosed);
+    const authorized = draft(approvedClosed);
     authorized.manifest.g3Authorized = true;
     const authorizedResult = checkG1bCompleteness(authorized);
     assert.equal(authorizedResult.ok, false);

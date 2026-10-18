@@ -14,10 +14,13 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as PlatformError from "effect/PlatformError";
+import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
 import * as ServerConfig from "./config.ts";
+import { G9CaptureService } from "./scm/g9OrchQueueCapture.ts";
+import type { G9CaptureOccurrenceInput, G9CaptureResult, G9EqualityA } from "./scm/g9Occurrence.ts";
 import * as ServerSettingsModule from "./serverSettings.ts";
 
 const decodeSettingsPatch = Schema.decodeUnknownEffect(ServerSettingsPatch);
@@ -690,5 +693,92 @@ it.layer(NodeServices.layer)("server settings", (it) => {
         "sk-or-secret",
       );
     }).pipe(Effect.provide(makeServerSettingsLayer())),
+  );
+
+  it.effect(
+    "G9 FILE-SETTINGS + SETTINGS-EVENTS capture on write/subscribe when service present",
+    () =>
+      Effect.gen(function* () {
+        const calls = yield* Ref.make<G9CaptureOccurrenceInput[]>([]);
+        const stubEnqueued = (input: G9CaptureOccurrenceInput): G9CaptureResult => ({
+          status: "enqueued",
+          occurrence: {
+            comm_id: input.comm_id,
+            phase_id: input.phase,
+            node_id: "node.test",
+            origin_bus_id: "bus.test",
+            attempt_sequence: 0,
+            equality_A: input.input as G9EqualityA,
+            semanticKind: "request",
+            request_label: input.phase,
+            state_label: "",
+            retainCurrentAfterPublish: false,
+          },
+        });
+        const captureLayer = Layer.succeed(G9CaptureService, {
+          captureOccurrence: (input) =>
+            Effect.gen(function* () {
+              yield* Ref.update(calls, (xs) => [...xs, input]);
+              return stubEnqueued(input);
+            }),
+        });
+        const settingsLayer = makeServerSettingsLayer().pipe(Layer.provideMerge(captureLayer));
+
+        yield* Effect.gen(function* () {
+          const serverConfig = yield* ServerConfig.ServerConfig;
+          const fileSystem = yield* FileSystem.FileSystem;
+          const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
+
+          // Pre-seed settings.json so start exercises exists + read success.
+          yield* fileSystem.writeFileString(
+            serverConfig.settingsPath,
+            JSON.stringify({ providers: { codex: { binaryPath: "/tmp/g9-seed" } } }),
+          );
+          yield* serverSettings.start;
+
+          const afterStart = yield* Ref.get(calls);
+          assert.equal(
+            afterStart.some(
+              (c) =>
+                c.comm_id === "INV-T2-FILE-SETTINGS" &&
+                c.phase === "settings-file-exists-succeeded",
+            ),
+            true,
+          );
+          assert.equal(
+            afterStart.some((c) => c.phase === "settings-file-read-succeeded"),
+            true,
+          );
+          assert.deepEqual(
+            afterStart.find((c) => c.phase === "settings-file-read-succeeded")?.input,
+            { operation: "succeeded" },
+          );
+
+          yield* Ref.set(calls, []);
+          yield* serverSettings.updateSettings({
+            providers: { codex: { binaryPath: "/tmp/g9-settings-capture-codex" } },
+          });
+          const afterWrite = yield* Ref.get(calls);
+          const phases = afterWrite.map((c) => `${c.comm_id}:${c.phase}`);
+          assert.equal(phases.includes("INV-T2-FILE-SETTINGS:settings-file-write-succeeded"), true);
+          assert.equal(phases.includes("INV-T2-SETTINGS-EVENTS:pubsub-published"), true);
+          const writeInput = afterWrite.find((c) => c.phase === "settings-file-write-succeeded");
+          assert.deepEqual(writeInput?.input, { operation: "write" });
+          assert.equal(
+            afterWrite.some((c) => "path" in c.input || "settingsPath" in c.input),
+            false,
+          );
+
+          yield* Ref.set(calls, []);
+          yield* Effect.scoped(serverSettings.subscribeChanges);
+          const afterSub = yield* Ref.get(calls);
+          assert.equal(afterSub.length, 1);
+          assert.deepEqual(afterSub[0], {
+            comm_id: "INV-T2-SETTINGS-EVENTS",
+            phase: "settings-subscription-established",
+            input: { site: "subscribed" },
+          });
+        }).pipe(Effect.provide(settingsLayer));
+      }),
   );
 });

@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * G4 W1 word-type enforcement tests.
  *
@@ -214,8 +215,10 @@ describe("G4 package completeness", () => {
     completed.manifest.completed = true;
 
     const withheld = structuredClone(completed);
+    const withheldReview = withheld.manifest.review;
+    assert.ok(withheldReview);
     withheld.manifest.review = {
-      ...withheld.manifest.review,
+      ...withheldReview,
       status: "withheld",
       reviewedArtifactHash: "",
     };

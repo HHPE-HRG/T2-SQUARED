@@ -4,6 +4,12 @@
  * Owns terminal lifecycle operations, output fanout, and session state
  * transitions for thread-scoped terminals.
  *
+ * Agent (G9 W5c B5): sole WP5 lander for this file. Wires B2 FILE-LOGS /
+ * FLAG-TERM-ENV handoff helpers and B5 INV-T2-TERM phases via
+ * withOptionalG9Capture. Absent G9CaptureService ⇒ live behavior unchanged.
+ * captureOccurrence only through family helpers; never put path / env / PTY
+ * bytes in equality A. Does not flip g9toG10Authorized.
+ *
  * @module TerminalManager
  */
 import {
@@ -52,6 +58,11 @@ import * as Semaphore from "effect/Semaphore";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import * as ServerConfig from "../config.ts";
+import {
+  captureFlagTermEnvFiltered,
+  captureTerminalLogsWriterSucceeded,
+} from "../scm/g9FamilyFileDbProcessConfig.ts";
+import { captureTermPhase, withOptionalG9Capture } from "../scm/g9FamilyTerminalLocalStreams.ts";
 import { withCatalogBridge } from "../t2Observability/T2Observability.ts";
 import {
   increment,
@@ -1256,7 +1267,12 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
   const publishEvent = (event: TerminalEvent) =>
     Effect.gen(function* () {
       for (const listener of terminalEventListeners) {
+        // INV-T2-TERM / terminal-session-callback-emitted: listener invoked
+        // (site only). Agent: one capture per listener call; no event payload in A.
         yield* listener(event).pipe(Effect.ignoreCause({ log: true }));
+        yield* withOptionalG9Capture((capture) =>
+          captureTermPhase(capture, "terminal-session-callback-emitted"),
+        );
       }
     });
 
@@ -1426,7 +1442,12 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         return;
       }
 
+      // INV-T2-FILE-LOGS / terminalLogs-writer-succeeded (B2→B5): after write
+      // succeeds only. Agent: member_id only in A; no path / history bytes.
       yield* fileSystem.writeFileString(historyPath(threadId, terminalId), request.history).pipe(
+        Effect.tap(() =>
+          withOptionalG9Capture((capture) => captureTerminalLogsWriterSucceeded(capture)),
+        ),
         Effect.catch((error) =>
           Effect.logWarning("failed to persist terminal history", {
             threadId,
@@ -1491,14 +1512,16 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         );
       const capped = capHistory(raw, historyLineLimit);
       if (capped !== raw) {
-        yield* fileSystem
-          .writeFileString(nextPath, capped)
-          .pipe(
-            Effect.mapError(
-              (cause) =>
-                new TerminalHistoryError({ operation: "truncate", threadId, terminalId, cause }),
-            ),
-          );
+        // INV-T2-FILE-LOGS / terminalLogs-writer-succeeded (capped rewrite).
+        yield* fileSystem.writeFileString(nextPath, capped).pipe(
+          Effect.tap(() =>
+            withOptionalG9Capture((capture) => captureTerminalLogsWriterSucceeded(capture)),
+          ),
+          Effect.mapError(
+            (cause) =>
+              new TerminalHistoryError({ operation: "truncate", threadId, terminalId, cause }),
+          ),
+        );
       }
       return capped;
     }
@@ -1530,14 +1553,15 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         ),
       );
     const capped = capHistory(raw, historyLineLimit);
-    yield* fileSystem
-      .writeFileString(nextPath, capped)
-      .pipe(
-        Effect.mapError(
-          (cause) =>
-            new TerminalHistoryError({ operation: "migrate", threadId, terminalId, cause }),
-        ),
-      );
+    // INV-T2-FILE-LOGS / terminalLogs-writer-succeeded (legacy migrate rewrite).
+    yield* fileSystem.writeFileString(nextPath, capped).pipe(
+      Effect.tap(() =>
+        withOptionalG9Capture((capture) => captureTerminalLogsWriterSucceeded(capture)),
+      ),
+      Effect.mapError(
+        (cause) => new TerminalHistoryError({ operation: "migrate", threadId, terminalId, cause }),
+      ),
+    );
     yield* fileSystem.remove(legacyPath, { force: true }).pipe(
       Effect.catch((cleanupError) =>
         Effect.logWarning("failed to remove legacy terminal history", {
@@ -1869,6 +1893,9 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     );
 
     if (attempt._tag === "Success") {
+      // INV-T2-TERM / pty-spawn-succeeded: one capture per successful spawn.
+      // Agent: site "spawned" only; no shell/cwd/env in A.
+      yield* withOptionalG9Capture((capture) => captureTermPhase(capture, "pty-spawn-succeeded"));
       return {
         process: attempt.success,
         shellLabel: formatShellCandidate(candidate),
@@ -1926,6 +1953,10 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
               Effect.gen(function* () {
                 const shellCandidates = resolveShellCandidates(shellResolver, platform, baseEnv);
                 const terminalEnv = createTerminalSpawnEnv(baseEnv, session.runtimeEnv);
+                // INV-T2-FLAG-TERM-ENV / terminal-child-env-filtered (B2→B5):
+                // one capture per successful filter application at spawn.
+                // Agent: kind-only A; never excluded key names.
+                yield* withOptionalG9Capture((capture) => captureFlagTermEnvFiltered(capture));
                 const spawnResult = yield* trySpawn(shellCandidates, terminalEnv, session);
                 ptyProcess = spawnResult.process;
                 startedShell = spawnResult.shellLabel;
@@ -1935,13 +1966,24 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
                   if (!enqueueProcessEvent(session, processPid, { type: "output", data })) {
                     return;
                   }
-                  runFork(drainProcessEvents(session, processPid));
+                  // INV-T2-TERM / pty-output-callback-emitted: enqueue accepted.
+                  // Agent: site only; drop when enqueue false; no PTY bytes in A.
+                  runFork(
+                    withOptionalG9Capture((capture) =>
+                      captureTermPhase(capture, "pty-output-callback-emitted"),
+                    ).pipe(Effect.andThen(drainProcessEvents(session, processPid))),
+                  );
                 });
                 const unsubscribeExit = ptyProcess.onExit((event) => {
                   if (!enqueueProcessEvent(session, processPid, { type: "exit", event })) {
                     return;
                   }
-                  runFork(drainProcessEvents(session, processPid));
+                  // INV-T2-TERM / pty-exit-succeeded: onExit enqueue accepted.
+                  runFork(
+                    withOptionalG9Capture((capture) =>
+                      captureTermPhase(capture, "pty-exit-succeeded"),
+                    ).pipe(Effect.andThen(drainProcessEvents(session, processPid))),
+                  );
                 });
 
                 let eventStamp: ReturnType<typeof advanceEventSequence> = {
@@ -2484,7 +2526,20 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     event: TerminalEvent,
   ) =>
     metadataEventFromTerminalEvent(event).pipe(
-      Effect.flatMap((metadataEvent) => (metadataEvent ? listener(metadataEvent) : Effect.void)),
+      Effect.flatMap((metadataEvent) => {
+        if (!metadataEvent) {
+          return Effect.void;
+        }
+        // INV-T2-TERM / terminal-metadata-callback-emitted: null skipped.
+        // Agent: site only after listener invoked; no metadata payload in A.
+        return listener(metadataEvent).pipe(
+          Effect.andThen(
+            withOptionalG9Capture((capture) =>
+              captureTermPhase(capture, "terminal-metadata-callback-emitted"),
+            ),
+          ),
+        );
+      }),
     );
 
   const subscribeMetadata: TerminalManager["Service"]["subscribeMetadata"] = (listener) => {
@@ -2552,6 +2607,11 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
           cause,
         }),
     });
+    // INV-T2-TERM / pty-input-write-succeeded: write Effect.try succeeded.
+    // Agent: site only; no input.data in A. Exited early-return is no-occurrence.
+    yield* withOptionalG9Capture((capture) =>
+      captureTermPhase(capture, "pty-input-write-succeeded"),
+    );
   });
 
   const resizeLocked = Effect.fn("terminal.resize")(function* (input: TerminalResizeInput) {

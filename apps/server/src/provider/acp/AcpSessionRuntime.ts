@@ -35,6 +35,10 @@ import {
   type AcpSessionModeState,
   type AcpToolCallState,
 } from "./AcpRuntimeModel.ts";
+import {
+  captureAcpRuntimeSpawn,
+  captureProviderPermPhase,
+} from "../../scm/g9FamilyProviderProtocol.ts";
 
 function formatConfigOptionValue(value: string | boolean): string {
   return JSON.stringify(value);
@@ -76,6 +80,16 @@ export interface AcpSessionRuntimeOptions {
     readonly logOutgoing?: boolean;
     readonly logger?: (event: EffectAcpProtocol.AcpProtocolLogEvent) => Effect.Effect<void, never>;
   };
+  /**
+   * Agent: CURSOR or GROK spawn capture row. Set by the adapter that owns the
+   * runtime so AcpSessionRuntime can land CURSOR/GROK runtime-spawn-succeeded.
+   */
+  readonly g9SpawnCommId?: "INV-T2-PROVIDER-CURSOR" | "INV-T2-PROVIDER-GROK";
+  /**
+   * Agent: adapter-owned protocol-request capture (ledger capture_module is
+   * CursorAdapter/GrokAdapter). Invoked after runLoggedRequest succeeds.
+   */
+  readonly onG9ProtocolRequestSucceeded?: (operation: string) => Effect.Effect<void, never>;
 }
 
 export interface AcpSessionRequestLogEvent {
@@ -315,7 +329,13 @@ export const make = (
                 payload,
                 status: "succeeded",
                 result,
-              }),
+              }).pipe(
+                Effect.andThen(
+                  options.onG9ProtocolRequestSucceeded
+                    ? options.onG9ProtocolRequestSucceeded(method)
+                    : Effect.void,
+                ),
+              ),
             ),
             Effect.onError((cause) =>
               logRequest({
@@ -352,6 +372,10 @@ export const make = (
             }),
         ),
       );
+    // Agent: CURSOR/GROK runtime-spawn-succeeded when g9SpawnCommId is set by adapter.
+    if (options.g9SpawnCommId) {
+      yield* captureAcpRuntimeSpawn(options.g9SpawnCommId);
+    }
 
     const acpContext = yield* Layer.build(
       EffectAcpClient.layerChildProcess(child, {
@@ -689,7 +713,16 @@ export const make = (
     });
 
     return {
-      handleRequestPermission: acp.handleRequestPermission,
+      // Agent: INV-T2-PROVIDER-PERM admit+outcome around permission handler success.
+      handleRequestPermission: (handler) =>
+        acp.handleRequestPermission((params) =>
+          Effect.gen(function* () {
+            yield* captureProviderPermPhase("permission-request-admitted");
+            const result = yield* handler(params);
+            yield* captureProviderPermPhase("permission-outcome-succeeded");
+            return result;
+          }),
+        ),
       handleElicitation: acp.handleElicitation,
       handleReadTextFile: acp.handleReadTextFile,
       handleWriteTextFile: acp.handleWriteTextFile,

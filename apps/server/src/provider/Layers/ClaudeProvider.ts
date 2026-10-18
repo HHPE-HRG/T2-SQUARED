@@ -28,6 +28,7 @@ import {
   type SettingSource,
 } from "@anthropic-ai/claude-agent-sdk";
 
+import { captureProviderClaudePhase } from "../../scm/g9FamilyProviderProtocol.ts";
 import {
   buildBooleanOptionDescriptor,
   buildSelectOptionDescriptor,
@@ -891,6 +892,9 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
       },
     });
   }
+
+  // Agent: INV-T2-PROVIDER-CLAUDE cli-version-probe-succeeded after --version exit 0.
+  yield* captureProviderClaudePhase("cli-version-probe-succeeded");
 
   const models = providerModelsFromSettings(
     getBuiltInClaudeModelsForVersion(parsedVersion),

@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * G5 in-process open-loop publish observed by T2 OTEL.
  *

@@ -1,3 +1,12 @@
+/**
+ * Desktop telemetry receiver (inbound host NDJSON + outbound control fd).
+ *
+ * Agent (G9 W5c B5): sole WP5 lander for this file. Integrates B3
+ * INV-T2-TEL-DESKTOP-CONTROL handoff after sendControlMessage write succeeds.
+ * Uses withOptionalG9Capture; absent G9CaptureService ⇒ live unchanged.
+ * Equality A is operation only (setDiagnosticsDemand | setHostPowerIntervals);
+ * never put enabled / intervals / encoded bytes in A. Does not flip gates.
+ */
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeFS from "node:fs";
 
@@ -25,6 +34,8 @@ import * as Stream from "effect/Stream";
 import * as Ndjson from "effect/unstable/encoding/Ndjson";
 
 import { ServerConfig } from "../config.ts";
+import { captureDesktopControlSendSucceeded } from "../scm/g9FamilySubprocessExternalTransport.ts";
+import { withOptionalG9Capture } from "../scm/g9FamilyTerminalLocalStreams.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
 import { subscribeBeforeSnapshotWithoutMutex } from "../utils/subscribeBeforeSnapshot.ts";
 
@@ -372,6 +383,11 @@ export const make = Effect.fn("resourceTelemetry.desktopTelemetryReceiver.make")
               lastError: Option.some(error.message),
             })),
           ),
+        );
+        // INV-T2-TEL-DESKTOP-CONTROL / desktop-control-send-succeeded (B3→B5):
+        // after write succeeds. Agent: operation tag only; no control payload in A.
+        yield* withOptionalG9Capture((capture) =>
+          captureDesktopControlSendSucceeded(capture, message.type),
         );
       }),
     );

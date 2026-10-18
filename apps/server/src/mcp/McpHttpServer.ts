@@ -1,3 +1,12 @@
+/**
+ * MCP HTTP transport + preview toolkit registration.
+ *
+ * Agent (WP6-Consumer-Owner, RFC-014 A): sole lander for G9 on this file.
+ * Provides G9McpHttpSessionHooksLayer (DELETE existing-session → 204).
+ * Lands B4 non-hook phases after authenticateRequest admit and after
+ * normalizeMcpHttpResponse. Absent G9CaptureService / hook layer ⇒ live
+ * unchanged. Hook fault must not rewrite live success. Site-only A (no tokens).
+ */
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -10,6 +19,12 @@ import { McpProtocol, McpSchema, McpServer, Tool } from "effect/unstable/ai";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 import packageJson from "../../package.json" with { type: "json" };
+import {
+  G9McpHttpSessionHooksLayer,
+  captureMcpHttpHandlerSucceeded,
+  captureMcpHttpMessageAdmitted,
+  withOptionalG9Capture,
+} from "../scm/g9FamilyTypedHooks.ts";
 import * as McpInvocationContext from "./McpInvocationContext.ts";
 import * as McpSessionRegistry from "./McpSessionRegistry.ts";
 import * as PreviewAutomationBroker from "./PreviewAutomationBroker.ts";
@@ -83,9 +98,16 @@ const makeMcpAuthMiddleware = McpSessionRegistry.McpSessionRegistry.pipe(
           });
           return unauthorized;
         }
+        // INV-T2-MCP-HTTP / mcp-http-message-admitted (B4→WP6): after auth resolve.
+        // Agent: site only; never put bearer token in A.
+        yield* withOptionalG9Capture((capture) => captureMcpHttpMessageAdmitted(capture));
         return yield* httpEffect.pipe(
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
           Effect.map(normalizeMcpHttpResponse),
+          // INV-T2-MCP-HTTP / mcp-http-handler-succeeded (B4→WP6): after normalize.
+          Effect.tap(() =>
+            withOptionalG9Capture((capture) => captureMcpHttpHandlerSucceeded(capture)),
+          ),
         );
       }),
   ),
@@ -221,6 +243,11 @@ const McpTransportLive = McpServer.layerHttp({
   version: packageJson.version,
   path: "/mcp",
   protocols: [McpProtocol.v2025_06_18],
-}).pipe(Layer.provide(McpAuthMiddlewareLive));
+}).pipe(
+  Layer.provide(McpAuthMiddlewareLive),
+  // Agent (WP6): HttpSessionHooks for existing-session DELETE → 204 (RFC-013).
+  // Resolved at layerHttp build via Effect.serviceOption; absent ⇒ DELETE unchanged.
+  Layer.provide(G9McpHttpSessionHooksLayer),
+);
 
 export const layer = PreviewToolkitRegistrationLive.pipe(Layer.provideMerge(McpTransportLive));

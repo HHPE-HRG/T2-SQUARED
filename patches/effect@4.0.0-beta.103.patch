@@ -1,13 +1,48 @@
+diff --git a/dist/unstable/ai/McpServer.d.ts b/dist/unstable/ai/McpServer.d.ts
+index 58e3fd6cf9c4e4c3d3c970ebef5ae2e44a16da35..b97c68f8387b3cc126dc6593fe4237a76ce2c915 100644
+--- a/dist/unstable/ai/McpServer.d.ts
++++ b/dist/unstable/ai/McpServer.d.ts
+@@ -521,5 +521,26 @@ export declare const elicit: <S extends Schema.ConstraintEncoder<Record<string,
+  * @since 4.0.0
+  */
+ export declare const clientCapabilities: Effect.Effect<ClientCapabilities, never, McpServerClient>;
++/**
++ * Optional MCP HTTP session hooks (G9 WP6).
++ *
++ * Agent: tag `effect/ai/McpServer/HttpSessionHooks`. Callback runs only after an
++ * existing session is deleted and the transport selects HTTP 204. Missing header,
++ * unknown session, or non-204 paths never invoke the hook. Fail/Die ignored at seam.
++ *
++ * @since 4.0.0
++ * @category HttpSessionHooks
++ */
++declare const HttpSessionHooks_base: Context.ServiceClass<HttpSessionHooks, "effect/ai/McpServer/HttpSessionHooks", {
++    readonly onExistingSessionDeleted?: ((info: {
++        readonly site: "mcp-http-session-deleted";
++    }) => Effect.Effect<void>) | undefined;
++}>;
++/**
++ * @since 4.0.0
++ * @category HttpSessionHooks
++ */
++export declare class HttpSessionHooks extends HttpSessionHooks_base {
++}
+ export {};
+ //# sourceMappingURL=McpServer.d.ts.map
+\ No newline at end of file
 diff --git a/dist/unstable/ai/McpServer.js b/dist/unstable/ai/McpServer.js
-index 755e41c..dc431aa 100644
+index 755e41c143ace01604487266c91b6ca331e35e71..3b17f86f45d1182ca6ee06c40522cd57ceed487f 100644
 --- a/dist/unstable/ai/McpServer.js
 +++ b/dist/unstable/ai/McpServer.js
-@@ -262,6 +262,26 @@ const runWithProtocolState = /*#__PURE__*/Effect.fnUntraced(function* (options,
+@@ -262,6 +262,34 @@ const runWithProtocolState = /*#__PURE__*/Effect.fnUntraced(function* (options,
    const server = yield* McpServer;
    const isHttp = Option.isSome(yield* Effect.serviceOption(HttpRouter.HttpRouter));
    const sessions = protocolState.sessions;
 +  if (isHttp && options.path !== undefined) {
 +    const router = yield* HttpRouter.HttpRouter;
++    // Agent: G9 WP6 MCP DELETE seam — fire only after existing-session delete selects 204 (RFC-013).
++    // Missing/unknown session ⇒ no hook. Hook Fail/Die ignored so live 204 is never rewritten.
++    const httpSessionHooks = yield* Effect.serviceOption(HttpSessionHooks);
 +    yield* router.add("DELETE", options.path, Effect.gen(function* () {
 +      const request = yield* HttpServerRequest.HttpServerRequest;
 +      const sessionId = request.headers[MCP_SESSION_ID_HEADER];
@@ -21,6 +56,11 @@ index 755e41c..dc431aa 100644
 +          status: 404
 +        });
 +      }
++      if (Option.isSome(httpSessionHooks) && httpSessionHooks.value.onExistingSessionDeleted) {
++        yield* httpSessionHooks.value.onExistingSessionDeleted({
++          site: "mcp-http-session-deleted"
++        }).pipe(Effect.ignore);
++      }
 +      return HttpServerResponse.empty({
 +        status: 204
 +      });
@@ -29,7 +69,7 @@ index 755e41c..dc431aa 100644
    const clientProtocols = new Map();
    const cancelledRequests = new Map();
    const handlers = yield* Layer.build(layerHandlers(options, {
-@@ -719,7 +739,7 @@ export const layerHttp = options => {
+@@ -719,7 +747,7 @@ export const layerHttp = options => {
    const methodNotAllowed = request => Effect.succeed(request.headers.origin !== undefined && !options.allowedOrigins?.includes(request.headers.origin) ? HttpServerResponse.empty({
      status: 403
    }) : methodNotAllowedResponse);
@@ -38,8 +78,102 @@ index 755e41c..dc431aa 100644
    return Layer.merge(layerWithProtocolState(options), routes).pipe(Layer.provide(layerMcpProtocolHttp(options)), Layer.provide(protocolState), Layer.provide(RpcSerialization.layerJsonRpc()));
  };
  const layerMcpProtocolHttp = options => Layer.effect(RpcServer.Protocol)(Effect.gen(function* () {
+@@ -1503,4 +1531,14 @@ const protocolForInternalTag = (registry, tag) => {
+   return registry.protocols[0];
+ };
+ const getProtocolForClient = (clientProtocols, clientId, registry) => clientProtocols.get(clientId) ?? registry.protocols[0];
++/**
++ * Optional MCP HTTP session hooks for G9 typed capture (WP6).
++ *
++ * Agent: fires only on existing-session DELETE → 204. Tag
++ * `effect/ai/McpServer/HttpSessionHooks`. Absent ⇒ DELETE route unchanged.
++ *
++ * @since 4.0.0
++ * @category HttpSessionHooks
++ */
++export class HttpSessionHooks extends /*#__PURE__*/Context.Service()("effect/ai/McpServer/HttpSessionHooks") {}
+ //# sourceMappingURL=McpServer.js.map
+\ No newline at end of file
+diff --git a/dist/unstable/observability/OtlpExporter.d.ts b/dist/unstable/observability/OtlpExporter.d.ts
+index a849c822b93a7cc5883a54af2db015e225a1af1f..96d3b1661b69128cc9139b05320e84329a6f77b5 100644
+--- a/dist/unstable/observability/OtlpExporter.d.ts
++++ b/dist/unstable/observability/OtlpExporter.d.ts
+@@ -96,5 +96,28 @@ export declare const make: (options: {
+ }) => Effect.Effect<{
+     readonly push: (data: unknown) => void;
+ }, never, Flusher | HttpClient.HttpClient | Scope.Scope>;
++/**
++ * Optional OTLP export success hooks (G9 WP6).
++ *
++ * Agent: tag `effect/observability/OtlpExporter/ExportHooks`. Post-success only —
++ * nonempty batch after client.execute + filterStatusOk. Empty buffer and export
++ * failure never invoke the hook. Fail/Die ignored at seam. `label` is Effect's
++ * exporter label (`OtlpTracer` / `OtlpMetrics` / …); consumers map to ledger signals.
++ *
++ * @since 4.0.0
++ * @category ExportHooks
++ */
++declare const ExportHooks_base: Context.ServiceClass<ExportHooks, "effect/observability/OtlpExporter/ExportHooks", {
++    readonly onExportSucceeded?: ((info: {
++        readonly label: string;
++        readonly batchSize: number;
++    }) => Effect.Effect<void>) | undefined;
++}>;
++/**
++ * @since 4.0.0
++ * @category ExportHooks
++ */
++export declare class ExportHooks extends ExportHooks_base {
++}
+ export {};
+ //# sourceMappingURL=OtlpExporter.d.ts.map
+\ No newline at end of file
+diff --git a/dist/unstable/observability/OtlpExporter.js b/dist/unstable/observability/OtlpExporter.js
+index 790f2397eebc353a774f1c5002c6cfb86150da50..830f72109504a71fb361b57374832ff05159e741 100644
+--- a/dist/unstable/observability/OtlpExporter.js
++++ b/dist/unstable/observability/OtlpExporter.js
+@@ -116,6 +116,9 @@ export const layerFlusher = /*#__PURE__*/Layer.sync(Flusher, () => {
+  */
+ export const make = /*#__PURE__*/Effect.fnUntraced(function* (options) {
+   const services = yield* Effect.context();
++  // Agent: optional G9 WP6 OTLP post-success seam — nonempty batch + filterStatusOk only.
++  // Empty buffer / export failure ⇒ no hook. Hook Fail/Die ignored so live export stays OK.
++  const exportHooks = yield* Effect.serviceOption(ExportHooks);
+   const clock = Context.get(services, Clock);
+   const scope = Context.get(services, Scope.Scope);
+   const exportInterval = Duration.max(Duration.fromInputUnsafe(options.exportInterval), Duration.zero);
+@@ -147,7 +150,11 @@ export const make = /*#__PURE__*/Effect.fnUntraced(function* (options) {
+       }
+       buffer = [];
+     }
+-    return client.execute(HttpClientRequest.setBody(request, options.body(items))).pipe(Effect.asVoid, Effect.withTracerEnabled(false));
++    const batchSize = items.length;
++    return client.execute(HttpClientRequest.setBody(request, options.body(items))).pipe(Effect.asVoid, Effect.tap(() => batchSize > 0 && Option.isSome(exportHooks) && exportHooks.value.onExportSucceeded ? exportHooks.value.onExportSucceeded({
++      label: options.label,
++      batchSize
++    }).pipe(Effect.ignore) : Effect.void), Effect.withTracerEnabled(false));
+   }).pipe(Effect.catchCause(cause => {
+     if (disabledUntil !== undefined) return Effect.void;
+     disabledUntil = clock.currentTimeMillisUnsafe() + 60_000;
+@@ -177,4 +184,15 @@ export const make = /*#__PURE__*/Effect.fnUntraced(function* (options) {
+     }
+   };
+ });
++/**
++ * Optional OTLP export success hooks for G9 typed capture (WP6).
++ *
++ * Agent: tag `effect/observability/OtlpExporter/ExportHooks`. Invoked only after
++ * execute+filterStatusOk for a nonempty batch. Labels distinguish Tracer/Metrics.
++ * T2 SDK exporters are not this seam (consumer-owned). Absent ⇒ export loop unchanged.
++ *
++ * @since 4.0.0
++ * @category ExportHooks
++ */
++export class ExportHooks extends /*#__PURE__*/Context.Service()("effect/observability/OtlpExporter/ExportHooks") {}
+ //# sourceMappingURL=OtlpExporter.js.map
+\ No newline at end of file
 diff --git a/dist/unstable/rpc/RpcClient.d.ts b/dist/unstable/rpc/RpcClient.d.ts
-index aba2779..581d267 100644
+index aba2779fb0703c06e476bd3c30a1156ea4b35dbb..581d267eb13d3c34fae2f98bc523f188f921a9be 100644
 --- a/dist/unstable/rpc/RpcClient.d.ts
 +++ b/dist/unstable/rpc/RpcClient.d.ts
 @@ -2,6 +2,7 @@ import * as Cause from "../../Cause.ts";
@@ -92,7 +226,7 @@ index aba2779..581d267 100644
  /**
   * Represents optional client protocol hooks that run when a transport connects
 diff --git a/dist/unstable/rpc/RpcClient.js b/dist/unstable/rpc/RpcClient.js
-index b536d0a..12ffac0 100644
+index b536d0a720c13678ccfc2c55c612ee6b61fbedaa..2b0cbb3873cab351134c66c90c57f1045ae7fa7d 100644
 --- a/dist/unstable/rpc/RpcClient.js
 +++ b/dist/unstable/rpc/RpcClient.js
 @@ -47,6 +47,7 @@ export const makeNoSerialization = /*#__PURE__*/Effect.fnUntraced(function* (gro
@@ -293,22 +427,20 @@ index b536d0a..12ffac0 100644
      latch.closeUnsafe();
    };
 -  const onPong = () => {
--    recievedPong = true;
--  };
 +  const onPong = Effect.sync(() => {
-+    recievedPong = true;
+     recievedPong = true;
+-  };
 +    missedPongs = 0;
 +  }).pipe(Effect.andThen(hooks?.onPong ?? Effect.void));
    yield* Effect.suspend(() => {
 -    if (!recievedPong) return latch.open;
--    recievedPong = false;
--    return writePing;
 +    if (!recievedPong) {
 +      missedPongs += 1;
 +      if (missedPongs >= 3) return latch.open;
 +      return (hooks?.onPing ?? Effect.void).pipe(Effect.andThen(writePing));
 +    }
-+    recievedPong = false;
+     recievedPong = false;
+-    return writePing;
 +    missedPongs = 0;
 +    return (hooks?.onPing ?? Effect.void).pipe(Effect.andThen(writePing));
    }).pipe(Effect.delay("5 seconds"), Effect.ignore, Effect.forever, Effect.interruptible, Effect.forkScoped);
@@ -326,3 +458,190 @@ index b536d0a..12ffac0 100644
  /**
   * Represents optional client protocol hooks that run when a transport connects
   * and disconnects.
+diff --git a/dist/unstable/rpc/RpcServer.d.ts b/dist/unstable/rpc/RpcServer.d.ts
+index d37b85999ef7f7eba7c292c3ff058612a3ed4271..66ed63e697f8a16da0f42e3f7f9a2ad629e44e8e 100644
+--- a/dist/unstable/rpc/RpcServer.d.ts
++++ b/dist/unstable/rpc/RpcServer.d.ts
+@@ -302,5 +302,45 @@ export declare const makeProtocolWorkerRunner: Effect.Effect<Protocol["Service"]
+  * @since 4.0.0
+  */
+ export declare const layerProtocolWorkerRunner: Layer.Layer<Protocol, WorkerError, WorkerRunner.WorkerRunnerPlatform>;
++/**
++ * Optional RpcServer request hooks (G9 WP6 typed seams).
++ *
++ * Agent: tag `effect/rpc/RpcServer/RequestHooks` — distinct from
++ * `effect/rpc/RpcClient/RequestHooks`. Install via Layer; absent ⇒ live unchanged.
++ * Callbacks must not retain payloads; Fail/Die at the seam is ignored so live
++ * Exit/Chunk results are never rewritten.
++ *
++ * @since 4.0.0
++ * @category RpcServerRequestHooks
++ */
++declare const RpcServerRequestHooks_base: Context.ServiceClass<RpcServerRequestHooks, "effect/rpc/RpcServer/RequestHooks", {
++    /**
++     * After a registered group method is admitted (decode succeeded).
++     * Unregistered / decode failure ⇒ never called.
++     */
++    readonly onRequestAdmitted?: ((info: {
++        readonly tag: string;
++        readonly stream: boolean;
++    }) => Effect.Effect<void>) | undefined;
++    /**
++     * After a unary handler returns Success. Stream methods excluded.
++     * Typed handler Failure ⇒ never called.
++     */
++    readonly onUnarySucceeded?: ((info: {
++        readonly tag: string;
++    }) => Effect.Effect<void>) | undefined;
++    /**
++     * Once per logical stream element (N calls per Chunk). Stream close is not a phase.
++     */
++    readonly onStreamElement?: ((info: {
++        readonly tag: string;
++    }) => Effect.Effect<void>) | undefined;
++}>;
++/**
++ * @since 4.0.0
++ * @category RpcServerRequestHooks
++ */
++export declare class RpcServerRequestHooks extends RpcServerRequestHooks_base {
++}
+ export {};
+ //# sourceMappingURL=RpcServer.d.ts.map
+\ No newline at end of file
+diff --git a/dist/unstable/rpc/RpcServer.js b/dist/unstable/rpc/RpcServer.js
+index f96e3f4a89fd8fda2d08091cf7bc80886a122967..5debad72d3c9141ebf0b88b9c2f8269bccdae537 100644
+--- a/dist/unstable/rpc/RpcServer.js
++++ b/dist/unstable/rpc/RpcServer.js
+@@ -48,6 +48,9 @@ export const makeNoSerialization = /*#__PURE__*/Effect.fnUntraced(function* (gro
+   const concurrency = options.concurrency ?? "unbounded";
+   const disableFatalDefects = options.disableFatalDefects ?? false;
+   const services = yield* Effect.context();
++  // Agent: optional G9 WP6 RpcServerRequestHooks — absent ⇒ live unchanged (Effect.serviceOption).
++  // Tag is effect/rpc/RpcServer/RequestHooks (must not collide with RpcClient.RequestHooks).
++  const requestHooks = yield* Effect.serviceOption(RpcServerRequestHooks);
+   const scope = Context.get(services, Scope.Scope);
+   const trackFiber = Fiber.runIn(Scope.forkUnsafe(scope, "parallel"));
+   const concurrencySemaphore = concurrency === "unbounded" ? undefined : yield* Semaphore.make(concurrency);
+@@ -159,6 +162,11 @@ export const makeNoSerialization = /*#__PURE__*/Effect.fnUntraced(function* (gro
+       return Effect.ensuring(write, endClient(client));
+     }
+     const isStream = RpcSchema.isStreamSchema(rpc.successSchema);
++    // Agent: admit seam — registered method after decode; hook Fail/Die ignored so live path stays.
++    const onAdmitted = Option.isSome(requestHooks) && requestHooks.value.onRequestAdmitted ? requestHooks.value.onRequestAdmitted({
++      tag: request.tag,
++      stream: isStream
++    }).pipe(Effect.ignore) : Effect.void;
+     const metadata = {
+       rpc,
+       client: client.serverClient,
+@@ -178,7 +186,11 @@ export const makeNoSerialization = /*#__PURE__*/Effect.fnUntraced(function* (gro
+     let responded = false;
+     const scope = Scope.makeUnsafe();
+     let deferred = undefined;
+-    let effect = Effect.onExit(withMiddleware, exit => {
++    // Agent: unary success only — stream close is not a ledger phase; hook faults ignored.
++    const onUnarySucceeded = exit => !isStream && exit._tag === "Success" && Option.isSome(requestHooks) && requestHooks.value.onUnarySucceeded ? requestHooks.value.onUnarySucceeded({
++      tag: request.tag
++    }).pipe(Effect.ignore) : Effect.void;
++    let effect = onAdmitted.pipe(Effect.andThen(Effect.onExit(withMiddleware, exit => {
+       responded = true;
+       let write;
+       if (exit._tag === "Success") {
+@@ -186,12 +198,12 @@ export const makeNoSerialization = /*#__PURE__*/Effect.fnUntraced(function* (gro
+           deferred = exit.value;
+           write = Effect.void;
+         } else {
+-          write = options.onFromServer({
++          write = onUnarySucceeded(exit).pipe(Effect.andThen(options.onFromServer({
+             _tag: "Exit",
+             clientId: client.id,
+             requestId: request.id,
+             exit: exit
+-          });
++          })));
+         }
+       } else if (!disableFatalDefects && Cause.hasDies(exit.cause) && !Cause.hasInterrupts(exit.cause)) {
+         write = sendDefect(client, Cause.squash(exit.cause));
+@@ -208,7 +220,7 @@ export const makeNoSerialization = /*#__PURE__*/Effect.fnUntraced(function* (gro
+         reportCauseUnsafe(Fiber.getCurrent(), exit.cause);
+       }
+       return close ? Effect.ensuring(write, close) : write;
+-    });
++    })));
+     if (opts?.onRequest) {
+       effect = opts.onRequest(effect);
+     }
+@@ -241,12 +253,12 @@ export const makeNoSerialization = /*#__PURE__*/Effect.fnUntraced(function* (gro
+     client.fibers.set(request.id, fiber);
+     fiber.addObserver(function onExit(exit) {
+       if (deferred) {
+-        const fiber = trackFiber(runFork(Effect.onExit(Deferred.await(deferred), exit => options.onFromServer({
++        const fiber = trackFiber(runFork(Effect.onExit(Deferred.await(deferred), exit => onUnarySucceeded(exit).pipe(Effect.andThen(options.onFromServer({
+           _tag: "Exit",
+           clientId: client.id,
+           requestId: request.id,
+           exit: exit
+-        }))));
++        }))))));
+         client.fibers.set(request.id, fiber);
+         deferred = undefined;
+         fiber.addObserver(onExit);
+@@ -274,16 +286,31 @@ export const makeNoSerialization = /*#__PURE__*/Effect.fnUntraced(function* (gro
+       latch = Latch.makeUnsafe(false);
+       client.latches.set(request.id, latch);
+     }
++    // Agent: one onStreamElement call per logical element (N per chunk); no element payloads.
++    const onStreamElements = values => {
++      if (!(Option.isSome(requestHooks) && requestHooks.value.onStreamElement) || values.length === 0) {
++        return Effect.void;
++      }
++      const onStreamElement = requestHooks.value.onStreamElement;
++      let effect = Effect.void;
++      for (let i = 0; i < values.length; i++) {
++        effect = effect.pipe(Effect.andThen(onStreamElement({
++          tag: request.tag
++        }).pipe(Effect.ignore)));
++      }
++      return effect;
++    };
+     if (Effect.isEffect(stream)) {
+       return stream.pipe(Effect.flatMap(queue => Effect.whileLoop({
+         while: constTrue,
+         body: constant(Effect.flatMap(Queue.takeAll(queue), values => {
++          // Agent: post-success — hook after Chunk write so a write failure skips capture.
+           const write = options.onFromServer({
+             _tag: "Chunk",
+             clientId: client.id,
+             requestId: request.id,
+             values
+-          });
++          }).pipe(Effect.andThen(onStreamElements(values)));
+           if (!latch) return write;
+           latch.closeUnsafe();
+           return Effect.flatMap(write, () => latch.await);
+@@ -297,7 +324,7 @@ export const makeNoSerialization = /*#__PURE__*/Effect.fnUntraced(function* (gro
+         clientId: client.id,
+         requestId: request.id,
+         values
+-      });
++      }).pipe(Effect.andThen(onStreamElements(values)));
+       if (!latch) return write;
+       latch.closeUnsafe();
+       return Effect.andThen(write, latch.await);
+@@ -995,4 +1022,15 @@ const makeSocketProtocol = /*#__PURE__*/Effect.gen(function* () {
+     onSocket
+   };
+ });
++/**
++ * Optional server-side request hooks for G9 typed capture (WP6).
++ *
++ * Agent: absent service ⇒ RpcServer live path unchanged. Callback Fail/Die is
++ * ignored at the seam so live Exit/Chunk outcomes are never rewritten; G9
++ * escalation belongs in the consumer Layer (G9LiveSafeCaptureLayer).
++ *
++ * @since 4.0.0
++ * @category RpcServerRequestHooks
++ */
++export class RpcServerRequestHooks extends /*#__PURE__*/Context.Service()("effect/rpc/RpcServer/RequestHooks") {}
+ //# sourceMappingURL=RpcServer.js.map

@@ -95,6 +95,7 @@ import {
 } from "../Errors.ts";
 import { type ClaudeAdapterShape } from "../Services/ClaudeAdapter.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
+import { captureProviderClaudePhase } from "../../scm/g9FamilyProviderProtocol.ts";
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 const decodeUnknownJsonStringExit = Schema.decodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 
@@ -3488,6 +3489,8 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
     message: SDKMessage,
   ) {
     yield* logNativeSdkMessage(context, message);
+    // Agent: INV-T2-PROVIDER-CLAUDE protocol-event-decoded (claude.sdk.message).
+    yield* captureProviderClaudePhase("protocol-event-decoded");
     yield* ensureThreadId(context, message);
 
     switch (message.type) {
@@ -4177,6 +4180,8 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
             cause,
           }),
       });
+      // Agent: INV-T2-PROVIDER-CLAUDE protocol-request-succeeded (claude.sdk.query).
+      yield* captureProviderClaudePhase("protocol-request-succeeded");
 
       const session: ProviderSession = {
         threadId,

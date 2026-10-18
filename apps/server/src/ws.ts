@@ -123,7 +123,43 @@ import * as PairingGrantStore from "./auth/PairingGrantStore.ts";
 import * as SessionStore from "./auth/SessionStore.ts";
 import { failEnvironmentAuthInvalid, failEnvironmentInternal } from "./auth/http.ts";
 import * as RelayClient from "@t3tools/shared/relayClient";
+import {
+  G9RpcServerRequestHooksLayer,
+  captureOrchLiveIfOfferAccepted,
+  withOptionalG9Capture,
+} from "./scm/g9FamilyTypedHooks.ts";
+
+/**
+ * WP6-Consumer-Owner sole lander for this file (RFC-014 A).
+ *
+ * Intended: provide G9RpcServerRequestHooksLayer on the RpcServer websocket
+ * stack (admit / unary / stream via Effect patch seams). Land B1 ORCH-LIVE
+ * after liveBuffer Queue.offer returns true (kind event|synchronized only).
+ * Absent G9CaptureService / hook layer ⇒ live unchanged. Hook fault must not
+ * rewrite live success. No event payload in equality A.
+ *
+ * Observed: offerOrchLiveBuffer is the sole ORCH-LIVE capture bridge; Rpc hooks
+ * resolve via Layer.provideMerge(G9RpcServerRequestHooksLayer).
+ */
 const isOrchestrationDispatchCommandError = Schema.is(OrchestrationDispatchCommandError);
+
+/**
+ * ORCH-LIVE offer gate for subscribeShell / subscribeThreadDetail liveBuffer.
+ *
+ * Agent: Queue.offer first; capture only when accepted and kind is ledger-known.
+ * Projects A.kind only. False offer ⇒ zero captureOccurrence calls.
+ */
+export const offerOrchLiveBuffer = <E extends { readonly kind: "event" | "synchronized" }>(
+  liveBuffer: Queue.Queue<E, never>,
+  item: E,
+): Effect.Effect<boolean> =>
+  Effect.gen(function* () {
+    const accepted = yield* Queue.offer(liveBuffer, item);
+    yield* withOptionalG9Capture((capture) =>
+      captureOrchLiveIfOfferAccepted(capture, accepted, item.kind),
+    );
+    return accepted;
+  });
 
 const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
 const EDITOR_DISCOVERY_TIMEOUT = Duration.seconds(5);
@@ -1196,7 +1232,10 @@ const makeWsRpcLayer = (
               yield* Effect.forkScoped(
                 orchestrationEngine.streamDomainEvents.pipe(
                   Stream.runForEach((event) =>
-                    Queue.offer(liveBuffer, { kind: "event" as const, event }),
+                    // INV-T2-ORCH-LIVE / live-buffer-offered (B1→WP6): kind only.
+                    offerOrchLiveBuffer(liveBuffer, { kind: "event" as const, event }).pipe(
+                      Effect.asVoid,
+                    ),
                   ),
                 ),
                 { startImmediately: true },
@@ -1223,7 +1262,8 @@ const makeWsRpcLayer = (
                 input.requestCompletionMarker === true
                   ? Stream.concat(
                       Stream.fromEffect(
-                        Queue.offer(liveBuffer, { kind: "synchronized" as const }).pipe(
+                        // INV-T2-ORCH-LIVE / live-buffer-offered (B1→WP6): synchronized.
+                        offerOrchLiveBuffer(liveBuffer, { kind: "synchronized" as const }).pipe(
                           Effect.andThen(Queue.takeAll(liveBuffer)),
                           Effect.flatMap(coalesceShellLiveInputs),
                         ),
@@ -1322,7 +1362,14 @@ const makeWsRpcLayer = (
               // Otherwise an event published while the snapshot is loading is lost.
               const liveBuffer = yield* Queue.unbounded<OrchestrationThreadStreamItem>();
               yield* Effect.forkScoped(
-                liveStream.pipe(Stream.runForEach((item) => Queue.offer(liveBuffer, item))),
+                liveStream.pipe(
+                  Stream.runForEach((item) =>
+                    // INV-T2-ORCH-LIVE / live-buffer-offered (B1→WP6): event kind only.
+                    item.kind === "event"
+                      ? offerOrchLiveBuffer(liveBuffer, item).pipe(Effect.asVoid)
+                      : Queue.offer(liveBuffer, item).pipe(Effect.asVoid),
+                  ),
+                ),
               );
               const bufferedLiveStream = Stream.fromQueue(liveBuffer);
 
@@ -1373,7 +1420,8 @@ const makeWsRpcLayer = (
                     input.requestCompletionMarker === true
                       ? Stream.concat(
                           Stream.fromEffect(
-                            Queue.offer(liveBuffer, { kind: "synchronized" as const }),
+                            // INV-T2-ORCH-LIVE / live-buffer-offered (B1→WP6): synchronized.
+                            offerOrchLiveBuffer(liveBuffer, { kind: "synchronized" as const }),
                           ).pipe(Stream.drain),
                           bufferedLiveStream,
                         )
@@ -1415,7 +1463,8 @@ const makeWsRpcLayer = (
                 input.requestCompletionMarker === true
                   ? Stream.concat(
                       Stream.fromEffect(
-                        Queue.offer(liveBuffer, { kind: "synchronized" as const }),
+                        // INV-T2-ORCH-LIVE / live-buffer-offered (B1→WP6): synchronized.
+                        offerOrchLiveBuffer(liveBuffer, { kind: "synchronized" as const }),
                       ).pipe(Stream.drain),
                       bufferedLiveStream,
                     )
@@ -2301,6 +2350,9 @@ export const websocketRpcRouteLayer = Layer.unwrap(
           Effect.provide(
             makeWsRpcLayer(session, previewAutomationBroker).pipe(
               Layer.provideMerge(RpcSerialization.layerJson),
+              // Agent (WP6): optional RpcServerRequestHooks → ledger capture via family layer.
+              // Absent G9CaptureService ⇒ hook callbacks no-op; live RPC unchanged.
+              Layer.provideMerge(G9RpcServerRequestHooksLayer),
               Layer.provide(ProviderMaintenanceRunner.layer),
               Layer.provide(Layer.succeed(ServerSelfUpdate.ServerSelfUpdate, serverSelfUpdate)),
               // One server-lifetime service means clients share the same PR caches, and a WS

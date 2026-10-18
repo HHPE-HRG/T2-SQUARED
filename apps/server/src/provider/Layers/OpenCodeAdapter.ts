@@ -45,15 +45,29 @@ import {
   openCodeQuestionId,
   openCodeRuntimeErrorDetail,
   parseOpenCodeModelSlug,
-  runOpenCodeSdk,
+  runOpenCodeSdk as runOpenCodeSdkRaw,
   toOpenCodeFileParts,
   toOpenCodePermissionReply,
   toOpenCodeQuestionAnswers,
   type OpenCodeServerConnection,
 } from "../opencodeRuntime.ts";
 import * as Option from "effect/Option";
+import {
+  captureOpenCodeHttpSucceeded,
+  captureOpenCodeProtocolEventIfKnown,
+  captureOpenCodeProtocolRequestIfKnown,
+} from "../../scm/g9FamilyProviderProtocol.ts";
 
 const PROVIDER = ProviderDriverKind.make("opencode");
+
+/** Agent: every SDK op success → INV-T2-PROVIDER-OPENCODE protocol-request when known. */
+const runOpenCodeSdk = <A>(
+  operation: string,
+  fn: () => Promise<A>,
+): Effect.Effect<A, OpenCodeRuntimeError> =>
+  runOpenCodeSdkRaw(operation, fn).pipe(
+    Effect.tap(() => captureOpenCodeProtocolRequestIfKnown(operation)),
+  );
 
 /**
  * Version tag stamped into the OpenCode resume cursor. Bump if the cursor
@@ -803,6 +817,8 @@ export function makeOpenCodeAdapter(
           payload: event,
         },
       });
+      // Agent: INV-T2-PROVIDER-OPENCODE protocol-event-decoded for known event types.
+      yield* captureOpenCodeProtocolEventIfKnown(event.type);
 
       switch (event.type) {
         case "session.updated": {
@@ -1214,6 +1230,8 @@ export function makeOpenCodeAdapter(
                 directory,
                 ...(server.external && serverPassword ? { serverPassword } : {}),
               });
+              // Agent: INV-T2-PROVIDER-OPENCODE opencode-http-succeeded after client created.
+              yield* captureOpenCodeHttpSucceeded();
               const mcpSession = McpProviderSession.readMcpProviderSession(input.threadId);
               if (mcpSession && !server.external) {
                 yield* runOpenCodeSdk("mcp.add", () =>

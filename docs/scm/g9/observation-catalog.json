@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "role": "Closed G9 observation catalog. Central G9 observation module emits these. Family adapters get no tracer/meter.",
+  "publication_span": "t2.scm.publish",
+  "enqueue_span": null,
+  "g9_owned_span_names": [
+    "t2.scm.shadow.overload.start",
+    "t2.scm.shadow.overload.recovered",
+    "t2.scm.shadow.fault"
+  ],
+  "inherited_span_names": [
+    "t2.scm.publish",
+    "t2.scm.receive",
+    "t2.scm.bridge.forward",
+    "t2.scm.dip.set",
+    "t2.scm.hear.muted",
+    "t2.scm.clock.advance",
+    "t2.scm.freeze",
+    "t2.scm.halt",
+    "t2.scm.recommend_stop"
+  ],
+  "coordinator_forbidden_spans": ["t2.scm.bridge.forward"],
+  "metrics": [
+    "t2_scm_shadow_wake_skipped_total",
+    "t2_scm_shadow_fifo_depth",
+    "t2_scm_shadow_rejected_capacity_total",
+    "t2_scm_shadow_rejected_withheld_total"
+  ],
+  "attribute_allowlist": {
+    "t2.scm.shadow.overload.start": [
+      "t2.scm.node_id",
+      "t2.scm.bus_id",
+      "t2.scm.fifo_depth",
+      "t2.scm.reason"
+    ],
+    "t2.scm.shadow.overload.recovered": [
+      "t2.scm.node_id",
+      "t2.scm.bus_id",
+      "t2.scm.fifo_depth",
+      "t2.scm.reason"
+    ],
+    "t2.scm.shadow.fault": [
+      "t2.scm.comm_id",
+      "t2.scm.node_id",
+      "t2.scm.bus_id",
+      "t2.scm.fault_code",
+      "t2.scm.waker_state"
+    ],
+    "t2.scm.publish": ["t2.scm.word_id", "t2.scm.origin_node_id", "t2.scm.origin_bus_id"],
+    "t2.scm.receive": ["t2.scm.word_id", "t2.scm.origin_node_id", "t2.scm.origin_bus_id"],
+    "t2.scm.clock.advance": ["t2.scm.producer_name", "t2.scm.elapsed_fundamental_timesteps"],
+    "t2.scm.freeze": ["t2.scm.bus_id", "t2.scm.position", "t2.scm.reason", "t2.scm.node_id"],
+    "t2.scm.halt": ["t2.scm.bus_id", "t2.scm.position", "t2.scm.reason", "t2.scm.node_id"],
+    "t2.scm.recommend_stop": ["t2.scm.node_id", "t2.scm.reason"],
+    "t2.scm.dip.set": [
+      "t2.scm.receiving_bus_id",
+      "t2.scm.source_bus_id",
+      "t2.scm.source_node_id",
+      "t2.scm.dip.mode"
+    ],
+    "t2.scm.hear.muted": [
+      "t2.scm.receiving_bus_id",
+      "t2.scm.source_bus_id",
+      "t2.scm.source_node_id",
+      "t2.scm.dip.mode",
+      "t2.scm.origin_node_id",
+      "t2.scm.origin_bus_id",
+      "t2.scm.word_id"
+    ],
+    "t2.scm.bridge.forward": [
+      "t2.scm.word_id",
+      "t2.scm.origin_node_id",
+      "t2.scm.origin_bus_id",
+      "t2.scm.source_bus_id",
+      "t2.scm.destination_bus_id",
+      "t2.scm.route_id",
+      "t2.scm.bridge_hop",
+      "t2.scm.origin_timestep",
+      "t2.scm.forwarded_at_timestep"
+    ]
+  },
+  "fault_observation_attributes_metadata_only": [
+    "t2.scm.comm_id",
+    "t2.scm.node_id",
+    "t2.scm.bus_id",
+    "t2.scm.fault_code",
+    "t2.scm.waker_state"
+  ],
+  "fault_observation_required_attributes": ["t2.scm.fault_code", "t2.scm.waker_state"],
+  "fault_observation_optional_identity_attributes": [
+    "t2.scm.comm_id",
+    "t2.scm.node_id",
+    "t2.scm.bus_id"
+  ],
+  "forbidden_attributes": ["payload", "sql", "terminal_bytes", "secret", "token", "A_value_dump"],
+  "word_id_join": "t2.scm.word_id is an attribute join, not an OTEL SpanLink.",
+  "notes": "Successful publication is inherited t2.scm.publish. Capture enqueue has no general span. Capacity rejection is t2_scm_shadow_rejected_capacity_total plus bounded overload start/recovery episodes. Fault allowlist is exact five keys: required fault_code + waker_state; identity attrs omitted when no associated occurrence (never fabricate). Optional means omit key, not accept arbitrary attributes."
+}

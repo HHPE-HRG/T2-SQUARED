@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * Shared fundamental-clock driver named scm.fundamental-clock (G8).
  *
@@ -181,21 +182,32 @@ export interface SharedProcessIntervalResult {
   readonly failures: ReadonlyArray<BridgeRouteFailure>;
 }
 
-export interface FundamentalTimestepTarget {
-  advanceFundamentalTimestep(): Effect.Effect<BridgeAdvanceResult, HomeBusLinkFailure>;
+/**
+ * Target that advances one fundamental timestep.
+ *
+ * Default E is HomeBusLinkFailure so G6/G8 call sites need no edits.
+ * G9 uses SharedFundamentalClock<G9InvariantFault> without wrapping E as G8.
+ */
+export interface FundamentalTimestepTarget<E = HomeBusLinkFailure> {
+  advanceFundamentalTimestep(): Effect.Effect<BridgeAdvanceResult, E>;
 }
 
 /**
  * Injectable shared fundamental clock for two linked home buses.
  *
+ * Intended: process-interval driver with start/stop/overlap guard; error channel
+ * unions SharedClockFailure with target E (not wrapped as HomeBusLinkFailure).
+ * Observed: advancing flag cleared via ensuring even when a mid-loop target fails;
+ * earlier successful bumps stay committed.
+ *
  * Parameters
  * ----------
- * link : FundamentalTimestepTarget
+ * link : FundamentalTimestepTarget<E>
  *     Coordinator that advances one fundamental timestep.
  *
  * Returns
  * -------
- * SharedFundamentalClock
+ * SharedFundamentalClock<E>
  *     Start/stop driver with overlap guard.
  *
  * Example
@@ -204,14 +216,14 @@ export interface FundamentalTimestepTarget {
  * clock.start();
  * yield* clock.advanceProcessInterval(2);
  */
-export class SharedFundamentalClock {
+export class SharedFundamentalClock<E = HomeBusLinkFailure> {
   readonly producer_name = G8_PRODUCER_NAME;
   currentFundamentalTimestep = 0;
   private running = false;
   private advancing = false;
-  private readonly link: FundamentalTimestepTarget;
+  private readonly link: FundamentalTimestepTarget<E>;
 
-  constructor(link: FundamentalTimestepTarget) {
+  constructor(link: FundamentalTimestepTarget<E>) {
     this.link = link;
   }
 
@@ -275,7 +287,7 @@ export class SharedFundamentalClock {
    */
   advanceProcessInterval(
     elapsedFundamentalTimesteps: number,
-  ): Effect.Effect<SharedProcessIntervalResult, SharedClockFailure | HomeBusLinkFailure> {
+  ): Effect.Effect<SharedProcessIntervalResult, SharedClockFailure | E> {
     if (!this.running) {
       return Effect.fail(new SharedClockFailure("fundamental clock is not running"));
     }

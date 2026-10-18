@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * G3 topology overlay checker.
  *
@@ -122,7 +123,7 @@ export type G3CheckResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly failures: ReadonlyArray<G3Failure> };
 
-const isNonEmpty = (value: string | undefined | null): boolean =>
+const isNonEmpty = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

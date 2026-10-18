@@ -117,6 +117,7 @@ import * as NetService from "@t3tools/shared/Net";
 import * as RelayClient from "@t3tools/shared/relayClient";
 import { disableTailscaleServe, ensureTailscaleServe } from "@t3tools/tailscale";
 import { forkParked, ServerActivation } from "./serverActivation.ts";
+import { g9ShadowStackLayerFromEnv } from "./scm/g9Bootstrap.ts";
 
 // Effect's default preemptive shutdown waits 20s before finalizing request scopes.
 // T3's primary transport is long-lived WebSocket RPC, whose Effect scope finalizer
@@ -424,6 +425,11 @@ const RuntimeDependenciesLive = RuntimeCoreDependenciesLive.pipe(
   Layer.provideMerge(ExternalLauncher.layer),
   Layer.provideMerge(ServerLifecycleEvents.layer),
   Layer.provide(NetService.layer),
+  // WP7-Bootstrap-Owner (RFC-003 A / RFC-008 A): optional G9CaptureService.
+  // Absent (default) ⇒ Layer.empty, no loadG9Package / waker / shadow buses.
+  // Present (T2CODE_SCM_G9_SHADOW=1|true|yes) ⇒ fail-fast package load + armed waker.
+  // WP6 hook Layers already merge on consumer files; they activate when this service is present.
+  Layer.provideMerge(g9ShadowStackLayerFromEnv()),
 );
 
 const commandReadinessLayer = HttpRouter.middleware(

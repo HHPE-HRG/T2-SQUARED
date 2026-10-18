@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * G4 W1 word as T2 types.
  *
@@ -144,15 +145,34 @@ export const checkW1Word = (value: unknown): W1CheckResult => {
   if (failures.length > 0) {
     return { ok: false, failures };
   }
+  const bus_id = value.bus_id;
+  const node_id = value.node_id;
+  const fundamental_state = value.fundamental_state;
+  const fundamental_request = value.fundamental_request;
+  const state_age = value.state_age;
+  const request_age = value.request_age;
+  if (
+    !isNonEmpty(bus_id) ||
+    !isNonEmpty(node_id) ||
+    !isNonEmpty(fundamental_state) ||
+    !isNonEmpty(fundamental_request) ||
+    !isAge(state_age) ||
+    !isAge(request_age)
+  ) {
+    return {
+      ok: false,
+      failures: [{ code: "shape", message: "W1 word failed final slot narrowing" }],
+    };
+  }
   return {
     ok: true,
     word: {
-      bus_id: value.bus_id,
-      node_id: value.node_id,
-      fundamental_state: value.fundamental_state,
-      fundamental_request: value.fundamental_request,
-      state_age: value.state_age,
-      request_age: value.request_age,
+      bus_id,
+      node_id,
+      fundamental_state,
+      fundamental_request,
+      state_age,
+      request_age,
       modifier_start: "modifier_start",
       null: "null",
       modifiers,

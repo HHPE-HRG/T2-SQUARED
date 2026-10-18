@@ -35,6 +35,7 @@ import * as Stream from "effect/Stream";
 import * as CodexErrors from "effect-codex-app-server/errors";
 
 import { ServerConfig } from "../../config.ts";
+import { captureCodexProtocolRequestIfKnown } from "../../scm/g9FamilyProviderProtocol.ts";
 import { ServerSettingsService } from "../../serverSettings.ts";
 import { ProviderAdapterValidationError } from "../Errors.ts";
 import type { CodexAdapterShape } from "../Services/CodexAdapter.ts";
@@ -285,6 +286,8 @@ validationLayer("CodexAdapterLive validation", (it) => {
         serviceTier: "priority",
         threadId: asThreadId("thread-1"),
         runtimeMode: "full-access",
+        // Agent: B4 wires protocol-request capture onto the runtime options object.
+        onG9ProtocolRequestSucceeded: captureCodexProtocolRequestIfKnown,
       });
     }),
   );

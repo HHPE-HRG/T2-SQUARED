@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 2,
+  "note": "WP0 steward decisions applied. Inventory conflicts empty. Planned hooks are not unresolved. See finding-dispositions.json.",
+  "counted_unresolved_phases": [],
+  "independent_extract_mismatches": [],
+  "still_structural_phases": [],
+  "planned_typed_hooks": [
+    {
+      "comm_id": "INV-T2-RPC-WS",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-WS",
+      "phase_id": "rpc-handler-succeeded"
+    },
+    {
+      "comm_id": "INV-T2-RPC-WS",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-ORCH-RPC",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-ORCH-RPC",
+      "phase_id": "rpc-handler-succeeded"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TERM",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TERM",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-ORCH",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-ORCH",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TEL",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TEL",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-AUTH",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-AUTH",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-CONFIG",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-CONFIG",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-DISCOVERY",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-DISCOVERY",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-MCP-HTTP",
+      "phase_id": "mcp-http-session-deleted"
+    },
+    {
+      "comm_id": "INV-T2-TEL-T3-OTLP",
+      "phase_id": "t3-otlp-traces-export-succeeded"
+    },
+    {
+      "comm_id": "INV-T2-TEL-T3-OTLP",
+      "phase_id": "t3-otlp-metrics-export-succeeded"
+    },
+    {
+      "comm_id": "INV-T2-TEL-T2-OTLP",
+      "phase_id": "t2-otlp-export-succeeded"
+    }
+  ],
+  "inventory_conflicts": [],
+  "dispositions": "docs/scm/g9/finding-dispositions.json"
+}

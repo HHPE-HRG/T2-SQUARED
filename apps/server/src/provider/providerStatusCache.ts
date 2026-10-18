@@ -1,3 +1,12 @@
+/**
+ * Provider status cache read/write helpers.
+ *
+ * Intended: atomic JSON snapshots of ServerProvider for hydration between
+ * probes. G9 W5c (B4 lander): after successful decode/read and after atomic
+ * write, capture INV-T2-FILE-PROVIDER-SESSION cache phases via B2 helpers when
+ * G9CaptureService is present. Missing/empty/parse-failure reads and failed
+ * writes → no capture. Equality A uses ledger member_id tokens only.
+ */
 import {
   type ProviderDriverKind,
   type ProviderInstanceId,
@@ -11,6 +20,11 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
 import { writeFileStringAtomically } from "../atomicWrite.ts";
+import {
+  captureProviderStatusCacheReadSucceeded,
+  captureProviderStatusCacheWriteSucceeded,
+} from "../scm/g9FamilyFileDbProcessConfig.ts";
+import { captureWhenG9Present } from "../scm/g9FamilyProviderProtocol.ts";
 
 const decodeProviderStatusCache = Schema.decodeUnknownEffect(
   Schema.fromJsonString(ServerProviderSchema),
@@ -136,7 +150,11 @@ export const readProviderStatusCache = (filePath: string) =>
             path: filePath,
             errorTag: causeErrorTag(cause),
           }).pipe(Effect.as(undefined)),
-        onSuccess: Effect.succeed,
+        onSuccess: (provider) =>
+          // Agent: B2→B4 cache-read success; member_id is ledger token not path.
+          captureWhenG9Present((capture) => captureProviderStatusCacheReadSucceeded(capture)).pipe(
+            Effect.as(provider),
+          ),
       }),
     );
   });
@@ -146,8 +164,12 @@ export const writeProviderStatusCache = (input: {
   readonly provider: ServerProvider;
 }) => {
   const { updateState: _updateState, ...cacheableProvider } = input.provider;
-  return writeFileStringAtomically({
-    filePath: input.filePath,
-    contents: `${JSON.stringify(cacheableProvider, null, 2)}\n`,
+  return Effect.gen(function* () {
+    yield* writeFileStringAtomically({
+      filePath: input.filePath,
+      contents: `${JSON.stringify(cacheableProvider, null, 2)}\n`,
+    });
+    // Agent: B2→B4 cache-write success after atomic write; member_id = "write".
+    yield* captureWhenG9Present((capture) => captureProviderStatusCacheWriteSucceeded(capture));
   });
 };

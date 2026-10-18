@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "previous_15_counted_findings": [
+    {
+      "id": "INV-T2-FILE-RUNTIME-STATE/runtime-state-file-persisted",
+      "disposition": "g9-ledger-error",
+      "action": "split into four member write phases"
+    },
+    {
+      "id": "INV-T2-FLAG-T2-OTEL/flag-resolved",
+      "disposition": "g9-ledger-error",
+      "action": "rebind T2Observability.ts"
+    },
+    {
+      "id": "INV-T2-FLAG-CODEX-LAUNCH/flag-resolved",
+      "disposition": "g9-ledger-error",
+      "action": "rebind codexLaunchArgs.ts"
+    },
+    {
+      "id": "INV-T2-FLAG-CLOUDFLARED/flag-resolved",
+      "disposition": "g9-ledger-error",
+      "action": "rebind relayClient.ts"
+    },
+    {
+      "id": "INV-T2-FLAG-TERM-ENV/flag-resolved",
+      "disposition": "steward-applied",
+      "action": "redefined as terminal-child-env-filtered; inherited T3CODE_* and VITE_* excluded; caller runtime env is not filtered"
+    },
+    {
+      "id": "INV-T2-PROVIDER-CLAUDE/runtime-spawn-succeeded",
+      "disposition": "g9-ledger-error",
+      "action": "removed; session is SDK query"
+    },
+    {
+      "id": "INV-T2-PROVIDER-CLAUDE/runtime-exit-succeeded",
+      "disposition": "g9-ledger-error",
+      "action": "removed"
+    },
+    {
+      "id": "INV-T2-PROVIDER-CLAUDE/cli-probe-http-succeeded",
+      "disposition": "g9-ledger-error",
+      "action": "removed; replaced by cli-version-probe-succeeded"
+    },
+    {
+      "id": "INV-T2-PROVIDER-CURSOR/runtime-exit-succeeded",
+      "disposition": "g9-ledger-error",
+      "action": "removed; Scope.close is not observed exit"
+    },
+    {
+      "id": "INV-T2-PROVIDER-GROK/runtime-exit-succeeded",
+      "disposition": "g9-ledger-error",
+      "action": "removed; Scope.close is not observed exit"
+    },
+    {
+      "id": "INV-T2-PROJECT-SETUP/setup-script-succeeded",
+      "disposition": "g9-ledger-error",
+      "action": "renamed project-setup-started; G1B subprocess compatible-broad-inventory"
+    },
+    {
+      "id": "INV-T2-MCP-HTTP/mcp-http-session-deleted",
+      "disposition": "planned-typed-hook",
+      "action": "Effect layerHttp DELETE 204"
+    },
+    {
+      "id": "INV-T2-TEL-T3-OTLP/t3-otlp-traces-export-succeeded",
+      "disposition": "planned-typed-hook",
+      "action": "OtlpExporter.runExport filterStatusOk"
+    },
+    {
+      "id": "INV-T2-TEL-T3-OTLP/t3-otlp-metrics-export-succeeded",
+      "disposition": "planned-typed-hook",
+      "action": "OtlpExporter.runExport filterStatusOk"
+    },
+    {
+      "id": "INV-T2-TEL-T2-OTLP/t2-otlp-export-succeeded",
+      "disposition": "planned-typed-hook",
+      "action": "OTLPTraceExporter.export success channel"
+    }
+  ],
+  "g1b_side_listed": [
+    {
+      "comm_id": "INV-T2-FILE-CHECKPOINTS",
+      "disposition": "compatible-broad-inventory",
+      "why": "G1B persistence is checkpoint store; live git-ref writes are persistence. INV-T2-GIT stacking remains legal when execute also succeeds."
+    },
+    {
+      "comm_id": "INV-T2-FILE-WORKTREES",
+      "disposition": "compatible-broad-inventory",
+      "why": "G1B persistence is worktree directory side effect of create/remove. executeGit may independently emit INV-T2-GIT."
+    },
+    {
+      "comm_id": "INV-T2-FILE-ATTACHMENTS",
+      "disposition": "g9-ledger-error",
+      "why": "G9 already captures Normalizer.writeFile. G1B symbols AssetAccess/ProjectionPipeline are stale but mechanism persistence and attachmentsDir still describe the live write."
+    },
+    {
+      "comm_id": "INV-T2-FILE-PROVIDER-SESSION",
+      "disposition": "compatible-broad-inventory",
+      "why": "G1B persistence covers the file cache member. SQLite binding is still persistence stacked with INV-T2-SQLITE execute."
+    },
+    {
+      "comm_id": "INV-T2-PROVIDER-TURN",
+      "disposition": "compatible-broad-inventory",
+      "why": "G1B transport is in-process sendTurn (callbacks). extra external-transport class names downstream adapter IO already inventoried on other rows, not this admit/success pair."
+    },
+    {
+      "comm_id": "INV-T2-FLAG-TERM-ENV",
+      "disposition": "steward-applied",
+      "why": "G1B names the inherited child-env filter. Caller-supplied runtime env is applied after shouldExcludeTerminalEnvKey and can still carry T3CODE_*."
+    },
+    {
+      "comm_id": "INV-T2-PROJECT-QUEUE",
+      "disposition": "steward-applied",
+      "why": "G1B now names projectEvent callback/service; QUEUE suffix is legacy identity."
+    }
+  ],
+  "inventory_conflicts": []
+}

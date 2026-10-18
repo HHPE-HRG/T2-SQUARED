@@ -68,6 +68,10 @@ import {
 } from "../acp/XAiAcpExtension.ts";
 import { type GrokAdapterShape } from "../Services/GrokAdapter.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
+import {
+  captureAcpProtocolEventIfKnown,
+  captureAcpProtocolRequestIfKnown,
+} from "../../scm/g9FamilyProviderProtocol.ts";
 
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 
@@ -577,6 +581,10 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
             cwd,
             ...(resumeSessionId ? { resumeSessionId } : {}),
             clientInfo: { name: "t3-code", version: "0.0.0" },
+            // Agent: GROK spawn + protocol-request capture ownership.
+            g9SpawnCommId: "INV-T2-PROVIDER-GROK",
+            onG9ProtocolRequestSucceeded: (operation) =>
+              captureAcpProtocolRequestIfKnown("INV-T2-PROVIDER-GROK", operation),
             ...(mcpSession
               ? {
                   mcpServers: [
@@ -788,6 +796,8 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
                   yield* Deferred.succeed(event.acknowledge, undefined);
                   return;
                 }
+                // Agent: INV-T2-PROVIDER-GROK protocol-event-decoded for session/update path.
+                yield* captureAcpProtocolEventIfKnown("INV-T2-PROVIDER-GROK", "session/update");
                 if (
                   event._tag === "PlanUpdated" ||
                   event._tag === "ToolCallUpdated" ||

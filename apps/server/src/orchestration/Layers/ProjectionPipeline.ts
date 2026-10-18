@@ -1,3 +1,10 @@
+/**
+ * Orchestration projection pipeline layer.
+ *
+ * G9 W5c (B1): INV-T2-PROJECT-QUEUE / projection-event-succeeded captures after
+ * projectEvent succeeds (Effect success channel only). Optional G9CaptureService
+ * — absent ⇒ projection behavior unchanged. Does not claim SQL commit durability.
+ */
 import {
   ApprovalRequestId,
   type ChatAttachment,
@@ -12,6 +19,11 @@ import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Stream from "effect/Stream";
 import * as SqlClient from "effect/unstable/sql/SqlClient";
+
+import {
+  captureProjectQueueSucceeded,
+  captureWhenG9Present,
+} from "../../scm/g9FamilyQueuePubSubCallback.ts";
 
 import { toPersistenceSqlError, type ProjectionRepositoryError } from "../../persistence/Errors.ts";
 import { OrchestrationEventStore } from "../../persistence/Services/OrchestrationEventStore.ts";
@@ -1702,6 +1714,8 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
         Effect.provideService(Path.Path, path),
         Effect.provideService(ServerConfig, serverConfig),
         Effect.asVoid,
+        // PROJECT-QUEUE: success channel only; fail/SqlError → no capture.
+        Effect.tap(() => captureWhenG9Present((capture) => captureProjectQueueSucceeded(capture))),
         Effect.catchTag("SqlError", (sqlError) =>
           Effect.fail(toPersistenceSqlError("ProjectionPipeline.projectEvent:query")(sqlError)),
         ),

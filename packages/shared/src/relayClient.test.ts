@@ -6,6 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Encoding from "effect/Encoding";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Ref from "effect/Ref";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
@@ -13,8 +14,10 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { HostProcessArchitecture, HostProcessPlatform } from "./hostProcess.ts";
 
 import {
-  RelayClientInstallError,
+  CLOUDFLARED_PATH_ENV_NAME,
   CLOUDFLARED_VERSION,
+  RelayClientInstallError,
+  RelayClientOptionalG9Capture,
   makeCloudflaredRelayClient,
 } from "./relayClient.ts";
 
@@ -268,4 +271,162 @@ describe("RelayClient", () => {
       ),
     );
   });
+});
+
+describe("RelayClient G9 capture (W5c B3)", () => {
+  it.effect("absent optional G9 capture leaves resolve/install unchanged", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const baseDir = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-cloudflared-g9-absent-",
+      });
+      const manager = yield* makeCloudflaredRelayClient({ baseDir });
+      expect(yield* manager.resolve).toEqual({
+        status: "missing",
+        version: CLOUDFLARED_VERSION,
+      });
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        Layer.mergeAll(
+          NodeServices.layer,
+          makeHttpClientLayer(new Uint8Array()),
+          makeSpawnerLayer([]),
+          hostRuntimeLayer(),
+        ),
+      ),
+    ),
+  );
+
+  it.effect("resolve captures FLAG-CLOUDFLARED configured|absent without path in A", () =>
+    Effect.gen(function* () {
+      const calls = yield* Ref.make<
+        Array<{
+          readonly comm_id: string;
+          readonly phase: string;
+          readonly input: { readonly [key: string]: unknown };
+        }>
+      >([]);
+      const fileSystem = yield* FileSystem.FileSystem;
+      const baseDir = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-cloudflared-g9-flag-",
+      });
+      const overridePath = `${baseDir}/override-cloudflared`;
+      yield* fileSystem.writeFileString(overridePath, "override");
+      yield* fileSystem.chmod(overridePath, 0o755);
+
+      const captureLayer = Layer.succeed(RelayClientOptionalG9Capture, {
+        captureOccurrence: (input) =>
+          Ref.update(calls, (xs) => [...xs, input]).pipe(Effect.as(undefined)),
+      });
+
+      const manager = yield* makeCloudflaredRelayClient({ baseDir });
+
+      yield* manager.resolve.pipe(
+        Effect.provideService(
+          ConfigProvider.ConfigProvider,
+          ConfigProvider.fromEnv({ env: { PATH: "" } }),
+        ),
+        Effect.provide(captureLayer),
+      );
+      yield* manager.resolve.pipe(
+        Effect.provideService(
+          ConfigProvider.ConfigProvider,
+          ConfigProvider.fromEnv({
+            env: { PATH: "", T3CODE_CLOUDFLARED_PATH: overridePath },
+          }),
+        ),
+        Effect.provide(captureLayer),
+      );
+
+      const seen = yield* Ref.get(calls);
+      expect(seen).toEqual([
+        {
+          comm_id: "INV-T2-FLAG-CLOUDFLARED",
+          phase: "flag-resolved",
+          input: { member: CLOUDFLARED_PATH_ENV_NAME, state_label: "absent" },
+        },
+        {
+          comm_id: "INV-T2-FLAG-CLOUDFLARED",
+          phase: "flag-resolved",
+          input: { member: CLOUDFLARED_PATH_ENV_NAME, state_label: "configured" },
+        },
+      ]);
+      for (const call of seen) {
+        expect(call.input).not.toHaveProperty("path");
+        expect(call.input).not.toHaveProperty("executablePath");
+      }
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        Layer.mergeAll(
+          NodeServices.layer,
+          makeHttpClientLayer(new Uint8Array()),
+          makeSpawnerLayer([]),
+          hostRuntimeLayer(),
+        ),
+      ),
+    ),
+  );
+
+  it.effect("runCommand captures RELAY-CLIENT spawn then exit with site-only A", () =>
+    Effect.gen(function* () {
+      const calls = yield* Ref.make<
+        Array<{
+          readonly comm_id: string;
+          readonly phase: string;
+          readonly input: { readonly [key: string]: unknown };
+        }>
+      >([]);
+      const fileSystem = yield* FileSystem.FileSystem;
+      const baseDir = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-cloudflared-g9-spawn-",
+      });
+      const bytes = new TextEncoder().encode("test-cloudflared-binary");
+      const captureLayer = Layer.succeed(RelayClientOptionalG9Capture, {
+        captureOccurrence: (input) =>
+          Ref.update(calls, (xs) => [...xs, input]).pipe(Effect.as(undefined)),
+      });
+
+      const manager = yield* makeCloudflaredRelayClient({
+        baseDir,
+        releaseAsset: {
+          url: "https://example.test/cloudflared",
+          sha256: Encoding.encodeHex(sha256(bytes)),
+          archive: "binary",
+        },
+      }).pipe(Effect.provide(captureLayer));
+
+      yield* manager.install.pipe(Effect.provide(captureLayer));
+
+      const seen = yield* Ref.get(calls);
+      const relayPhases = seen.filter((c) => c.comm_id === "INV-T2-RELAY-CLIENT");
+      expect(relayPhases.length).toBeGreaterThanOrEqual(2);
+      expect(relayPhases[0]).toEqual({
+        comm_id: "INV-T2-RELAY-CLIENT",
+        phase: "cloudflared-spawn-succeeded",
+        input: { site: "spawned" },
+      });
+      expect(relayPhases[1]).toEqual({
+        comm_id: "INV-T2-RELAY-CLIENT",
+        phase: "cloudflared-exit-succeeded",
+        input: { site: "exited" },
+      });
+      for (const call of relayPhases) {
+        expect(call.input).not.toHaveProperty("command");
+        expect(call.input).not.toHaveProperty("args");
+        expect(call.input).not.toHaveProperty("exitCode");
+      }
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        Layer.mergeAll(
+          NodeServices.layer,
+          makeHttpClientLayer(new TextEncoder().encode("test-cloudflared-binary")),
+          makeSpawnerLayer([]),
+          hostRuntimeLayer(),
+        ),
+      ),
+    ),
+  );
 });

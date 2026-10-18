@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * G6 DIP store with D12 mute-law validation, hear-path mute, and T2 OTEL.
  *

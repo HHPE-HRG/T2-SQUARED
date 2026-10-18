@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "role": "G9 design pin of G6 governed classes. Loader at implementation builds G6 GovernedClasses from runtime maps only.",
+  "buses": {
+    "bus.rpc": { "class": "A1", "runtime": true },
+    "bus.control": { "class": "A1", "runtime": true },
+    "bus.provider": { "class": "A2", "runtime": true },
+    "bus.persistence": { "class": "A2", "runtime": true },
+    "bus.terminal": { "class": "A2", "runtime": true },
+    "bus.observer": { "class": "observer", "runtime": true },
+    "bus.network": { "class": "A2", "runtime": true },
+    "bus.vcs": { "class": "A2", "runtime": true },
+    "bus.scm.a": { "class": "A2", "runtime": true },
+    "bus.scm.b": { "class": "A2", "runtime": true }
+  },
+  "nodes": {
+    "node.rpc": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.mcp": { "class": "A1", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.orchestration": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.projection": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.provider": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.provider.codex": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.provider.claude": {
+      "class": "A2",
+      "halt_initiator": "open",
+      "placementStatus": "placed"
+    },
+    "node.provider.cursor": {
+      "class": "A2",
+      "halt_initiator": "open",
+      "placementStatus": "placed"
+    },
+    "node.provider.grok": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.provider.opencode": {
+      "class": "A2",
+      "halt_initiator": "open",
+      "placementStatus": "placed"
+    },
+    "node.terminal": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.persistence": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.settings": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.auth": { "class": "A1", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.assets": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.usage": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.vcs": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.source-control": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.preview": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.project": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.lifecycle": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.relay": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.network": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.t2-observer": {
+      "class": "observer",
+      "halt_initiator": "no",
+      "placementStatus": "placed"
+    },
+    "node.t3-observer": {
+      "class": "observer",
+      "halt_initiator": "no",
+      "placementStatus": "placed"
+    },
+    "node.analytics": { "class": "observer", "halt_initiator": "no", "placementStatus": "placed" },
+    "node.resource-telemetry": {
+      "class": "observer",
+      "halt_initiator": "no",
+      "placementStatus": "placed"
+    },
+    "node.scm.home-a": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" },
+    "node.scm.home-b": { "class": "A2", "halt_initiator": "open", "placementStatus": "placed" }
+  },
+  "reserved_nodes": {
+    "node.observer.404": {
+      "class": "observer",
+      "halt_initiator": "no",
+      "placementStatus": "reserved",
+      "live_g1_comm_ids": [],
+      "runtime": false,
+      "g9_origin_forbidden": true
+    }
+  },
+  "authority_parent": {
+    "bus_id": "bus.scm.authority",
+    "node_id": "node.scm.authority",
+    "class": "A0",
+    "runtime": false,
+    "not_a_map_entry": true
+  },
+  "copy_rule": "G9 copies these 10 buses + 29 placed nodes + 1 reserved identity exactly from G3. G9 never invents bus or node identities. Parent is authority_bus_id string, not a runtime map entry.",
+  "private_runtime_bus_instances": "Exactly ten production InProcessOpenLoopBus instances, one per buses.* runtime true. Roster coordinator never constructs BidirectionalHomeBusLink. hearAs is the sole production read surface.",
+  "empty_initial_dip": true
+}

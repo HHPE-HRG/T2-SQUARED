@@ -39,6 +39,7 @@ import { buildCodexInitializeParams } from "./CodexProvider.ts";
 import { codexSessionAppServerArgs } from "./codexLaunchArgs.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
 import { buildCodexDeveloperInstructions } from "../CodexDeveloperInstructions.ts";
+import { captureProviderCodexRuntime } from "../../scm/g9FamilyProviderProtocol.ts";
 const decodeV2TurnStartResponse = Schema.decodeUnknownEffect(EffectCodexSchema.V2TurnStartResponse);
 
 const PROVIDER = ProviderDriverKind.make("codex");
@@ -106,6 +107,11 @@ export interface CodexSessionRuntimeOptions {
   readonly serviceTier?: CodexServiceTier | undefined;
   readonly resumeCursor?: CodexResumeCursor;
   readonly appServerArgs?: ReadonlyArray<string>;
+  /**
+   * Agent: B4 CodexAdapter supplies captureCodexProtocolRequestIfKnown so
+   * protocol-request lands on the ledger capture_module (CodexAdapter.ts).
+   */
+  readonly onG9ProtocolRequestSucceeded?: (operation: string) => Effect.Effect<void, never>;
 }
 
 export interface CodexSessionRuntimeSendTurnInput {
@@ -893,14 +899,33 @@ export const makeCodexSessionRuntime = (
             }),
         ),
       );
+    // Agent: INV-T2-PROVIDER-CODEX runtime-spawn-succeeded after spawner.spawn.
+    yield* captureProviderCodexRuntime("runtime-spawn-succeeded");
 
     const clientContext = yield* CodexClient.layerChildProcess(child).pipe(
       Layer.build,
       Effect.provideService(Scope.Scope, runtimeScope),
     );
-    const client = yield* Effect.service(CodexClient.CodexAppServerClient).pipe(
+    const clientService = yield* Effect.service(CodexClient.CodexAppServerClient).pipe(
       Effect.provide(clientContext),
     );
+    // Agent: protocol-request capture owned by CodexAdapter via callback.
+    const client = {
+      ...clientService,
+      request: <M extends Parameters<typeof clientService.request>[0]>(
+        method: M,
+        params: Parameters<typeof clientService.request>[1],
+      ) =>
+        clientService
+          .request(method, params)
+          .pipe(
+            Effect.tap(() =>
+              options.onG9ProtocolRequestSucceeded
+                ? options.onG9ProtocolRequestSucceeded(method)
+                : Effect.void,
+            ),
+          ),
+    };
     const serverNotifications = yield* Queue.unbounded<CodexServerNotification>();
     const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
     const randomUUIDv4 = (purpose: CodexErrors.CodexAppServerIdentifierPurpose) =>
@@ -1674,6 +1699,8 @@ export const makeCodexSessionRuntime = (
                     : `Codex App Server exited with code ${exitCode}.`,
                 ),
               ),
+              // Agent: INV-T2-PROVIDER-CODEX runtime-exit-succeeded when exit observed.
+              Effect.andThen(captureProviderCodexRuntime("runtime-exit-succeeded")),
             );
           }),
         ),

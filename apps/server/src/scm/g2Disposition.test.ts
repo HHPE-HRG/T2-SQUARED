@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * G2 WORK-000035 disposition enforcement tests.
  *
@@ -31,6 +32,7 @@ describe("G2 WORK-000035 disposition", () => {
     assert.equal(pkg.manifest.status, "completed");
     assert.equal(pkg.manifest.authorized, true);
     assert.equal(pkg.manifest.completed, true);
+    assert.ok(pkg.manifest.review);
     assert.equal(pkg.manifest.review.status, "approved");
     assert.equal(pkg.manifest.review.reviewedArtifactHash, computeG2ReviewedArtifactHash(pkg));
     assert.equal(existsSync(join(g2Dir, "work-000035-disposition.json")), true);
@@ -373,8 +375,10 @@ describe("G2 WORK-000035 disposition", () => {
     );
 
     const withheld = structuredClone(completed);
+    const withheldReview = withheld.manifest.review;
+    assert.ok(withheldReview);
     withheld.manifest.review = {
-      ...withheld.manifest.review,
+      ...withheldReview,
       status: "withheld",
       reviewedArtifactHash: "",
     };

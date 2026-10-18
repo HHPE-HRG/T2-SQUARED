@@ -1,0 +1,140 @@
+{
+  "shape-valid": true,
+  "source_checked_subset": true,
+  "source_exact": true,
+  "steward-closed": true,
+  "unresolved": [],
+  "dormant-prototype": ["INV-T2-SCM-HOME-BUS-LINK"],
+  "approval_ready": true,
+  "design_approved": true,
+  "writing_plans_authorized": true,
+  "implementation_authorized": true,
+  "shape_failures": [],
+  "source_checked_subset_failures": [],
+  "steward_closed_failures": [],
+  "failures": [],
+  "source_validation_report": "docs/scm/g9/source-validation-report.json",
+  "source_audit_findings": "docs/scm/g9/source-audit-findings.json",
+  "finding_dispositions": "docs/scm/g9/finding-dispositions.json",
+  "planned_typed_hooks": [
+    {
+      "comm_id": "INV-T2-RPC-WS",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-WS",
+      "phase_id": "rpc-handler-succeeded"
+    },
+    {
+      "comm_id": "INV-T2-RPC-WS",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-ORCH-RPC",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-ORCH-RPC",
+      "phase_id": "rpc-handler-succeeded"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TERM",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TERM",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-ORCH",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-ORCH",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TEL",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-TEL",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-AUTH",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-AUTH",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-CONFIG",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-CONFIG",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-DISCOVERY",
+      "phase_id": "rpc-request-admitted"
+    },
+    {
+      "comm_id": "INV-T2-RPC-STREAM-DISCOVERY",
+      "phase_id": "rpc-stream-element-emitted"
+    },
+    {
+      "comm_id": "INV-T2-MCP-HTTP",
+      "phase_id": "mcp-http-session-deleted"
+    },
+    {
+      "comm_id": "INV-T2-TEL-T3-OTLP",
+      "phase_id": "t3-otlp-traces-export-succeeded"
+    },
+    {
+      "comm_id": "INV-T2-TEL-T3-OTLP",
+      "phase_id": "t3-otlp-metrics-export-succeeded"
+    },
+    {
+      "comm_id": "INV-T2-TEL-T2-OTLP",
+      "phase_id": "t2-otlp-export-succeeded"
+    }
+  ],
+  "declaration_absence_phases": [
+    {
+      "comm_id": "INV-T2-FILE-LOGS",
+      "phase_id": "serverLogPath-declared-no-live-writer"
+    }
+  ],
+  "dormant_prototype_phases": [
+    {
+      "comm_id": "INV-T2-SCM-HOME-BUS-LINK",
+      "phase_id": "home-bus-forward-succeeded"
+    }
+  ],
+  "inventory_conflicts": [],
+  "source_validation_mode_counts": {
+    "source-extracted": 119,
+    "manual-source-audit": 65
+  },
+  "fixture_provenance_counts": {
+    "independently-extracted-source": 697,
+    "g9-ledger-declaration": 66
+  },
+  "still_structural_count": 0,
+  "counted_unresolved_phase_count": 0,
+  "g1b_unique_count": 74,
+  "g3_unique_count": 74,
+  "g9_unique_count": 74,
+  "top_level_set_equality": true,
+  "phase_count": 184,
+  "retain_true_count": 17,
+  "momentary_count": 167,
+  "counted_fixture_vector_count": 763,
+  "rpc_registered_set_equal": true,
+  "rpc_unary_stream_partition": true,
+  "sole_blocker_claim": false,
+  "note": "source_exact requires counted phases to be source-extracted or manual-source-audit and zero unresolved inventory rows. planned-typed-hook is not unresolved. declaration_absence_phases lists WP8 declaration-absence drivers (machine). dormant_prototype_phases lists WP8 dormant-prototype drivers (machine). sole_blocker_claim remains false after inventory closure (not a remaining blocker)."
+}

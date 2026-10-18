@@ -63,7 +63,11 @@ import {
   type CodexSessionRuntimeShape,
 } from "./CodexSessionRuntime.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
-import { resolveCodexLaunchArgs } from "./codexLaunchArgs.ts";
+import { resolveCodexLaunchArgsCaptured } from "./codexLaunchArgs.ts";
+import {
+  captureCodexProtocolEventIfKnown,
+  captureCodexProtocolRequestIfKnown,
+} from "../../scm/g9FamilyProviderProtocol.ts";
 const isCodexAppServerProcessExitedError = Schema.is(CodexErrors.CodexAppServerProcessExitedError);
 const isCodexAppServerTransportError = Schema.is(CodexErrors.CodexAppServerTransportError);
 const isCodexSessionRuntimeThreadIdMissingError = Schema.is(
@@ -1668,7 +1672,13 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
           providerInstanceId: boundInstanceId,
           cwd: input.cwd ?? process.cwd(),
           binaryPath: codexConfig.binaryPath,
-          launchArgs: resolveCodexLaunchArgs(codexConfig.launchArgs, options?.environment),
+          // Agent: FLAG-CODEX-LAUNCH capture at declared resolve site (B2→B4).
+          launchArgs: yield* resolveCodexLaunchArgsCaptured(
+            codexConfig.launchArgs,
+            options?.environment,
+          ),
+          // Agent: INV-T2-PROVIDER-CODEX protocol-request lands via this callback.
+          onG9ProtocolRequestSucceeded: captureCodexProtocolRequestIfKnown,
           ...(options?.environment ? { environment: options.environment } : {}),
           ...(codexConfig.homePath ? { homePath: codexConfig.homePath } : {}),
           ...(isCodexResumeCursorSchema(input.resumeCursor)
@@ -1718,6 +1728,10 @@ export const makeCodexAdapter = Effect.fn("makeCodexAdapter")(function* (
         const eventFiber = yield* Stream.runForEach(runtime.events, (event) =>
           Effect.gen(function* () {
             yield* writeNativeEvent(event);
+            // Agent: INV-T2-PROVIDER-CODEX protocol-event-decoded on known methods.
+            if (event.kind === "notification") {
+              yield* captureCodexProtocolEventIfKnown(event.method);
+            }
             const runtimeEvents = mapToRuntimeEvents(event, event.threadId);
             if (runtimeEvents.length === 0) {
               yield* Effect.logDebug("ignoring unhandled Codex provider event", {

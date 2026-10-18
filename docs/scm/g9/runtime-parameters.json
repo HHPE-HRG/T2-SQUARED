@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "fifo_max_occurrences_per_node": 64,
+  "process_interval_wake_ms": 100,
+  "live_process_interval_fundamental_timesteps": 1
+}

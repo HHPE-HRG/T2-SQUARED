@@ -1,3 +1,6 @@
+// @effect-diagnostics nodeBuiltinImport:off
+// @effect-diagnostics globalErrorInEffectCatch:off
+// @effect-diagnostics globalErrorInEffectFailure:off
 /**
  * G7 DIP bus-level position, bus mutationGuard, and home-bus bridge tests.
  *

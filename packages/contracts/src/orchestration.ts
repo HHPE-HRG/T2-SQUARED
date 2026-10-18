@@ -895,7 +895,9 @@ const ThreadSessionStopCommand = Schema.Struct({
   onlyIfSettled: Schema.optional(Schema.Boolean),
 });
 
-const DispatchableClientOrchestrationCommand = Schema.Union([
+// Agent: schema value export required by G9 Task 11 (Schema.is at offer boundary).
+// Type-only export is insufficient — g9OrchQueueCapture needs the runtime schema.
+export const DispatchableClientOrchestrationCommand = Schema.Union([
   ProjectCreateCommand,
   ProjectMetaUpdateCommand,
   ProjectDeleteCommand,

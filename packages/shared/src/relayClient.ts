@@ -22,6 +22,85 @@ import { HostProcessArchitecture, HostProcessPlatform } from "./hostProcess.ts";
 export const CLOUDFLARED_VERSION = "2026.5.2";
 export const CLOUDFLARED_PATH_ENV_NAME = "T3CODE_CLOUDFLARED_PATH";
 
+/**
+ * Context key for optional G9 capture. Must stay identical to server
+ * `G9CaptureService` (`apps/server/src/scm/g9OrchQueueCapture.ts`) so
+ * Layer.succeed on the server tag is visible here without a shared→server import.
+ */
+const RELAY_CLIENT_G9_CAPTURE_SERVICE_KEY = "t3/scm/g9OrchQueueCapture/G9CaptureService";
+
+/**
+ * Optional live-safe capture shape for relayClient W5c sites.
+ *
+ * Agent: structural match to server G9CaptureServiceShape.captureOccurrence.
+ * Absent service ⇒ resolve / runCommand behave as before (noninterference).
+ */
+export interface RelayClientG9CaptureShape {
+  readonly captureOccurrence: (input: {
+    readonly comm_id: string;
+    readonly phase: string;
+    readonly input: { readonly [key: string]: unknown };
+  }) => Effect.Effect<unknown, never>;
+}
+
+/**
+ * Shared-side Context tag alias for optional G9 capture (WP5-B3-Owner lander).
+ *
+ * Observed: same key string as server G9CaptureService; Effect.serviceOption
+ * resolves either class when the layer is present.
+ */
+export class RelayClientOptionalG9Capture extends Context.Service<
+  RelayClientOptionalG9Capture,
+  RelayClientG9CaptureShape
+>()(RELAY_CLIENT_G9_CAPTURE_SERVICE_KEY) {}
+
+/**
+ * Invoke run only when optional G9 capture is in the environment.
+ *
+ * Parameters
+ * ----------
+ * run : (captureOccurrence) => Effect
+ *     Builds ledger-bounded A and calls captureOccurrence once.
+ */
+const whenRelayG9CapturePresent = (
+  run: (
+    captureOccurrence: RelayClientG9CaptureShape["captureOccurrence"],
+  ) => Effect.Effect<unknown, never>,
+): Effect.Effect<void, never> =>
+  Effect.gen(function* () {
+    const opt = yield* Effect.serviceOption(RelayClientOptionalG9Capture);
+    if (Option.isNone(opt)) return;
+    yield* run((input) => opt.value.captureOccurrence(input));
+  });
+
+/**
+ * INV-T2-FLAG-CLOUDFLARED / flag-resolved A (B2 handoff; member + state only).
+ *
+ * Agent: mirrors buildFlagCloudflaredResolvedCaptureInput; no path strings in A.
+ */
+const buildFlagCloudflaredResolvedInput = (state_label: "configured" | "absent") =>
+  ({
+    comm_id: "INV-T2-FLAG-CLOUDFLARED",
+    phase: "flag-resolved",
+    input: { member: CLOUDFLARED_PATH_ENV_NAME, state_label },
+  }) as const;
+
+/** INV-T2-RELAY-CLIENT spawn A (site only; no command/args). */
+const buildCloudflaredSpawnInput = () =>
+  ({
+    comm_id: "INV-T2-RELAY-CLIENT",
+    phase: "cloudflared-spawn-succeeded",
+    input: { site: "spawned" },
+  }) as const;
+
+/** INV-T2-RELAY-CLIENT exit A (site only; no exitCode number). */
+const buildCloudflaredExitInput = () =>
+  ({
+    comm_id: "INV-T2-RELAY-CLIENT",
+    phase: "cloudflared-exit-succeeded",
+    input: { site: "exited" },
+  }) as const;
+
 export type RelayClientExecutableSource = "override" | "managed" | "path";
 
 export type RelayClientStatus =
@@ -223,6 +302,14 @@ export const makeCloudflaredRelayClient = Effect.fn("cloudflared.make")(function
 
   const resolve: RelayClientShape["resolve"] = Effect.gen(function* () {
     const config = yield* loadCloudflaredConfig;
+    // B2 FLAG-CLOUDFLARED: one capture per successful flag resolution (no path in A).
+    yield* whenRelayG9CapturePresent((captureOccurrence) =>
+      captureOccurrence(
+        buildFlagCloudflaredResolvedInput(
+          Option.isSome(config.executableOverride) ? "configured" : "absent",
+        ),
+      ),
+    );
     if (Option.isSome(config.executableOverride)) {
       return (yield* isExecutableFile(config.executableOverride.value))
         ? {
@@ -271,10 +358,18 @@ export const makeCloudflaredRelayClient = Effect.fn("cloudflared.make")(function
         stderr: "ignore",
       }),
     );
+    // RELAY-CLIENT spawn: after spawner.spawn succeeds (no command/args in A).
+    yield* whenRelayG9CapturePresent((captureOccurrence) =>
+      captureOccurrence(buildCloudflaredSpawnInput()),
+    );
     const exitCode = Number(yield* child.exitCode);
     if (exitCode !== 0) {
       return yield* new CloudflaredCommandError({ command, exitCode });
     }
+    // RELAY-CLIENT exit: observed zero-exit success boundary (no exitCode in A).
+    yield* whenRelayG9CapturePresent((captureOccurrence) =>
+      captureOccurrence(buildCloudflaredExitInput()),
+    );
   });
 
   const downloadAsset = Effect.fn("cloudflared.downloadAsset")(function* (

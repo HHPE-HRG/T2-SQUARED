@@ -1,3 +1,12 @@
+/**
+ * T3 server observability layer (logger, local-file tracer, optional OTLP).
+ *
+ * Agent (WP6-Consumer-Owner, RFC-014 A): sole lander for G9 on this file.
+ * Provides G9T3OtlpExportHooksLayer (INV-T2-TEL-T3-OTLP post-success signals).
+ * Lands B5 INV-T2-TEL-T3-TRACE after local-file batch persist succeeds (onFlush
+ * with count > 0). Absent G9CaptureService / ExportHooks ⇒ live unchanged.
+ * Hook fault must not rewrite live export. Signal / presence A only — no spans.
+ */
 import { httpHeaderRedactionLayer } from "@t3tools/shared/httpObservability";
 import { makeLocalFileTracer, makeTraceSink } from "@t3tools/shared/observability";
 import * as Effect from "effect/Effect";
@@ -11,6 +20,8 @@ import * as OtlpTracer from "effect/unstable/observability/OtlpTracer";
 
 import * as ServerConfig from "../../config.ts";
 import * as ResourceAttribution from "../../resourceTelemetry/ResourceAttribution.ts";
+import { captureT3TracePersistedBatchSucceeded } from "../../scm/g9FamilyTerminalLocalStreams.ts";
+import { G9T3OtlpExportHooksLayer, withOptionalG9Capture } from "../../scm/g9FamilyTypedHooks.ts";
 import { ServerLoggerLive } from "../../serverLogger.ts";
 import * as BrowserTraceCollector from "../BrowserTraceCollector.ts";
 
@@ -35,13 +46,23 @@ export const ObservabilityLive = Layer.unwrap(
           maxFiles: config.traceMaxFiles,
           batchWindowMs: config.traceBatchWindowMs,
           onFlush: (stats) =>
-            attribution.record({
-              component: "server-trace",
-              operation: "append",
-              logicalWriteBytes: stats.logicalWriteBytes,
-              count: stats.count,
-              durationMs: stats.durationMs,
-            }),
+            attribution
+              .record({
+                component: "server-trace",
+                operation: "append",
+                logicalWriteBytes: stats.logicalWriteBytes,
+                count: stats.count,
+                durationMs: stats.durationMs,
+              })
+              .pipe(
+                // INV-T2-TEL-T3-TRACE / t3-trace-persisted-batch-succeeded (B5→WP6).
+                // Agent: makeTraceSink already gates count > 0; presence A only.
+                Effect.andThen(
+                  withOptionalG9Capture((capture) =>
+                    captureT3TracePersistedBatchSucceeded(capture),
+                  ),
+                ),
+              ),
         });
         const delegate =
           config.otlpTracesUrl === undefined
@@ -72,7 +93,12 @@ export const ObservabilityLive = Layer.unwrap(
           BrowserTraceCollector.layer(sink),
         );
       }),
-    ).pipe(Layer.provide(OtlpExporter.layerFlusher), Layer.provideMerge(otlpSerializationLayer));
+    ).pipe(
+      Layer.provide(OtlpExporter.layerFlusher),
+      Layer.provideMerge(otlpSerializationLayer),
+      // Agent (WP6): ExportHooks for T3 OTLP post-success (traces path build).
+      Layer.provide(G9T3OtlpExportHooksLayer),
+    );
 
     const metricsLayer =
       config.otlpMetricsUrl === undefined
@@ -87,7 +113,11 @@ export const ObservabilityLive = Layer.unwrap(
                 "service.mode": config.mode,
               },
             },
-          }).pipe(Layer.provideMerge(otlpSerializationLayer));
+          }).pipe(
+            Layer.provideMerge(otlpSerializationLayer),
+            // Agent (WP6): ExportHooks for T3 OTLP post-success (metrics path build).
+            Layer.provide(G9T3OtlpExportHooksLayer),
+          );
 
     return Layer.mergeAll(ServerLoggerLive, traceReferencesLayer, tracerLayer, metricsLayer);
   }),

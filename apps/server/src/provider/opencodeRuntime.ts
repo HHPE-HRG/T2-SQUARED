@@ -34,6 +34,7 @@ import { collectStreamAsString } from "./providerSnapshot.ts";
 import * as NetService from "@t3tools/shared/Net";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import { captureProviderOpenCodeRuntime } from "../scm/g9FamilyProviderProtocol.ts";
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 const OPENCODE_EMPTY_CONFIG_CONTENT = "{}";
 
@@ -585,11 +586,16 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
         });
       }
 
+      // Agent: INV-T2-PROVIDER-OPENCODE runtime-spawn-succeeded after serve ready.
+      yield* captureProviderOpenCodeRuntime("runtime-spawn-succeeded");
+
       return {
         url: readyOption.value,
         exitCode: child.exitCode.pipe(
           Effect.map(Number),
           Effect.orElseSucceed(() => 0),
+          // Agent: INV-T2-PROVIDER-OPENCODE runtime-exit-succeeded when exit observed.
+          Effect.tap(() => captureProviderOpenCodeRuntime("runtime-exit-succeeded")),
         ),
       } satisfies OpenCodeServerProcess;
     });

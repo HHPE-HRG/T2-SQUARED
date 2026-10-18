@@ -58,6 +58,10 @@ import * as ProviderEventLoggers from "./ProviderEventLoggers.ts";
 import * as AnalyticsService from "../../telemetry/AnalyticsService.ts";
 import * as McpProviderSession from "../../mcp/McpProviderSession.ts";
 import * as McpSessionRegistry from "../../mcp/McpSessionRegistry.ts";
+import {
+  captureProviderEventPublishedIfKnown,
+  captureProviderTurnPhase,
+} from "../../scm/g9FamilyProviderProtocol.ts";
 const isModelSelection = Schema.is(ModelSelection);
 
 /**
@@ -238,7 +242,12 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           ? canonicalEventLogger.write(canonicalEvent, canonicalEvent.threadId)
           : Effect.void,
       ),
-      Effect.flatMap((canonicalEvent) => PubSub.publish(runtimeEventPubSub, canonicalEvent)),
+      Effect.flatMap((canonicalEvent) =>
+        PubSub.publish(runtimeEventPubSub, canonicalEvent).pipe(
+          // Agent: INV-T2-PROVIDER-EVENTS after successful pubsub publish; type → member_id.
+          Effect.andThen(captureProviderEventPublishedIfKnown(canonicalEvent.type)),
+        ),
+      ),
       Effect.asVoid,
     );
 
@@ -713,6 +722,8 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
       "provider.interaction_mode": input.interactionMode,
       "provider.attachment_count": input.attachments.length,
     });
+    // Agent: INV-T2-PROVIDER-TURN admit after decode/validation succeeded.
+    yield* captureProviderTurnPhase("send-turn-admitted");
     let metricProvider = "unknown";
     let metricModel = input.modelSelection?.model;
     return yield* Effect.gen(function* () {
@@ -734,6 +745,8 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
       // browser tool calls used to lose the toolkit outright.
       yield* McpSessionRegistry.touchActiveMcpThread(input.threadId);
       const turn = yield* routed.adapter.sendTurn(input);
+      // Agent: INV-T2-PROVIDER-TURN succeed after adapter sendTurn returns.
+      yield* captureProviderTurnPhase("send-turn-succeeded");
       yield* directory.upsert({
         threadId: input.threadId,
         provider: routed.adapter.provider,

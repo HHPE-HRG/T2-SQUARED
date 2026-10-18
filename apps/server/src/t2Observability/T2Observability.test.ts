@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,10 +8,41 @@ import { context, ROOT_CONTEXT, trace } from "@opentelemetry/api";
 import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Ref from "effect/Ref";
 import * as Tracer from "effect/Tracer";
 
 import { observeRpcEffect } from "../observability/RpcInstrumentation.ts";
-import { T2Observability, layerTest, withCatalogBridge, withOwnedSpan } from "./T2Observability.ts";
+import { G9CaptureService } from "../scm/g9OrchQueueCapture.ts";
+import type {
+  G9CaptureOccurrenceInput,
+  G9CaptureResult,
+  G9EqualityA,
+} from "../scm/g9Occurrence.ts";
+import {
+  T2Observability,
+  captureT2OtelFlagsResolved,
+  layerTest,
+  resolveT2OtelFlagState,
+  withCatalogBridge,
+  withOwnedSpan,
+} from "./T2Observability.ts";
+
+const stubEnqueued = (input: G9CaptureOccurrenceInput): G9CaptureResult => ({
+  status: "enqueued",
+  occurrence: {
+    comm_id: input.comm_id,
+    phase_id: input.phase,
+    node_id: "node.test",
+    origin_bus_id: "bus.test",
+    attempt_sequence: 0,
+    equality_A: input.input as G9EqualityA,
+    semanticKind: "request",
+    request_label: input.phase,
+    state_label: "",
+    retainCurrentAfterPublish: false,
+  },
+});
 
 const makeFilePath = (): string =>
   join(mkdtempSync(join(tmpdir(), "t2-trace-")), "t2.trace.ndjson");
@@ -175,4 +207,108 @@ describe("T2Observability isolation", () => {
     assert.notEqual(owned.spanContext().traceId, dummy.spanContext().traceId);
     assert.notEqual(owned.spanContext().spanId, dummy.spanContext().spanId);
   });
+});
+
+describe("T2Observability G9 consumer (WP6)", () => {
+  it("resolveT2OtelFlagState maps configured / defaulted / absent without values", () => {
+    assert.equal(
+      resolveT2OtelFlagState("T2CODE_TRACE_FILE", { T2CODE_TRACE_FILE: "/secret/path" }),
+      "configured",
+    );
+    assert.equal(resolveT2OtelFlagState("T2CODE_TRACE_FILE", {}), "defaulted");
+    assert.equal(
+      resolveT2OtelFlagState("T2CODE_OTLP_TRACES_URL", { T2CODE_OTLP_TRACES_URL: "http://x" }),
+      "configured",
+    );
+    assert.equal(resolveT2OtelFlagState("T2CODE_OTLP_TRACES_URL", {}), "absent");
+    assert.equal(resolveT2OtelFlagState("T2CODE_OTLP_SERVICE_NAME", {}), "defaulted");
+  });
+
+  it.effect("absent G9CaptureService: flag capture is a no-op", () =>
+    Effect.gen(function* () {
+      yield* captureT2OtelFlagsResolved({
+        T2CODE_TRACE_FILE: "/tmp/t2.trace.ndjson",
+        T2CODE_OTLP_TRACES_URL: "http://127.0.0.1:4318",
+        T2CODE_OTLP_SERVICE_NAME: "svc",
+      });
+    }),
+  );
+
+  it.effect("present capture: FLAG-T2-OTEL projects member + state_label only", () =>
+    Effect.gen(function* () {
+      const calls = yield* Ref.make<G9CaptureOccurrenceInput[]>([]);
+      const layer = Layer.succeed(G9CaptureService, {
+        captureOccurrence: (input) =>
+          Ref.update(calls, (xs) => [...xs, input]).pipe(Effect.as(stubEnqueued(input))),
+      });
+
+      yield* captureT2OtelFlagsResolved({
+        T2CODE_TRACE_FILE: "/tmp/t2.trace.ndjson",
+        T2CODE_OTLP_SERVICE_NAME: "svc",
+      }).pipe(Effect.provide(layer));
+
+      const seen = yield* Ref.get(calls);
+      assert.equal(seen.length, 3);
+      assert.deepEqual(seen[0], {
+        comm_id: "INV-T2-FLAG-T2-OTEL",
+        phase: "flag-resolved",
+        input: { member: "T2CODE_TRACE_FILE", state_label: "configured" },
+      });
+      assert.deepEqual(seen[1], {
+        comm_id: "INV-T2-FLAG-T2-OTEL",
+        phase: "flag-resolved",
+        input: { member: "T2CODE_OTLP_TRACES_URL", state_label: "absent" },
+      });
+      assert.deepEqual(seen[2], {
+        comm_id: "INV-T2-FLAG-T2-OTEL",
+        phase: "flag-resolved",
+        input: { member: "T2CODE_OTLP_SERVICE_NAME", state_label: "configured" },
+      });
+      for (const call of seen) {
+        assert.deepEqual(Object.keys(call.input).sort(), ["member", "state_label"]);
+      }
+    }),
+  );
+
+  it.effect("NDJSON export success captures presence-only TEL-NDJSON when G9 present", () =>
+    Effect.gen(function* () {
+      const calls = yield* Ref.make<G9CaptureOccurrenceInput[]>([]);
+      const filePath = makeFilePath();
+      const captureService = {
+        captureOccurrence: (input: G9CaptureOccurrenceInput) =>
+          Ref.update(calls, (xs) => [...xs, input]).pipe(Effect.as(stubEnqueued(input))),
+      };
+
+      // Agent: G9 must be in fiber context at make() so runForkWith can see it
+      // (same pattern as Manager G9 TERM tests).
+      yield* Effect.gen(function* () {
+        yield* withOwnedSpan("t2.admission", Effect.succeed("ok"));
+        const t2 = yield* T2Observability;
+        yield* t2.forceFlush;
+        // SDK export callbacks fork capture; drain until the NDJSON row lands.
+        for (let i = 0; i < 32; i++) {
+          const seen = yield* Ref.get(calls);
+          if (
+            seen.some(
+              (call) =>
+                call.comm_id === "INV-T2-TEL-NDJSON" && call.phase === "ndjson-export-succeeded",
+            )
+          ) {
+            break;
+          }
+          yield* Effect.yieldNow;
+        }
+      }).pipe(
+        Effect.provide(layerTest({ filePath })),
+        Effect.provideService(G9CaptureService, captureService),
+      );
+
+      const seen = yield* Ref.get(calls);
+      const ndjson = seen.filter(
+        (call) => call.comm_id === "INV-T2-TEL-NDJSON" && call.phase === "ndjson-export-succeeded",
+      );
+      assert.equal(ndjson.length, 1);
+      assert.deepEqual(ndjson[0]?.input, { comm_id: "present" });
+    }),
+  );
 });

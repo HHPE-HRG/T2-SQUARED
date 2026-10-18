@@ -3,18 +3,25 @@ import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
 import * as Ref from "effect/Ref";
 import { assert, describe, expect } from "vite-plus/test";
 
+import { ServerConfig } from "../config.ts";
+import { G9CaptureService } from "../scm/g9OrchQueueCapture.ts";
+import type { G9CaptureOccurrenceInput } from "../scm/g9Occurrence.ts";
+import { ServerSettingsService } from "../serverSettings.ts";
 import {
   type DesktopTelemetryReceiverHealth,
   initialDesktopTelemetryContactAt,
   isDesktopTelemetryContactStale,
+  make as makeDesktopTelemetryReceiver,
   recordDesktopTelemetrySampleHealth,
   requireDesktopTelemetryWriteProgress,
   resolveDesktopTelemetrySnapshotStaleAfterMs,
@@ -101,5 +108,76 @@ describe("DesktopTelemetryReceiver", () => {
       );
       yield* requireDesktopTelemetryWriteProgress(7, 42, 1);
     }),
+  );
+
+  // Agent (G9 W5c B5): B3→B5 DESKTOP-CONTROL handoff — operation-only A after write.
+  it.effect("captures DESKTOP-CONTROL after successful control send when G9 present", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const calls = yield* Ref.make<ReadonlyArray<G9CaptureOccurrenceInput>>([]);
+        const directory = NodeFS.mkdtempSync(
+          NodePath.join(NodeOS.tmpdir(), "t3-desktop-g9-control-"),
+        );
+        const controlPath = NodePath.join(directory, "control.ndjson");
+        const fd = NodeFS.openSync(controlPath, "w");
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            NodeFS.closeSync(fd);
+            NodeFS.rmSync(directory, { recursive: true, force: true });
+          }),
+        );
+
+        const baseConfig = yield* ServerConfig.pipe(
+          Effect.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-desktop-g9-cfg-" })),
+        );
+        const config = ServerConfig.of({
+          ...baseConfig,
+          desktopTelemetryControlFd: fd,
+        });
+
+        // Provide G9 for make + setDiagnosticsDemand: startup host-power send
+        // and demand toggle both land desktop-control-send-succeeded.
+        yield* Effect.gen(function* () {
+          const receiver = yield* makeDesktopTelemetryReceiver();
+          yield* receiver.setDiagnosticsDemand(true);
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              Layer.succeed(ServerConfig, config),
+              ServerSettingsService.layerTest(),
+              Layer.succeed(G9CaptureService, {
+                captureOccurrence: (input) =>
+                  Ref.update(calls, (xs) => [...xs, input]).pipe(Effect.as(undefined)),
+              }),
+            ),
+          ),
+        );
+
+        const seen = yield* Ref.get(calls);
+        const controlCalls = seen.filter(
+          (call) =>
+            call.comm_id === "INV-T2-TEL-DESKTOP-CONTROL" &&
+            call.phase === "desktop-control-send-succeeded",
+        );
+        expect(controlCalls.length).toBeGreaterThanOrEqual(1);
+        expect(
+          controlCalls.some(
+            (call) => "operation" in call.input && call.input.operation === "setDiagnosticsDemand",
+          ),
+        ).toBe(true);
+        expect(
+          controlCalls.some(
+            (call) => "operation" in call.input && call.input.operation === "setHostPowerIntervals",
+          ),
+        ).toBe(true);
+
+        for (const call of controlCalls) {
+          const json = JSON.stringify(call.input);
+          expect(json.includes("enabled")).toBe(false);
+          expect(json.includes("IntervalMs")).toBe(false);
+          expect(json.includes("payload")).toBe(false);
+        }
+      }).pipe(Effect.provide(NodeServices.layer)),
+    ),
   );
 });

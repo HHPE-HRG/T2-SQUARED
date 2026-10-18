@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 /**
  * G7 halt/freeze package loaders only. Not a campaign class and not an
  * SCM identity. Freeze/halt live on DipMuteStore (g6DipMute.ts). This

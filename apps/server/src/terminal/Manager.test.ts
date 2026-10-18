@@ -27,6 +27,8 @@ import * as TestClock from "effect/testing/TestClock";
 import { expect } from "vite-plus/test";
 
 import * as ProcessRunner from "../processRunner.ts";
+import { G9CaptureService } from "../scm/g9OrchQueueCapture.ts";
+import type { G9CaptureOccurrenceInput } from "../scm/g9Occurrence.ts";
 import * as TerminalManager from "./Manager.ts";
 import * as PtyAdapter from "./PtyAdapter.ts";
 
@@ -1762,5 +1764,74 @@ it.layer(
       assert.equal(process.killSignals[0], "SIGTERM");
       expect(process.killSignals).toContain("SIGKILL");
     }).pipe(Effect.provide(TestClock.layer())),
+  );
+
+  // Agent (G9 W5c B5): live-safe capture hooks — absent service covered by
+  // existing tests; this case asserts B2 FLAG-TERM-ENV + B5 TERM site-only A.
+  // Provide G9 for the whole exercise path (not only make): open/write use the
+  // live fiber; onData/onExit use context captured at make.
+  it.effect("captures G9 TERM and FLAG-TERM-ENV phases with bounded A when service present", () =>
+    Effect.gen(function* () {
+      const calls = yield* Ref.make<ReadonlyArray<G9CaptureOccurrenceInput>>([]);
+      yield* Effect.gen(function* () {
+        const { manager, ptyAdapter } = yield* createManager(5, {
+          env: {
+            PATH: "/usr/bin",
+            HOME: "/tmp",
+            T3CODE_PORT: "9999",
+            TEST_TERMINAL_KEEP: "keep-me",
+          },
+        });
+
+        yield* manager.open(openInput());
+        const process = ptyAdapter.processes[0];
+        expect(process).toBeDefined();
+        if (!process) return;
+
+        yield* manager.write({
+          threadId: "thread-1",
+          terminalId: DEFAULT_TERMINAL_ID,
+          data: "echo hi\n",
+        });
+        process.emitData("line\n");
+        yield* Effect.yieldNow;
+        process.emitExit({ exitCode: 0, signal: null });
+        yield* Effect.yieldNow;
+      }).pipe(
+        Effect.provideService(G9CaptureService, {
+          captureOccurrence: (input) =>
+            Ref.update(calls, (xs) => [...xs, input]).pipe(Effect.as(undefined)),
+        }),
+      );
+
+      const seen = yield* Ref.get(calls);
+      const phases = seen.map((call) => `${call.comm_id}/${call.phase}`);
+      expect(phases).toContain("INV-T2-FLAG-TERM-ENV/terminal-child-env-filtered");
+      expect(phases).toContain("INV-T2-TERM/pty-spawn-succeeded");
+      expect(phases).toContain("INV-T2-TERM/pty-input-write-succeeded");
+      expect(phases).toContain("INV-T2-TERM/pty-output-callback-emitted");
+      expect(phases).toContain("INV-T2-TERM/pty-exit-succeeded");
+      expect(phases).toContain("INV-T2-TERM/terminal-session-callback-emitted");
+
+      for (const call of seen) {
+        const json = JSON.stringify(call.input);
+        expect(json.includes("echo hi")).toBe(false);
+        expect(json.includes("line\\n") || json.includes("line\n")).toBe(false);
+        expect(json.includes("T3CODE_PORT")).toBe(false);
+        expect(json.includes("/usr/bin")).toBe(false);
+        expect(json.includes("payload")).toBe(false);
+      }
+
+      const flag = seen.find(
+        (call) =>
+          call.comm_id === "INV-T2-FLAG-TERM-ENV" && call.phase === "terminal-child-env-filtered",
+      );
+      expect(flag?.input).toEqual({ kind: "terminal-child-env-filtered" });
+
+      const spawn = seen.find(
+        (call) => call.comm_id === "INV-T2-TERM" && call.phase === "pty-spawn-succeeded",
+      );
+      expect(spawn?.input).toEqual({ site: "spawned" });
+    }),
   );
 });

@@ -85,6 +85,7 @@ import {
 import * as CliTokenManager from "./CliTokenManager.ts";
 import { getOrCreateEnvironmentKeyPairFromSecretStore } from "./environmentKeys.ts";
 import { traceRelayRequest } from "./traceRelayRequest.ts";
+import { withHttpConnectCapture } from "../scm/g9FamilyProviderProtocol.ts";
 
 const CLOUD_MINT_NONCE_PREFIX = "cloud-mint-nonce-";
 const CLOUD_MINT_JTI_PREFIX = "cloud-mint-jti-";
@@ -1071,16 +1072,32 @@ export const connectHttpApiLayer = HttpApiBuilder.group(
   "connect",
   Effect.fnUntraced(function* (handlers) {
     const dependencies = yield* cloudHttpDependencies;
+    // Agent: INV-T2-HTTP-CONNECT admit+succeed per endpoint after handler success.
     return handlers
-      .handle("linkProof", ({ payload }) => cloudLinkProofHandler(dependencies, payload))
-      .handle("relayConfig", ({ payload }) => cloudRelayConfigHandler(dependencies, payload))
-      .handle("linkState", () => cloudLinkStateHandler(dependencies))
-      .handle("unlink", () => cloudUnlinkHandler(dependencies))
-      .handle("preferences", ({ payload }) => cloudPreferencesHandler(dependencies, payload))
-      .handle("health", ({ payload }) => cloudEnvironmentHealthHandler(dependencies, payload))
-      .handle("mintCredential", ({ payload }) => cloudMintCredentialHandler(dependencies, payload))
+      .handle("linkProof", ({ payload }) =>
+        withHttpConnectCapture("linkProof", cloudLinkProofHandler(dependencies, payload)),
+      )
+      .handle("relayConfig", ({ payload }) =>
+        withHttpConnectCapture("relayConfig", cloudRelayConfigHandler(dependencies, payload)),
+      )
+      .handle("linkState", () =>
+        withHttpConnectCapture("linkState", cloudLinkStateHandler(dependencies)),
+      )
+      .handle("unlink", () => withHttpConnectCapture("unlink", cloudUnlinkHandler(dependencies)))
+      .handle("preferences", ({ payload }) =>
+        withHttpConnectCapture("preferences", cloudPreferencesHandler(dependencies, payload)),
+      )
+      .handle("health", ({ payload }) =>
+        withHttpConnectCapture("health", cloudEnvironmentHealthHandler(dependencies, payload)),
+      )
+      .handle("mintCredential", ({ payload }) =>
+        withHttpConnectCapture("mintCredential", cloudMintCredentialHandler(dependencies, payload)),
+      )
       .handle("t3MintCredential", ({ payload }) =>
-        traceRelayRequest(cloudMintCredentialHandler(dependencies, payload)),
+        withHttpConnectCapture(
+          "t3MintCredential",
+          traceRelayRequest(cloudMintCredentialHandler(dependencies, payload)),
+        ),
       );
   }),
 );

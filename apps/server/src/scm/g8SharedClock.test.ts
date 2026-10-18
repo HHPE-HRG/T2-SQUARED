@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -6,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, it } from "@effect/vitest";
 import { trace } from "@opentelemetry/api";
 import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base";
+import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -21,6 +23,7 @@ import {
   type AuthorityClass,
   type GovernedClasses,
 } from "./g6DipMute.ts";
+import { HomeBusLinkFailure } from "./g6HomeBusLink.ts";
 import {
   G8_PRODUCER_NAME,
   checkG8,
@@ -33,6 +36,11 @@ import {
 import { loadG7Package } from "./g7HaltFreeze.ts";
 import { loadG4Package } from "./g4Word.ts";
 import { loadG5Package } from "./g5OpenLoop.ts";
+
+/** Probe error for Task 2: custom E must not become HomeBusLinkFailure. */
+class ProbeFault extends Error {
+  readonly _tag = "ProbeFault";
+}
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
@@ -164,6 +172,22 @@ describe("shared SCM fundamental clock", () => {
       const zero = yield* clock.advanceProcessInterval(0);
       assert.deepEqual(zero, { deliveries: [], failures: [] });
       assert.equal(clock.currentFundamentalTimestep, 0);
+    }),
+  );
+
+  it.effect("surfaces custom target E without wrapping as HomeBusLinkFailure", () =>
+    Effect.gen(function* () {
+      const target = {
+        advanceFundamentalTimestep: () => Effect.fail(new ProbeFault("probe")),
+      };
+      const clock = new SharedFundamentalClock(target);
+      clock.start();
+      const exit = yield* clock.advanceProcessInterval(1).pipe(Effect.exit);
+      assert.equal(Exit.isFailure(exit), true);
+      if (!Exit.isFailure(exit)) return;
+      const err = Cause.squash(exit.cause);
+      assert.equal(err instanceof ProbeFault, true);
+      assert.equal(err instanceof HomeBusLinkFailure, false);
     }),
   );
 });

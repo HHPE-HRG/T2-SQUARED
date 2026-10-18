@@ -39,6 +39,7 @@ import {
 } from "./auth/http.ts";
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import { browserApiCorsAllowedHeaders, browserApiCorsAllowedMethods } from "./httpCors.ts";
+import { captureHttpStaticSelected, withHttpMetaCapture } from "./scm/g9FamilyProviderProtocol.ts";
 
 const OTLP_TRACES_PROXY_PATH = "/api/observability/v1/traces";
 const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "::1", "localhost"]);
@@ -128,7 +129,8 @@ export const serverEnvironmentHttpApiLayer = HttpApiBuilder.group(
       "descriptor",
       Effect.fn("environment.metadata.descriptor")(function* (args) {
         yield* annotateEnvironmentRequest(args.endpoint.name);
-        return yield* serverEnvironment.getDescriptor;
+        // Agent: INV-T2-HTTP-META admit+succeed around descriptor handler success.
+        return yield* withHttpMetaCapture(serverEnvironment.getDescriptor);
       }, traceRelayRequest),
     );
   }),
@@ -221,6 +223,7 @@ export const assetRouteLayer = HttpRouter.add(
       status: 200,
       headers: assetResponseHeaders(asset.path),
     }).pipe(
+      Effect.tap(() => captureHttpStaticSelected("asset-file-200-selected")),
       Effect.orElseSucceed(() => HttpServerResponse.text("Internal Server Error", { status: 500 })),
     );
   }),
@@ -243,6 +246,7 @@ export const staticAndDevRouteLayer = HttpRouter.add(
     }
 
     if (config.devUrl && isLoopbackHostname(url.value.hostname)) {
+      yield* captureHttpStaticSelected("static-dev-redirect-302-selected");
       return HttpServerResponse.redirect(resolveDevRedirectUrl(config.devUrl, url.value), {
         status: 302,
       });
@@ -299,6 +303,7 @@ export const staticAndDevRouteLayer = HttpRouter.add(
       if (!indexData) {
         return HttpServerResponse.text("Not Found", { status: 404 });
       }
+      yield* captureHttpStaticSelected("static-spa-fallback-200-selected");
       return HttpServerResponse.uint8Array(indexData, {
         status: 200,
         contentType: "text/html; charset=utf-8",
@@ -311,6 +316,7 @@ export const staticAndDevRouteLayer = HttpRouter.add(
       return HttpServerResponse.text("Internal Server Error", { status: 500 });
     }
 
+    yield* captureHttpStaticSelected("static-file-200-selected");
     return HttpServerResponse.uint8Array(data, {
       status: 200,
       contentType,
