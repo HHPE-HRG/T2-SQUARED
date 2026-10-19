@@ -66,6 +66,8 @@ import {
   type ProjectionSnapshotQueryShape,
 } from "../Services/ProjectionSnapshotQuery.ts";
 
+import { wrapProjectionSnapshotQueryWithG10 } from "../../scm/g10SliceS7.ts";
+
 const decodeReadModel = Schema.decodeUnknownEffect(OrchestrationReadModel);
 const decodeShellSnapshot = Schema.decodeUnknownEffect(OrchestrationShellSnapshot);
 const decodeThread = Schema.decodeUnknownEffect(OrchestrationThread);
@@ -2664,7 +2666,8 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
         ),
       );
 
-  return {
+  // G10 S7 PROJECT-READ cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionSnapshotQueryWithG10({
     getCommandReadModel,
     getSnapshot,
     getShellSnapshot,
@@ -2680,7 +2683,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
     getThreadShellById,
     getThreadDetailById,
     getThreadDetailSnapshot,
-  } satisfies ProjectionSnapshotQueryShape;
+  });
 });
 
 export const OrchestrationProjectionSnapshotQueryLive = Layer.effect(

@@ -25,6 +25,7 @@ import {
   captureProviderStatusCacheWriteSucceeded,
 } from "../scm/g9FamilyFileDbProcessConfig.ts";
 import { captureWhenG9Present } from "../scm/g9FamilyProviderProtocol.ts";
+import { fileProviderSessionCacheViaG10Bridge } from "../scm/g10SliceS4.ts";
 
 const decodeProviderStatusCache = Schema.decodeUnknownEffect(
   Schema.fromJsonString(ServerProviderSchema),
@@ -152,8 +153,12 @@ export const readProviderStatusCache = (filePath: string) =>
           }).pipe(Effect.as(undefined)),
         onSuccess: (provider) =>
           // Agent: B2→B4 cache-read success; member_id is ledger token not path.
-          captureWhenG9Present((capture) => captureProviderStatusCacheReadSucceeded(capture)).pipe(
-            Effect.as(provider),
+          // G10 auth-freeze: FILE-PROVIDER-SESSION phase residual on S4 lander.
+          fileProviderSessionCacheViaG10Bridge(
+            "provider-status-cache-read-succeeded",
+            captureWhenG9Present((capture) =>
+              captureProviderStatusCacheReadSucceeded(capture),
+            ).pipe(Effect.as(provider)),
           ),
       }),
     );
@@ -170,6 +175,10 @@ export const writeProviderStatusCache = (input: {
       contents: `${JSON.stringify(cacheableProvider, null, 2)}\n`,
     });
     // Agent: B2→B4 cache-write success after atomic write; member_id = "write".
-    yield* captureWhenG9Present((capture) => captureProviderStatusCacheWriteSucceeded(capture));
+    // G10 auth-freeze: FILE-PROVIDER-SESSION phase residual on S4 lander.
+    yield* fileProviderSessionCacheViaG10Bridge(
+      "provider-status-cache-write-succeeded",
+      captureWhenG9Present((capture) => captureProviderStatusCacheWriteSucceeded(capture)),
+    );
   });
 };

@@ -4,11 +4,12 @@
  * Owns terminal lifecycle operations, output fanout, and session state
  * transitions for thread-scoped terminals.
  *
- * Agent (G9 W5c B5): sole WP5 lander for this file. Wires B2 FILE-LOGS /
- * FLAG-TERM-ENV handoff helpers and B5 INV-T2-TERM phases via
- * withOptionalG9Capture. Absent G9CaptureService ⇒ live behavior unchanged.
- * captureOccurrence only through family helpers; never put path / env / PTY
- * bytes in equality A. Does not flip g9toG10Authorized.
+ * Agent (G9 W5c B5 + G10 S5): sole lander for this file. Wires B2 FILE-LOGS
+ * handoff helpers and B5 INV-T2-TERM phases via withOptionalG9Capture. G10 S5
+ * admit/route/replace wraps TERM phases via termPhaseViaG10Bridge. S8
+ * lander-reopen also wraps FLAG-TERM-ENV via flagTermEnvViaG10Bridge (S7→S5;
+ * not historical S5 exit (a)). FILE-LOGS terminalLogs stays S7 phase handoff.
+ * Absent G10/G9 ⇒ live unchanged. Never put path / env / PTY bytes in equality A.
  *
  * @module TerminalManager
  */
@@ -63,6 +64,11 @@ import {
   captureTerminalLogsWriterSucceeded,
 } from "../scm/g9FamilyFileDbProcessConfig.ts";
 import { captureTermPhase, withOptionalG9Capture } from "../scm/g9FamilyTerminalLocalStreams.ts";
+import {
+  fileLogsTerminalLogsViaG10Bridge,
+  flagTermEnvViaG10Bridge,
+  termPhaseViaG10Bridge,
+} from "../scm/g10SliceS5.ts";
 import { withCatalogBridge } from "../t2Observability/T2Observability.ts";
 import {
   increment,
@@ -1268,10 +1274,13 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     Effect.gen(function* () {
       for (const listener of terminalEventListeners) {
         // INV-T2-TERM / terminal-session-callback-emitted: listener invoked
-        // (site only). Agent: one capture per listener call; no event payload in A.
+        // (site only). Agent: G10 S5 bridge + G9 capture; no event payload in A.
         yield* listener(event).pipe(Effect.ignoreCause({ log: true }));
-        yield* withOptionalG9Capture((capture) =>
-          captureTermPhase(capture, "terminal-session-callback-emitted"),
+        yield* termPhaseViaG10Bridge(
+          "terminal-session-callback-emitted",
+          withOptionalG9Capture((capture) =>
+            captureTermPhase(capture, "terminal-session-callback-emitted"),
+          ),
         );
       }
     });
@@ -1444,10 +1453,16 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
 
       // INV-T2-FILE-LOGS / terminalLogs-writer-succeeded (B2→B5): after write
       // succeeds only. Agent: member_id only in A; no path / history bytes.
-      yield* fileSystem.writeFileString(historyPath(threadId, terminalId), request.history).pipe(
-        Effect.tap(() =>
-          withOptionalG9Capture((capture) => captureTerminalLogsWriterSucceeded(capture)),
-        ),
+      // G10 auth-freeze: phase residual via S5 lander bridge.
+      yield* fileLogsTerminalLogsViaG10Bridge(
+        fileSystem
+          .writeFileString(historyPath(threadId, terminalId), request.history)
+          .pipe(
+            Effect.tap(() =>
+              withOptionalG9Capture((capture) => captureTerminalLogsWriterSucceeded(capture)),
+            ),
+          ),
+      ).pipe(
         Effect.catch((error) =>
           Effect.logWarning("failed to persist terminal history", {
             threadId,
@@ -1513,10 +1528,15 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
       const capped = capHistory(raw, historyLineLimit);
       if (capped !== raw) {
         // INV-T2-FILE-LOGS / terminalLogs-writer-succeeded (capped rewrite).
-        yield* fileSystem.writeFileString(nextPath, capped).pipe(
-          Effect.tap(() =>
-            withOptionalG9Capture((capture) => captureTerminalLogsWriterSucceeded(capture)),
-          ),
+        yield* fileLogsTerminalLogsViaG10Bridge(
+          fileSystem
+            .writeFileString(nextPath, capped)
+            .pipe(
+              Effect.tap(() =>
+                withOptionalG9Capture((capture) => captureTerminalLogsWriterSucceeded(capture)),
+              ),
+            ),
+        ).pipe(
           Effect.mapError(
             (cause) =>
               new TerminalHistoryError({ operation: "truncate", threadId, terminalId, cause }),
@@ -1554,10 +1574,15 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
       );
     const capped = capHistory(raw, historyLineLimit);
     // INV-T2-FILE-LOGS / terminalLogs-writer-succeeded (legacy migrate rewrite).
-    yield* fileSystem.writeFileString(nextPath, capped).pipe(
-      Effect.tap(() =>
-        withOptionalG9Capture((capture) => captureTerminalLogsWriterSucceeded(capture)),
-      ),
+    yield* fileLogsTerminalLogsViaG10Bridge(
+      fileSystem
+        .writeFileString(nextPath, capped)
+        .pipe(
+          Effect.tap(() =>
+            withOptionalG9Capture((capture) => captureTerminalLogsWriterSucceeded(capture)),
+          ),
+        ),
+    ).pipe(
       Effect.mapError(
         (cause) => new TerminalHistoryError({ operation: "migrate", threadId, terminalId, cause }),
       ),
@@ -1893,13 +1918,20 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     );
 
     if (attempt._tag === "Success") {
-      // INV-T2-TERM / pty-spawn-succeeded: one capture per successful spawn.
+      // INV-T2-TERM / pty-spawn-succeeded: G10 S5 bridge + G9 capture per spawn.
       // Agent: site "spawned" only; no shell/cwd/env in A.
-      yield* withOptionalG9Capture((capture) => captureTermPhase(capture, "pty-spawn-succeeded"));
-      return {
-        process: attempt.success,
-        shellLabel: formatShellCandidate(candidate),
-      };
+      return yield* termPhaseViaG10Bridge(
+        "pty-spawn-succeeded",
+        Effect.gen(function* () {
+          yield* withOptionalG9Capture((capture) =>
+            captureTermPhase(capture, "pty-spawn-succeeded"),
+          );
+          return {
+            process: attempt.success,
+            shellLabel: formatShellCandidate(candidate),
+          };
+        }),
+      );
     }
 
     const spawnError = attempt.failure;
@@ -1954,9 +1986,10 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
                 const shellCandidates = resolveShellCandidates(shellResolver, platform, baseEnv);
                 const terminalEnv = createTerminalSpawnEnv(baseEnv, session.runtimeEnv);
                 // INV-T2-FLAG-TERM-ENV / terminal-child-env-filtered (B2→B5):
-                // one capture per successful filter application at spawn.
-                // Agent: kind-only A; never excluded key names.
-                yield* withOptionalG9Capture((capture) => captureFlagTermEnvFiltered(capture));
+                // G10 S8 reopen cutover + G9 capture-beside (kind-only A).
+                yield* flagTermEnvViaG10Bridge(
+                  withOptionalG9Capture((capture) => captureFlagTermEnvFiltered(capture)),
+                );
                 const spawnResult = yield* trySpawn(shellCandidates, terminalEnv, session);
                 ptyProcess = spawnResult.process;
                 startedShell = spawnResult.shellLabel;
@@ -1967,10 +2000,13 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
                     return;
                   }
                   // INV-T2-TERM / pty-output-callback-emitted: enqueue accepted.
-                  // Agent: site only; drop when enqueue false; no PTY bytes in A.
+                  // Agent: G10 S5 bridge + G9; drop when enqueue false; no PTY bytes in A.
                   runFork(
-                    withOptionalG9Capture((capture) =>
-                      captureTermPhase(capture, "pty-output-callback-emitted"),
+                    termPhaseViaG10Bridge(
+                      "pty-output-callback-emitted",
+                      withOptionalG9Capture((capture) =>
+                        captureTermPhase(capture, "pty-output-callback-emitted"),
+                      ),
                     ).pipe(Effect.andThen(drainProcessEvents(session, processPid))),
                   );
                 });
@@ -1979,9 +2015,13 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
                     return;
                   }
                   // INV-T2-TERM / pty-exit-succeeded: onExit enqueue accepted.
+                  // Agent: G10 S5 bridge + G9 capture beside.
                   runFork(
-                    withOptionalG9Capture((capture) =>
-                      captureTermPhase(capture, "pty-exit-succeeded"),
+                    termPhaseViaG10Bridge(
+                      "pty-exit-succeeded",
+                      withOptionalG9Capture((capture) =>
+                        captureTermPhase(capture, "pty-exit-succeeded"),
+                      ),
                     ).pipe(Effect.andThen(drainProcessEvents(session, processPid))),
                   );
                 });
@@ -2531,11 +2571,14 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
           return Effect.void;
         }
         // INV-T2-TERM / terminal-metadata-callback-emitted: null skipped.
-        // Agent: site only after listener invoked; no metadata payload in A.
+        // Agent: G10 S5 bridge + G9 after listener; no metadata payload in A.
         return listener(metadataEvent).pipe(
           Effect.andThen(
-            withOptionalG9Capture((capture) =>
-              captureTermPhase(capture, "terminal-metadata-callback-emitted"),
+            termPhaseViaG10Bridge(
+              "terminal-metadata-callback-emitted",
+              withOptionalG9Capture((capture) =>
+                captureTermPhase(capture, "terminal-metadata-callback-emitted"),
+              ),
             ),
           ),
         );
@@ -2608,9 +2651,10 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         }),
     });
     // INV-T2-TERM / pty-input-write-succeeded: write Effect.try succeeded.
-    // Agent: site only; no input.data in A. Exited early-return is no-occurrence.
-    yield* withOptionalG9Capture((capture) =>
-      captureTermPhase(capture, "pty-input-write-succeeded"),
+    // Agent: G10 S5 bridge + G9; no input.data in A. Exited early-return is no-occurrence.
+    yield* termPhaseViaG10Bridge(
+      "pty-input-write-succeeded",
+      withOptionalG9Capture((capture) => captureTermPhase(capture, "pty-input-write-succeeded")),
     );
   });
 

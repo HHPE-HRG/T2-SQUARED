@@ -35,6 +35,7 @@ import * as NetService from "@t3tools/shared/Net";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import { captureProviderOpenCodeRuntime } from "../scm/g9FamilyProviderProtocol.ts";
+import { providerOpenCodeViaG10Bridge } from "../scm/g10SliceS4.ts";
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 const OPENCODE_EMPTY_CONFIG_CONTENT = "{}";
 
@@ -587,7 +588,10 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       }
 
       // Agent: INV-T2-PROVIDER-OPENCODE runtime-spawn-succeeded after serve ready.
-      yield* captureProviderOpenCodeRuntime("runtime-spawn-succeeded");
+      // G10 S4: PROVIDER-OPENCODE cutover wraps spawn-ready success.
+      yield* providerOpenCodeViaG10Bridge(
+        captureProviderOpenCodeRuntime("runtime-spawn-succeeded"),
+      );
 
       return {
         url: readyOption.value,

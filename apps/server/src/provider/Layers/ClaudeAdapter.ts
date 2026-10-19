@@ -96,6 +96,7 @@ import {
 import { type ClaudeAdapterShape } from "../Services/ClaudeAdapter.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";
 import { captureProviderClaudePhase } from "../../scm/g9FamilyProviderProtocol.ts";
+import { providerClaudeViaG10Bridge } from "../../scm/g10SliceS4.ts";
 const encodeUnknownJsonStringExit = Schema.encodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 const decodeUnknownJsonStringExit = Schema.decodeUnknownExit(Schema.fromJsonString(Schema.Unknown));
 
@@ -4181,7 +4182,8 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
           }),
       });
       // Agent: INV-T2-PROVIDER-CLAUDE protocol-request-succeeded (claude.sdk.query).
-      yield* captureProviderClaudePhase("protocol-request-succeeded");
+      // G10 S4: PROVIDER-CLAUDE cutover records protocol-request success.
+      yield* providerClaudeViaG10Bridge(captureProviderClaudePhase("protocol-request-succeeded"));
 
       const session: ProviderSession = {
         threadId,

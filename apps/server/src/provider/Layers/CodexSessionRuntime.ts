@@ -40,6 +40,7 @@ import { codexSessionAppServerArgs } from "./codexLaunchArgs.ts";
 import { expandHomePath } from "../../pathExpansion.ts";
 import { buildCodexDeveloperInstructions } from "../CodexDeveloperInstructions.ts";
 import { captureProviderCodexRuntime } from "../../scm/g9FamilyProviderProtocol.ts";
+import { providerCodexViaG10Bridge } from "../../scm/g10SliceS4.ts";
 const decodeV2TurnStartResponse = Schema.decodeUnknownEffect(EffectCodexSchema.V2TurnStartResponse);
 
 const PROVIDER = ProviderDriverKind.make("codex");
@@ -879,28 +880,32 @@ export const makeCodexSessionRuntime = (
       env,
       extendEnv,
     });
-    const child = yield* spawner
-      .spawn(
-        ChildProcess.make(spawnCommand.command, spawnCommand.args, {
-          cwd: options.cwd,
-          env,
-          extendEnv,
-          forceKillAfter: CODEX_APP_SERVER_FORCE_KILL_AFTER,
-          shell: spawnCommand.shell,
-        }),
-      )
-      .pipe(
-        Effect.provideService(Scope.Scope, runtimeScope),
-        Effect.mapError(
-          (cause) =>
-            new CodexErrors.CodexAppServerSpawnError({
-              command: `${options.binaryPath} app-server`,
-              cause,
-            }),
+    // G10 S4: PROVIDER-CODEX cutover wraps spawn; G9 capture observe-beside.
+    // Do not wrap FLAG-CODEX-LAUNCH (S7 handoff on codexLaunchArgs).
+    const child = yield* providerCodexViaG10Bridge(
+      spawner
+        .spawn(
+          ChildProcess.make(spawnCommand.command, spawnCommand.args, {
+            cwd: options.cwd,
+            env,
+            extendEnv,
+            forceKillAfter: CODEX_APP_SERVER_FORCE_KILL_AFTER,
+            shell: spawnCommand.shell,
+          }),
+        )
+        .pipe(
+          Effect.provideService(Scope.Scope, runtimeScope),
+          Effect.mapError(
+            (cause) =>
+              new CodexErrors.CodexAppServerSpawnError({
+                command: `${options.binaryPath} app-server`,
+                cause,
+              }),
+          ),
+          // Agent: INV-T2-PROVIDER-CODEX runtime-spawn-succeeded after spawner.spawn.
+          Effect.tap(() => captureProviderCodexRuntime("runtime-spawn-succeeded")),
         ),
-      );
-    // Agent: INV-T2-PROVIDER-CODEX runtime-spawn-succeeded after spawner.spawn.
-    yield* captureProviderCodexRuntime("runtime-spawn-succeeded");
+    );
 
     const clientContext = yield* CodexClient.layerChildProcess(child).pipe(
       Layer.build,

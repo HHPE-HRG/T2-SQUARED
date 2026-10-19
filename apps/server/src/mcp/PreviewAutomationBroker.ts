@@ -1,3 +1,9 @@
+/**
+ * Preview automation host broker (route + queue request/response).
+ *
+ * G10 S1: INV-T2-PREVIEW-AUTO admit/route/replace via g10SeamBridge at
+ * request Queue.offer. Absent G10S1 / not replaced ⇒ live offer only.
+ */
 import {
   PREVIEW_AUTOMATION_V1_OPERATIONS,
   PreviewAutomationClientDisconnectedError,
@@ -32,6 +38,7 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as SynchronizedRef from "effect/SynchronizedRef";
 
+import { offerPreviewAutoViaG10Bridge } from "../scm/g10SliceS1.ts";
 import * as McpInvocationContext from "./McpInvocationContext.ts";
 
 export interface PreviewAutomationInvokeInput {
@@ -524,19 +531,22 @@ export const make = Effect.gen(function* PreviewAutomationBrokerMake() {
       return { ...next, pending };
     });
     const awaitResponse = Effect.fn("PreviewAutomationBroker.awaitResponse")(function* () {
-      const offered = yield* Queue.offer(connection.queue, {
-        type: "request",
-        connectionId: connection.connectionId,
-        request: {
-          requestId,
-          threadId: input.scope.threadId,
-          tabId: requestContext.tabId,
-          tabIdExplicit: input.tabId !== undefined,
-          operation: input.operation,
-          input: input.input,
-          timeoutMs,
-        },
-      });
+      // G10 S1: PREVIEW-AUTO queue offer through seam bridge when S1 replaced.
+      const offered = yield* offerPreviewAutoViaG10Bridge(
+        Queue.offer(connection.queue, {
+          type: "request",
+          connectionId: connection.connectionId,
+          request: {
+            requestId,
+            threadId: input.scope.threadId,
+            tabId: requestContext.tabId,
+            tabIdExplicit: input.tabId !== undefined,
+            operation: input.operation,
+            input: input.input,
+            timeoutMs,
+          },
+        }),
+      );
       if (!offered) {
         const completion = yield* Deferred.poll(deferred);
         if (Option.isSome(completion)) {

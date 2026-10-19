@@ -14,6 +14,8 @@ import {
   ProjectionState,
 } from "../Services/ProjectionState.ts";
 
+import { wrapProjectionStateWithG10 } from "../../scm/g10SliceS7.ts";
+
 const MinLastAppliedSequenceRowSchema = Schema.Struct({
   minLastAppliedSequence: Schema.NullOr(NonNegativeInt),
 });
@@ -104,12 +106,13 @@ const makeProjectionStateRepository = Effect.gen(function* () {
       Effect.map((row) => row.minLastAppliedSequence),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionStateWithG10({
     upsert,
     getByProjector,
     listAll,
     minLastAppliedSequence,
-  } satisfies ProjectionStateRepositoryShape;
+  });
 });
 
 export const ProjectionStateRepositoryLive = Layer.effect(

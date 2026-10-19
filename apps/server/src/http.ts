@@ -40,6 +40,7 @@ import {
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import { browserApiCorsAllowedHeaders, browserApiCorsAllowedMethods } from "./httpCors.ts";
 import { captureHttpStaticSelected, withHttpMetaCapture } from "./scm/g9FamilyProviderProtocol.ts";
+import { httpStaticViaG10Bridge } from "./scm/g10SliceS4.ts";
 
 const OTLP_TRACES_PROXY_PATH = "/api/observability/v1/traces";
 const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "::1", "localhost"]);
@@ -219,12 +220,18 @@ export const assetRouteLayer = HttpRouter.add(
     if (!asset) {
       return HttpServerResponse.text("Not Found", { status: 404 });
     }
-    return yield* HttpServerResponse.file(asset.path, {
-      status: 200,
-      headers: assetResponseHeaders(asset.path),
-    }).pipe(
-      Effect.tap(() => captureHttpStaticSelected("asset-file-200-selected")),
-      Effect.orElseSucceed(() => HttpServerResponse.text("Internal Server Error", { status: 500 })),
+    // G10 S4: HTTP-STATIC cutover wraps asset 200 selection; G9 capture observe-beside.
+    return yield* httpStaticViaG10Bridge(
+      "asset-file-200-selected",
+      HttpServerResponse.file(asset.path, {
+        status: 200,
+        headers: assetResponseHeaders(asset.path),
+      }).pipe(
+        Effect.tap(() => captureHttpStaticSelected("asset-file-200-selected")),
+        Effect.orElseSucceed(() =>
+          HttpServerResponse.text("Internal Server Error", { status: 500 }),
+        ),
+      ),
     );
   }),
 );
@@ -246,10 +253,16 @@ export const staticAndDevRouteLayer = HttpRouter.add(
     }
 
     if (config.devUrl && isLoopbackHostname(url.value.hostname)) {
-      yield* captureHttpStaticSelected("static-dev-redirect-302-selected");
-      return HttpServerResponse.redirect(resolveDevRedirectUrl(config.devUrl, url.value), {
-        status: 302,
-      });
+      // G10 S4: HTTP-STATIC cutover wraps dev redirect selection.
+      return yield* httpStaticViaG10Bridge(
+        "static-dev-redirect-302-selected",
+        Effect.gen(function* () {
+          yield* captureHttpStaticSelected("static-dev-redirect-302-selected");
+          return HttpServerResponse.redirect(resolveDevRedirectUrl(config.devUrl!, url.value), {
+            status: 302,
+          });
+        }),
+      );
     }
 
     const staticDir =
@@ -303,11 +316,17 @@ export const staticAndDevRouteLayer = HttpRouter.add(
       if (!indexData) {
         return HttpServerResponse.text("Not Found", { status: 404 });
       }
-      yield* captureHttpStaticSelected("static-spa-fallback-200-selected");
-      return HttpServerResponse.uint8Array(indexData, {
-        status: 200,
-        contentType: "text/html; charset=utf-8",
-      });
+      // G10 S4: HTTP-STATIC cutover wraps SPA fallback selection.
+      return yield* httpStaticViaG10Bridge(
+        "static-spa-fallback-200-selected",
+        Effect.gen(function* () {
+          yield* captureHttpStaticSelected("static-spa-fallback-200-selected");
+          return HttpServerResponse.uint8Array(indexData, {
+            status: 200,
+            contentType: "text/html; charset=utf-8",
+          });
+        }),
+      );
     }
 
     const contentType = Mime.getType(filePath) ?? "application/octet-stream";
@@ -316,10 +335,16 @@ export const staticAndDevRouteLayer = HttpRouter.add(
       return HttpServerResponse.text("Internal Server Error", { status: 500 });
     }
 
-    yield* captureHttpStaticSelected("static-file-200-selected");
-    return HttpServerResponse.uint8Array(data, {
-      status: 200,
-      contentType,
-    });
+    // G10 S4: HTTP-STATIC cutover wraps static file 200 selection.
+    return yield* httpStaticViaG10Bridge(
+      "static-file-200-selected",
+      Effect.gen(function* () {
+        yield* captureHttpStaticSelected("static-file-200-selected");
+        return HttpServerResponse.uint8Array(data, {
+          status: 200,
+          contentType,
+        });
+      }),
+    );
   }),
 );

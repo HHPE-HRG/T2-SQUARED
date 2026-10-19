@@ -21,6 +21,8 @@ import {
   type ProjectionTurnRepositoryShape,
 } from "../Services/ProjectionTurns.ts";
 
+import { wrapProjectionTurnsWithG10 } from "../../scm/g10SliceS7.ts";
+
 const ProjectionTurnDbRowSchema = ProjectionTurn.mapFields(
   Struct.assign({
     checkpointFiles: Schema.fromJsonString(Schema.Array(OrchestrationCheckpointFile)),
@@ -337,7 +339,8 @@ const makeProjectionTurnRepository = Effect.gen(function* () {
       Effect.mapError(toPersistenceSqlError("ProjectionTurnRepository.deleteByThreadId:query")),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionTurnsWithG10({
     upsertByTurnId,
     replacePendingTurnStart,
     getPendingTurnStartByThreadId,
@@ -346,7 +349,7 @@ const makeProjectionTurnRepository = Effect.gen(function* () {
     getByTurnId,
     clearCheckpointTurnConflict,
     deleteByThreadId,
-  } satisfies ProjectionTurnRepositoryShape;
+  });
 });
 
 export const ProjectionTurnRepositoryLive = Layer.effect(

@@ -32,6 +32,8 @@ import * as Ref from "effect/Ref";
 import * as ChildProcess from "effect/unstable/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner";
 
+import { editorLaunchViaG10Bridge } from "../scm/g10SliceS3.ts";
+
 // ==============================
 // Definitions
 // ==============================
@@ -431,26 +433,29 @@ const launchEditorProcess = Effect.fn("externalLauncher.launchEditorProcess")(fu
   }
 
   const spawnCommand = yield* resolveSpawnCommand(launch.command, launch.args, { env });
-  yield* launchAndUnref(
-    {
-      command: spawnCommand.command,
-      args: spawnCommand.args,
-      options: {
-        detached: true,
-        shell: spawnCommand.shell,
-        stdin: "ignore",
-        stdout: "ignore",
-        stderr: "ignore",
-      },
-    },
-    (cause) =>
-      new ExternalLauncherEditorSpawnError({
-        editor: launch.editor,
-        target: launch.target,
+  // G10 S3 EDITOR-LAUNCH cutover after successful editor spawn.
+  yield* editorLaunchViaG10Bridge(
+    launchAndUnref(
+      {
         command: spawnCommand.command,
         args: spawnCommand.args,
-        cause,
-      }),
+        options: {
+          detached: true,
+          shell: spawnCommand.shell,
+          stdin: "ignore",
+          stdout: "ignore",
+          stderr: "ignore",
+        },
+      },
+      (cause) =>
+        new ExternalLauncherEditorSpawnError({
+          editor: launch.editor,
+          target: launch.target,
+          command: spawnCommand.command,
+          args: spawnCommand.args,
+          cause,
+        }),
+    ),
   );
 });
 

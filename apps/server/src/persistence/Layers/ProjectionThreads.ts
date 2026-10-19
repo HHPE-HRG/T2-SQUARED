@@ -16,6 +16,8 @@ import {
 } from "../Services/ProjectionThreads.ts";
 import { ModelSelection } from "@t3tools/contracts";
 
+import { wrapProjectionThreadsWithG10 } from "../../scm/g10SliceS7.ts";
+
 const ProjectionThreadDbRow = ProjectionThread.mapFields(
   Struct.assign({
     modelSelection: Schema.fromJsonString(ModelSelection),
@@ -215,12 +217,13 @@ const makeProjectionThreadRepository = Effect.gen(function* () {
       Effect.mapError(toPersistenceSqlError("ProjectionThreadRepository.deleteById:query")),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionThreadsWithG10({
     upsert,
     getById,
     listByProjectId,
     deleteById,
-  } satisfies ProjectionThreadRepositoryShape;
+  });
 });
 
 export const ProjectionThreadRepositoryLive = Layer.effect(

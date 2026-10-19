@@ -1,0 +1,13 @@
+---
+description: One Mac checkout on feat/t2-opentelemetry. Read the handoff before new SCM work.
+alwaysApply: true
+---
+
+# HHPE-Forge pickup
+
+Before implementing SCM or claiming a second tree, read `docs/operations/hhpe-forge-dev-handoff.md`.
+
+- One Mac checkout: `/Users/maxholden/T2-SQUARED` on `feat/t2-opentelemetry` @ `0e8d003e7` (G1–G8 packaged). G9 and G10 are authorized (`docs/scm/g9/authorization.md`; `docs/scm/g10/authorization.md` + G8 `g9toG10Authorized: true`).
+- Forgejo `main` (`6486a0f8a`) is an ancestor of this branch. It is not a second implementation. Do not recreate `/Users/maxholden/T2-SQUARED-forgejo`.
+- Restricted refs: `/Users/maxholden/T2-SQUARED-References` on the Mac only. Do not copy into git or `/home/agent`.
+- These stay false: G1B `g3Authorized`, G1B and G3 `g4toG7Authorized`, G4/G5 `g6toG10Authorized`, G6 `g7toG10Authorized`, G7 `g8toG10Authorized`. G8 `g9toG10Authorized` is **true** after the 2026-10-18 G10 ceremony. A checkout change alone does not authorize gates — durable unlock is that gate’s `authorization.md` (and G10’s G8 flag).

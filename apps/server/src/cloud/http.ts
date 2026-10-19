@@ -86,6 +86,7 @@ import * as CliTokenManager from "./CliTokenManager.ts";
 import { getOrCreateEnvironmentKeyPairFromSecretStore } from "./environmentKeys.ts";
 import { traceRelayRequest } from "./traceRelayRequest.ts";
 import { withHttpConnectCapture } from "../scm/g9FamilyProviderProtocol.ts";
+import { relayHttpViaG10Bridge } from "../scm/g10SliceS3.ts";
 
 const CLOUD_MINT_NONCE_PREFIX = "cloud-mint-nonce-";
 const CLOUD_MINT_JTI_PREFIX = "cloud-mint-jti-";
@@ -521,21 +522,31 @@ const relayClientRequest = <A>(
     readonly token: string;
     readonly payload: unknown;
     readonly schema: Schema.Decoder<A>;
+    /** Ledger RELAY-HTTP member for G10 S3 cutover projection A. */
+    readonly member_id:
+      | "environment-link-challenge"
+      | "environment-link"
+      | "environment-link-tunnel"
+      | "environment-link-cli-unlink";
   },
 ) =>
-  HttpClientRequest.post(input.url).pipe(
-    HttpClientRequest.bearerToken(input.token),
-    HttpClientRequest.bodyJson(input.payload),
-    Effect.flatMap(dependencies.httpClient.execute),
-    Effect.flatMap(HttpClientResponse.filterStatusOk),
-    Effect.flatMap(HttpClientResponse.schemaBodyJson(input.schema)),
-    Effect.mapError(
-      (cause) =>
-        new EnvironmentHttpInternalServerError({
-          message: `T3 Connect relay request failed: ${String(cause)}`,
-        }),
+  // G10 S3 RELAY-HTTP cutover on filterStatusOk success path.
+  relayHttpViaG10Bridge(
+    input.member_id,
+    HttpClientRequest.post(input.url).pipe(
+      HttpClientRequest.bearerToken(input.token),
+      HttpClientRequest.bodyJson(input.payload),
+      Effect.flatMap(dependencies.httpClient.execute),
+      Effect.flatMap(HttpClientResponse.filterStatusOk),
+      Effect.flatMap(HttpClientResponse.schemaBodyJson(input.schema)),
+      Effect.mapError(
+        (cause) =>
+          new EnvironmentHttpInternalServerError({
+            message: `T3 Connect relay request failed: ${String(cause)}`,
+          }),
+      ),
+      withRelayClientTracing,
     ),
-    withRelayClientTracing,
   );
 
 const reconcileDesiredCloudLinkWith = Effect.fn("environment.cloud.reconcileDesiredLinkWith")(
@@ -578,6 +589,7 @@ const reconcileDesiredCloudLinkWith = Effect.fn("environment.cloud.reconcileDesi
         managedTunnelsEnabled,
       },
       schema: RelayEnvironmentLinkChallengeResponse,
+      member_id: "environment-link-challenge",
     });
     const proof = yield* makeCloudLinkProof(
       dependencies,
@@ -606,6 +618,7 @@ const reconcileDesiredCloudLinkWith = Effect.fn("environment.cloud.reconcileDesi
         managedTunnelsEnabled,
       },
       schema: RelayEnvironmentLinkResponse,
+      member_id: "environment-link",
     });
     yield* setCliDesiredCloudLink(true, mode);
     return yield* applyCloudRelayConfig(dependencies, {
@@ -715,14 +728,17 @@ export const releaseManagedTunnelOnShutdown = Effect.fn(
   const environmentId = yield* dependencies.environment.getEnvironmentId;
   // Stop the local connector before the relay deletes the tunnel it serves.
   yield* dependencies.endpointRuntime.applyConfig(null);
-  const response = yield* HttpClientRequest.delete(
-    `${bytesToString(relayUrl.value)}/v1/client/environment-links/${encodeURIComponent(environmentId)}/tunnel`,
-  ).pipe(
-    HttpClientRequest.bearerToken(token.value.accessToken),
-    dependencies.httpClient.execute,
-    Effect.flatMap(HttpClientResponse.filterStatusOk),
-    Effect.flatMap(HttpClientResponse.schemaBodyJson(RelayOkResponse)),
-    withRelayClientTracing,
+  const response = yield* relayHttpViaG10Bridge(
+    "environment-link-tunnel",
+    HttpClientRequest.delete(
+      `${bytesToString(relayUrl.value)}/v1/client/environment-links/${encodeURIComponent(environmentId)}/tunnel`,
+    ).pipe(
+      HttpClientRequest.bearerToken(token.value.accessToken),
+      dependencies.httpClient.execute,
+      Effect.flatMap(HttpClientResponse.filterStatusOk),
+      Effect.flatMap(HttpClientResponse.schemaBodyJson(RelayOkResponse)),
+      withRelayClientTracing,
+    ),
   );
   // ok:false means the relay skipped deletion because a concurrent provision
   // owns the recorded tunnel now — leave the stored config alone.

@@ -16,6 +16,7 @@ import {
   ListProjectionThreadMessagesInput,
   ProjectionThreadMessage,
 } from "../Services/ProjectionThreadMessages.ts";
+import { wrapProjectionThreadMessagesWithG10 } from "../../scm/g10SliceS7.ts";
 
 const ProjectionThreadMessageDbRowSchema = ProjectionThreadMessage.mapFields(
   Struct.assign({
@@ -174,12 +175,13 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
       ),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionThreadMessagesWithG10({
     upsert,
     getByMessageId,
     listByThreadId,
     deleteByThreadId,
-  } satisfies ProjectionThreadMessageRepositoryShape;
+  });
 });
 
 export const ProjectionThreadMessageRepositoryLive = Layer.effect(

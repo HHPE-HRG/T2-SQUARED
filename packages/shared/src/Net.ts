@@ -1,3 +1,10 @@
+/**
+ * Startup networking helpers + G10 S3 NET-TCP cutover (shared-package hook).
+ *
+ * Intended: canListenOnHost / isPortAvailableOnLoopback / reserve / find wrap
+ * through optional G10 S3 shared seam when replace installed. Absent ⇒ live
+ * unchanged. Equality A is result_class / operation tokens only (no hosts).
+ */
 import * as NodeNet from "node:net";
 
 import * as Data from "effect/Data";
@@ -5,6 +12,8 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Context from "effect/Context";
 import * as Predicate from "effect/Predicate";
+
+import { runViaOptionalG10S3SharedSeam } from "./g10S3CutoverHook.ts";
 
 export class NetError extends Data.TaggedError("NetError")<{
   readonly message: string;
@@ -63,7 +72,7 @@ export const make = () => {
    * `EADDRNOTAVAIL` is treated as available so IPv6-absent hosts don't fail
    * loopback availability checks.
    */
-  const canListenOnHost = (port: number, host: string): Effect.Effect<boolean> =>
+  const canListenOnHostLive = (port: number, host: string): Effect.Effect<boolean> =>
     Effect.callback<boolean>((resume) => {
       const server = NodeNet.createServer();
       let settled = false;
@@ -95,6 +104,17 @@ export const make = () => {
       return Effect.sync(() => {
         closeServer(server);
       });
+    });
+
+  const canListenOnHost = (port: number, host: string): Effect.Effect<boolean> =>
+    Effect.gen(function* () {
+      const available = yield* canListenOnHostLive(port, host);
+      return yield* runViaOptionalG10S3SharedSeam(
+        "INV-T2-NET-TCP",
+        "net-canListenOnHost-resolved",
+        { result_class: available ? "available" : "unavailable" },
+        Effect.succeed(available),
+      );
     });
 
   const hasListenerOnHost = (port: number, host: string): Effect.Effect<boolean> =>

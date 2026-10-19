@@ -1,11 +1,13 @@
 /**
  * T3 server observability layer (logger, local-file tracer, optional OTLP).
  *
- * Agent (WP6-Consumer-Owner, RFC-014 A): sole lander for G9 on this file.
- * Provides G9T3OtlpExportHooksLayer (INV-T2-TEL-T3-OTLP post-success signals).
- * Lands B5 INV-T2-TEL-T3-TRACE after local-file batch persist succeeds (onFlush
- * with count > 0). Absent G9CaptureService / ExportHooks ⇒ live unchanged.
- * Hook fault must not rewrite live export. Signal / presence A only — no spans.
+ * Agent (G10 S6 sole lander + WP6 consumer): admit/route/replace via
+ * g10SeamBridge on this file for TEL-T3-OTLP and S5→S6 TEL-T3-TRACE handoff.
+ * Provides G10T3OtlpExportHooksLayer (INV-T2-TEL-T3-OTLP post-success signals).
+ * Lands INV-T2-TEL-T3-TRACE after local-file batch persist succeeds (onFlush
+ * with count > 0). G9 capture stays observe-beside. Absent G10 controller /
+ * G9CaptureService / ExportHooks ⇒ live unchanged. Hook fault must not rewrite
+ * live export. Signal / presence A only — no spans.
  */
 import { httpHeaderRedactionLayer } from "@t3tools/shared/httpObservability";
 import { makeLocalFileTracer, makeTraceSink } from "@t3tools/shared/observability";
@@ -21,7 +23,8 @@ import * as OtlpTracer from "effect/unstable/observability/OtlpTracer";
 import * as ServerConfig from "../../config.ts";
 import * as ResourceAttribution from "../../resourceTelemetry/ResourceAttribution.ts";
 import { captureT3TracePersistedBatchSucceeded } from "../../scm/g9FamilyTerminalLocalStreams.ts";
-import { G9T3OtlpExportHooksLayer, withOptionalG9Capture } from "../../scm/g9FamilyTypedHooks.ts";
+import { withOptionalG9Capture } from "../../scm/g9FamilyTypedHooks.ts";
+import { G10T3OtlpExportHooksLayer, t3TraceBatchViaG10Bridge } from "../../scm/g10SliceS6.ts";
 import { ServerLoggerLive } from "../../serverLogger.ts";
 import * as BrowserTraceCollector from "../BrowserTraceCollector.ts";
 
@@ -55,11 +58,13 @@ export const ObservabilityLive = Layer.unwrap(
                 durationMs: stats.durationMs,
               })
               .pipe(
-                // INV-T2-TEL-T3-TRACE / t3-trace-persisted-batch-succeeded (B5→WP6).
+                // INV-T2-TEL-T3-TRACE / t3-trace-persisted-batch-succeeded (S5→S6 handoff land).
                 // Agent: makeTraceSink already gates count > 0; presence A only.
                 Effect.andThen(
-                  withOptionalG9Capture((capture) =>
-                    captureT3TracePersistedBatchSucceeded(capture),
+                  t3TraceBatchViaG10Bridge(
+                    withOptionalG9Capture((capture) =>
+                      captureT3TracePersistedBatchSucceeded(capture),
+                    ),
                   ),
                 ),
               ),
@@ -96,8 +101,8 @@ export const ObservabilityLive = Layer.unwrap(
     ).pipe(
       Layer.provide(OtlpExporter.layerFlusher),
       Layer.provideMerge(otlpSerializationLayer),
-      // Agent (WP6): ExportHooks for T3 OTLP post-success (traces path build).
-      Layer.provide(G9T3OtlpExportHooksLayer),
+      // Agent (G10 S6): ExportHooks for T3 OTLP post-success (traces path build).
+      Layer.provide(G10T3OtlpExportHooksLayer),
     );
 
     const metricsLayer =
@@ -115,8 +120,8 @@ export const ObservabilityLive = Layer.unwrap(
             },
           }).pipe(
             Layer.provideMerge(otlpSerializationLayer),
-            // Agent (WP6): ExportHooks for T3 OTLP post-success (metrics path build).
-            Layer.provide(G9T3OtlpExportHooksLayer),
+            // Agent (G10 S6): ExportHooks for T3 OTLP post-success (metrics path build).
+            Layer.provide(G10T3OtlpExportHooksLayer),
           );
 
     return Layer.mergeAll(ServerLoggerLive, traceReferencesLayer, tracerLayer, metricsLayer);

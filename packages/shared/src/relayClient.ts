@@ -18,6 +18,7 @@ import * as Semaphore from "effect/Semaphore";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { HostProcessArchitecture, HostProcessPlatform } from "./hostProcess.ts";
+import { runViaOptionalG10S3SharedSeam } from "./g10S3CutoverHook.ts";
 
 export const CLOUDFLARED_VERSION = "2026.5.2";
 export const CLOUDFLARED_PATH_ENV_NAME = "T3CODE_CLOUDFLARED_PATH";
@@ -302,73 +303,96 @@ export const makeCloudflaredRelayClient = Effect.fn("cloudflared.make")(function
 
   const resolve: RelayClientShape["resolve"] = Effect.gen(function* () {
     const config = yield* loadCloudflaredConfig;
-    // B2 FLAG-CLOUDFLARED: one capture per successful flag resolution (no path in A).
+    const state_label = Option.isSome(config.executableOverride)
+      ? ("configured" as const)
+      : ("absent" as const);
+    // B2 FLAG-CLOUDFLARED: G9 capture-beside + G10 S8 lander-reopen cutover
+    // (S7→S3 handoff; not historical S3 exit (a)). No path strings in A.
     yield* whenRelayG9CapturePresent((captureOccurrence) =>
-      captureOccurrence(
-        buildFlagCloudflaredResolvedInput(
-          Option.isSome(config.executableOverride) ? "configured" : "absent",
-        ),
-      ),
+      captureOccurrence(buildFlagCloudflaredResolvedInput(state_label)),
     );
-    if (Option.isSome(config.executableOverride)) {
-      return (yield* isExecutableFile(config.executableOverride.value))
-        ? {
-            status: "available",
-            executablePath: config.executableOverride.value,
-            source: "override",
+    const resolved = yield* runViaOptionalG10S3SharedSeam(
+      "INV-T2-FLAG-CLOUDFLARED",
+      "flag-resolved",
+      { member: CLOUDFLARED_PATH_ENV_NAME, state_label },
+      Effect.gen(function* () {
+        if (Option.isSome(config.executableOverride)) {
+          return (yield* isExecutableFile(config.executableOverride.value))
+            ? {
+                status: "available" as const,
+                executablePath: config.executableOverride.value,
+                source: "override" as const,
+                version: CLOUDFLARED_VERSION,
+              }
+            : { status: "missing" as const, version: CLOUDFLARED_VERSION };
+        }
+        if (yield* isExecutableFile(managedPath)) {
+          return {
+            status: "available" as const,
+            executablePath: managedPath,
+            source: "managed" as const,
             version: CLOUDFLARED_VERSION,
-          }
-        : { status: "missing", version: CLOUDFLARED_VERSION };
-    }
-    if (yield* isExecutableFile(managedPath)) {
-      return {
-        status: "available",
-        executablePath: managedPath,
-        source: "managed",
-        version: CLOUDFLARED_VERSION,
-      };
-    }
-    const pathExecutable = yield* resolvePathExecutable;
-    if (pathExecutable) {
-      return {
-        status: "available",
-        executablePath: pathExecutable,
-        source: "path",
-        version: CLOUDFLARED_VERSION,
-      };
-    }
-    return releaseAsset
-      ? { status: "missing", version: CLOUDFLARED_VERSION }
-      : {
-          status: "unsupported",
-          platform,
-          arch,
-          version: CLOUDFLARED_VERSION,
-        };
+          };
+        }
+        const pathExecutable = yield* resolvePathExecutable;
+        if (pathExecutable) {
+          return {
+            status: "available" as const,
+            executablePath: pathExecutable,
+            source: "path" as const,
+            version: CLOUDFLARED_VERSION,
+          };
+        }
+        return releaseAsset
+          ? { status: "missing" as const, version: CLOUDFLARED_VERSION }
+          : {
+              status: "unsupported" as const,
+              platform,
+              arch,
+              version: CLOUDFLARED_VERSION,
+            };
+      }),
+    );
+    return resolved;
   });
 
   const runCommand = Effect.fn("cloudflared.runCommand")(function* (
     command: string,
     args: ReadonlyArray<string>,
   ) {
-    const child = yield* spawner.spawn(
-      ChildProcess.make(command, args, {
-        shell: false,
-        stdout: "ignore",
-        stderr: "ignore",
+    // G10 S3 RELAY-CLIENT cutover on spawn/exit. FLAG-CLOUDFLARED resolve is
+    // a separate S8 lander-reopen seam (not historical S3 exit (a)).
+    const child = yield* runViaOptionalG10S3SharedSeam(
+      "INV-T2-RELAY-CLIENT",
+      "cloudflared-spawn-succeeded",
+      { site: "spawned" },
+      Effect.gen(function* () {
+        const spawned = yield* spawner.spawn(
+          ChildProcess.make(command, args, {
+            shell: false,
+            stdout: "ignore",
+            stderr: "ignore",
+          }),
+        );
+        // RELAY-CLIENT spawn: after spawner.spawn succeeds (no command/args in A).
+        yield* whenRelayG9CapturePresent((captureOccurrence) =>
+          captureOccurrence(buildCloudflaredSpawnInput()),
+        );
+        return spawned;
       }),
-    );
-    // RELAY-CLIENT spawn: after spawner.spawn succeeds (no command/args in A).
-    yield* whenRelayG9CapturePresent((captureOccurrence) =>
-      captureOccurrence(buildCloudflaredSpawnInput()),
     );
     const exitCode = Number(yield* child.exitCode);
     if (exitCode !== 0) {
       return yield* new CloudflaredCommandError({ command, exitCode });
     }
     // RELAY-CLIENT exit: observed zero-exit success boundary (no exitCode in A).
-    yield* whenRelayG9CapturePresent((captureOccurrence) =>
-      captureOccurrence(buildCloudflaredExitInput()),
+    yield* runViaOptionalG10S3SharedSeam(
+      "INV-T2-RELAY-CLIENT",
+      "cloudflared-exit-succeeded",
+      { site: "exited" },
+      whenRelayG9CapturePresent((captureOccurrence) =>
+        captureOccurrence(buildCloudflaredExitInput()),
+      ),
     );
   });
 

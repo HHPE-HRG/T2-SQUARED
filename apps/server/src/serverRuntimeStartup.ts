@@ -42,6 +42,7 @@ import {
   isWildcardHost,
   issueHeadlessServeAccessInfo,
 } from "./startupAccess.ts";
+import { httpServeListeningViaG10Bridge } from "./scm/g10SliceS3.ts";
 
 export class ServerRuntimeStartupError extends Schema.TaggedErrorClass<ServerRuntimeStartupError>()(
   "ServerRuntimeStartupError",
@@ -489,7 +490,8 @@ export const make = (options?: StartupOptions) =>
 
     return {
       awaitCommandReady: commandGate.awaitCommandReady,
-      markHttpListening: Deferred.succeed(httpListening, undefined),
+      // G10 S3 HTTP-SERVE cutover on listening mark (Deferred.succeed).
+      markHttpListening: httpServeListeningViaG10Bridge(Deferred.succeed(httpListening, undefined)),
       enqueueCommand: commandGate.enqueueCommand,
     } satisfies ServerRuntimeStartup["Service"];
   });

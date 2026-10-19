@@ -43,6 +43,7 @@ import {
 import { getOrCreateEnvironmentKeyPairFromSecretStore } from "../cloud/environmentKeys.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as OrchestrationEngine from "../orchestration/Services/OrchestrationEngine.ts";
+import { relayAwarenessViaG10Bridge } from "../scm/g10SliceS3.ts";
 import * as ProjectionSnapshotQuery from "../orchestration/Services/ProjectionSnapshotQuery.ts";
 import { forkParked } from "../serverActivation.ts";
 
@@ -385,16 +386,19 @@ export const make = Effect.gen(function* () {
           reason: input.reason,
         });
 
-        const response = yield* relayClient.server.publishAgentActivity({
-          params: {
-            environmentId,
-            threadId,
-          },
-          payload: {
-            state: input.state,
-            proof,
-          },
-        });
+        // G10 S3 RELAY-AWARENESS cutover on publishAgentActivity success.
+        const response = yield* relayAwarenessViaG10Bridge(
+          relayClient.server.publishAgentActivity({
+            params: {
+              environmentId,
+              threadId,
+            },
+            payload: {
+              state: input.state,
+              proof,
+            },
+          }),
+        );
 
         yield* Effect.logInfo("agent activity publish completed", {
           environmentId,

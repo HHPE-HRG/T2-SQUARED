@@ -118,6 +118,7 @@ import * as RelayClient from "@t3tools/shared/relayClient";
 import { disableTailscaleServe, ensureTailscaleServe } from "@t3tools/tailscale";
 import { forkParked, ServerActivation } from "./serverActivation.ts";
 import { g9ShadowStackLayerFromEnv } from "./scm/g9Bootstrap.ts";
+import { g10CutoverStackLayerFromEnv } from "./scm/g10Bootstrap.ts";
 
 // Effect's default preemptive shutdown waits 20s before finalizing request scopes.
 // T3's primary transport is long-lived WebSocket RPC, whose Effect scope finalizer
@@ -430,6 +431,11 @@ const RuntimeDependenciesLive = RuntimeCoreDependenciesLive.pipe(
   // Present (T2CODE_SCM_G9_SHADOW=1|true|yes) ⇒ fail-fast package load + armed waker.
   // WP6 hook Layers already merge on consumer files; they activate when this service is present.
   Layer.provideMerge(g9ShadowStackLayerFromEnv()),
+  // G10 Increment 6 cutover (auth-freeze process wire).
+  // Absent (default) ⇒ Layer.empty, today’s live unchanged.
+  // Present (T2CODE_SCM_G10_CUTOVER=1|true|yes) ⇒ S1–S7 cutover controllers.
+  // Distinct from G9 shadow. Does not activate home-bus / codec.
+  Layer.provideMerge(g10CutoverStackLayerFromEnv()),
 );
 
 const commandReadinessLayer = HttpRouter.middleware(

@@ -14,6 +14,8 @@ import * as LogLevel from "effect/LogLevel";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
+import { fileLogsDirCreateViaG10Bridge, fileSecretsViaG10Bridge } from "./scm/g10SliceS7.ts";
+
 export const DEFAULT_PORT = 3773;
 
 export const RuntimeMode = Schema.Literals(["web", "desktop"]);
@@ -136,12 +138,24 @@ export const ensureServerDirectories = Effect.fn(function* (derivedPaths: Server
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
 
+  // G10 S7 FILE-LOGS directory-create phases (config.ts sole lander).
+  // serverLogPath-declared-no-live-writer stays declaration-absence (no live capture).
+  // FILE-SECRETS: secretsDir root ensure on this lander (binary writes stay ServerSecretStore).
   yield* Effect.all(
     [
       fs.makeDirectory(derivedPaths.stateDir, { recursive: true }),
-      fs.makeDirectory(derivedPaths.logsDir, { recursive: true }),
-      fs.makeDirectory(derivedPaths.providerLogsDir, { recursive: true }),
-      fs.makeDirectory(derivedPaths.terminalLogsDir, { recursive: true }),
+      fileLogsDirCreateViaG10Bridge(
+        "logsDir",
+        fs.makeDirectory(derivedPaths.logsDir, { recursive: true }),
+      ),
+      fileLogsDirCreateViaG10Bridge(
+        "providerLogsDir",
+        fs.makeDirectory(derivedPaths.providerLogsDir, { recursive: true }),
+      ),
+      fileLogsDirCreateViaG10Bridge(
+        "terminalLogsDir",
+        fs.makeDirectory(derivedPaths.terminalLogsDir, { recursive: true }),
+      ),
       fs.makeDirectory(derivedPaths.attachmentsDir, { recursive: true }),
       fs.makeDirectory(derivedPaths.worktreesDir, { recursive: true }),
       fs.makeDirectory(path.dirname(derivedPaths.keybindingsConfigPath), { recursive: true }),
@@ -149,6 +163,7 @@ export const ensureServerDirectories = Effect.fn(function* (derivedPaths: Server
       fs.makeDirectory(derivedPaths.providerStatusCacheDir, { recursive: true }),
       fs.makeDirectory(path.dirname(derivedPaths.anonymousIdPath), { recursive: true }),
       fs.makeDirectory(path.dirname(derivedPaths.serverRuntimeStatePath), { recursive: true }),
+      fileSecretsViaG10Bridge(fs.makeDirectory(derivedPaths.secretsDir, { recursive: true })),
     ],
     { concurrency: "unbounded" },
   );

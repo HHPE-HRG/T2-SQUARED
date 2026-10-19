@@ -1,13 +1,14 @@
 /**
  * T2 OpenTelemetry bridge (catalog spans + optional OTLP / NDJSON exporters).
  *
- * Agent (WP6-Consumer-Owner, RFC-005 A): sole lander for G9 on this file.
- * Lands INV-T2-TEL-T2-OTLP after filtered OTLPTraceExporter success.
- * Lands B2 INV-T2-FLAG-T2-OTEL at T2ObservabilityLive flag resolution.
- * Lands B5 INV-T2-TEL-NDJSON after NDJSON export success.
- * Absent G9CaptureService ⇒ live exporters unchanged. Hook/capture fault must
- * not rewrite live success. Signal / member+state_label / presence A only —
- * no URLs, paths, or span payloads in A.
+ * Agent (G10 S6 sole lander + WP6 consumer): admit/route/replace via
+ * g10SeamBridge on this file for FLAG-T2-OTEL, TEL-T2-OTLP, and S5→S6
+ * TEL-NDJSON handoff. Lands INV-T2-TEL-T2-OTLP after filtered OTLPTraceExporter
+ * success. Lands INV-T2-FLAG-T2-OTEL at T2ObservabilityLive flag resolution.
+ * Lands INV-T2-TEL-NDJSON after NDJSON export success. G9 capture stays
+ * observe-beside. Absent G10 controller / G9CaptureService ⇒ live exporters
+ * unchanged. Hook/capture fault must not rewrite live success. Signal /
+ * member / presence A only — no URLs, paths, or span payloads in A.
  */
 // @effect-diagnostics nodeBuiltinImport:off
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -49,6 +50,11 @@ import {
 } from "../scm/g9FamilyFileDbProcessConfig.ts";
 import { captureNdjsonExportSucceeded } from "../scm/g9FamilyTerminalLocalStreams.ts";
 import { captureT2OtlpExportSucceeded, withOptionalG9Capture } from "../scm/g9FamilyTypedHooks.ts";
+import {
+  flagT2OtelViaG10Bridge,
+  ndjsonExportViaG10Bridge,
+  t2OtlpExportViaG10Bridge,
+} from "../scm/g10SliceS6.ts";
 import { type T2CatalogBoundary } from "./boundaries.ts";
 import { T2NdjsonSpanExporter } from "./ndjsonExporter.ts";
 
@@ -179,7 +185,11 @@ export const resolveT2OtelFlagState = (
   }
 };
 
-/** Capture all three FLAG-T2-OTEL members once at layer construction. */
+/**
+ * Capture all three FLAG-T2-OTEL members once at layer construction.
+ *
+ * Agent: G10 S6 bridge selects live vs manifold; G9 capture remains observe-beside.
+ */
 export const captureT2OtelFlagsResolved = (
   environment: NodeJS.ProcessEnv = process.env,
 ): Effect.Effect<void, never> =>
@@ -191,8 +201,11 @@ export const captureT2OtelFlagsResolved = (
     ] as const satisfies ReadonlyArray<G9T2OtelFlagMember>;
     for (const member of members) {
       const state_label = resolveT2OtelFlagState(member, environment);
-      yield* withOptionalG9Capture((capture) =>
-        captureFlagT2OtelResolved(member, state_label, capture).pipe(Effect.asVoid),
+      yield* flagT2OtelViaG10Bridge(
+        member,
+        withOptionalG9Capture((capture) =>
+          captureFlagT2OtelResolved(member, state_label, capture).pipe(Effect.asVoid),
+        ),
       );
     }
   });
@@ -211,8 +224,10 @@ const make = (options: T2ObservabilityMakeOptions) =>
         runFork(effect);
       },
       () =>
-        // INV-T2-TEL-NDJSON / ndjson-export-succeeded (B5→WP6): presence A only.
-        withOptionalG9Capture((capture) => captureNdjsonExportSucceeded(capture)),
+        // INV-T2-TEL-NDJSON / ndjson-export-succeeded (S5→S6 handoff land): presence A only.
+        ndjsonExportViaG10Bridge(
+          withOptionalG9Capture((capture) => captureNdjsonExportSucceeded(capture)),
+        ),
     );
 
     const spanProcessors = [
@@ -230,7 +245,7 @@ const make = (options: T2ObservabilityMakeOptions) =>
                 (batchSize) =>
                   // INV-T2-TEL-T2-OTLP / t2-otlp-export-succeeded (WP6 full-row).
                   // Agent: nonempty success only; scmOnlyBatch reserved for filter path.
-                  captureT2OtlpExportSucceeded({ batchSize }),
+                  t2OtlpExportViaG10Bridge(captureT2OtlpExportSucceeded({ batchSize })),
               ),
             ),
           ]),

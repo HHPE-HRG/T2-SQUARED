@@ -13,6 +13,8 @@ import {
   GetProjectionThreadSessionInput,
 } from "../Services/ProjectionThreadSessions.ts";
 
+import { wrapProjectionThreadSessionsWithG10 } from "../../scm/g10SliceS7.ts";
+
 const makeProjectionThreadSessionRepository = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
@@ -99,11 +101,12 @@ const makeProjectionThreadSessionRepository = Effect.gen(function* () {
       ),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionThreadSessionsWithG10({
     upsert,
     getByThreadId,
     deleteByThreadId,
-  } satisfies ProjectionThreadSessionRepositoryShape;
+  });
 });
 
 export const ProjectionThreadSessionRepositoryLive = Layer.effect(

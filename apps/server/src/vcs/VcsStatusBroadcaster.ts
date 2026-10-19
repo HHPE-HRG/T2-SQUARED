@@ -1,3 +1,9 @@
+/**
+ * VCS status cache + change broadcaster.
+ *
+ * G10 S1: INV-T2-VCS-EVENTS admit/route/replace via g10SeamBridge at
+ * PubSub.publish sites. Absent G10S1 / not replaced ⇒ live publish only.
+ */
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
@@ -24,6 +30,7 @@ import { mergeGitStatusParts } from "@t3tools/shared/git";
 
 import * as BackgroundPolicy from "../background/BackgroundPolicy.ts";
 import * as GitWorkflowService from "../git/GitWorkflowService.ts";
+import { publishVcsEventsViaG10Bridge } from "../scm/g10SliceS1.ts";
 
 const DEFAULT_VCS_STATUS_REFRESH_INTERVAL = Duration.seconds(30);
 const VCS_STATUS_REFRESH_FAILURE_BASE_DELAY = Duration.seconds(30);
@@ -217,13 +224,16 @@ export const make = Effect.gen(function* () {
       });
 
       if (options?.publish && shouldPublish) {
-        yield* PubSub.publish(changesPubSub, {
-          cwd,
-          event: {
-            _tag: "localUpdated",
-            local,
-          },
-        });
+        // G10 S1: VCS-EVENTS publish through seam bridge when S1 replaced.
+        yield* publishVcsEventsViaG10Bridge(
+          PubSub.publish(changesPubSub, {
+            cwd,
+            event: {
+              _tag: "localUpdated",
+              local,
+            },
+          }),
+        );
       }
 
       return local;
@@ -247,13 +257,15 @@ export const make = Effect.gen(function* () {
       });
 
       if (options?.publish && shouldPublish) {
-        yield* PubSub.publish(changesPubSub, {
-          cwd,
-          event: {
-            _tag: "remoteUpdated",
-            remote,
-          },
-        });
+        yield* publishVcsEventsViaG10Bridge(
+          PubSub.publish(changesPubSub, {
+            cwd,
+            event: {
+              _tag: "remoteUpdated",
+              remote,
+            },
+          }),
+        );
       }
 
       return remote;
@@ -289,14 +301,16 @@ export const make = Effect.gen(function* () {
     });
 
     if (options?.publish && shouldPublish) {
-      yield* PubSub.publish(changesPubSub, {
-        cwd,
-        event: {
-          _tag: "snapshot",
-          local,
-          remote,
-        },
-      });
+      yield* publishVcsEventsViaG10Bridge(
+        PubSub.publish(changesPubSub, {
+          cwd,
+          event: {
+            _tag: "snapshot",
+            local,
+            remote,
+          },
+        }),
+      );
     }
 
     return mergeGitStatusParts(local, remote);

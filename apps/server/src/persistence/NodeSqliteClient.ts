@@ -19,6 +19,7 @@ import * as Semaphore from "effect/Semaphore";
 import * as Context from "effect/Context";
 import * as Stream from "effect/Stream";
 
+import { sqliteExecuteViaG10Bridge } from "../scm/g10SliceS7.ts";
 import { withCatalogBridge } from "../t2Observability/T2Observability.ts";
 import * as Reactivity from "effect/unstable/reactivity/Reactivity";
 import * as Client from "effect/unstable/sql/SqlClient";
@@ -239,10 +240,15 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
     return identity<Connection>({
       execute(sql, params, rowTransform) {
         const effect = rowTransform ? Effect.map(run(sql, params), rowTransform) : run(sql, params);
-        return withCatalogBridge("sqlite", effect);
+        // G10 S7 SQLITE / sqlite-execute-succeeded (execute).
+        return sqliteExecuteViaG10Bridge("execute", withCatalogBridge("sqlite", effect));
       },
       executeRaw(sql, params) {
-        return withCatalogBridge("sqlite", run(sql, params, true));
+        // G10 S7 SQLITE / sqlite-execute-succeeded (executeRaw).
+        return sqliteExecuteViaG10Bridge(
+          "executeRaw",
+          withCatalogBridge("sqlite", run(sql, params, true)),
+        );
       },
       executeValues(sql, params) {
         return withCatalogBridge("sqlite", runValues(sql, params));
@@ -263,6 +269,7 @@ const makeWithDatabase = Effect.fn("makeWithDatabase")(function* (
         );
       },
       executeStream(_sql, _params) {
+        // Ledger lists executeStream; Node dies — no G10 traffic on die path.
         return Stream.die(new UnsupportedNodeSqliteOperationError());
       },
     });

@@ -13,6 +13,7 @@ import { resolveServerSelfUpdateCapability } from "../cloud/selfUpdate.ts";
 import { resolveServiceLauncherMode } from "../cloud/serviceLauncherClient.ts";
 import * as ServerConfig from "../config.ts";
 import * as ProcessRunner from "../processRunner.ts";
+import { runtimeStateWriteViaG10Bridge } from "../scm/g10SliceS7.ts";
 import { resolveServerEnvironmentLabel } from "./ServerEnvironmentLabel.ts";
 
 export class ServerEnvironmentIdPersistenceError extends Schema.TaggedErrorClass<ServerEnvironmentIdPersistenceError>()(
@@ -101,14 +102,18 @@ export const make = Effect.gen(function* () {
   });
 
   const persistEnvironmentId = (value: string) =>
-    fileSystem.writeFileString(serverConfig.environmentIdPath, `${value}\n`).pipe(
-      Effect.mapError(
-        (cause) =>
-          new ServerEnvironmentIdPersistenceError({
-            operation: "write",
-            environmentIdPath: serverConfig.environmentIdPath,
-            cause,
-          }),
+    // G10 S7 FILE-RUNTIME-STATE / environmentIdPath-write-succeeded.
+    runtimeStateWriteViaG10Bridge(
+      "environmentIdPath",
+      fileSystem.writeFileString(serverConfig.environmentIdPath, `${value}\n`).pipe(
+        Effect.mapError(
+          (cause) =>
+            new ServerEnvironmentIdPersistenceError({
+              operation: "write",
+              environmentIdPath: serverConfig.environmentIdPath,
+              cause,
+            }),
+        ),
       ),
     );
 

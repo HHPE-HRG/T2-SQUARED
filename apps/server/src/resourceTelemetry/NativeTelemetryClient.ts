@@ -1,3 +1,13 @@
+/**
+ * Native resource-monitor client (G10 S5 sole lander for INV-T2-RES-MONITOR).
+ *
+ * Intended: spawn / stdin write / event decode success paths record through
+ * g10SliceS5 bridges + optional G9 B5 capture. Absent G10/G9 ⇒ live unchanged.
+ * Equality A carries site / command / event_type only (no payload bytes).
+ *
+ * Observed: cutover wraps success edges only; handshake/decode failures do
+ * not emit cutover or capture records.
+ */
 import type {
   HostPowerSnapshot,
   ResourceMonitorCapabilities,
@@ -36,6 +46,17 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import * as ResourceMonitorBinary from "./ResourceMonitorBinary.ts";
 import { ServerConfig } from "../config.ts";
+import {
+  captureMonitorEventDecoded,
+  captureMonitorSpawnSucceeded,
+  captureMonitorStdinWriteSucceeded,
+  withOptionalG9Capture,
+} from "../scm/g9FamilyTerminalLocalStreams.ts";
+import {
+  resMonitorEventDecodedViaG10Bridge,
+  resMonitorSpawnViaG10Bridge,
+  resMonitorStdinWriteViaG10Bridge,
+} from "../scm/g10SliceS5.ts";
 import { subscribeBeforeSnapshotWithoutMutex } from "../utils/subscribeBeforeSnapshot.ts";
 
 const SAMPLE_INTERVAL_MS = 1_000;
@@ -418,25 +439,35 @@ export const make = Effect.fn("resourceTelemetry.nativeTelemetryClient.make")(fu
     handle: ChildProcessSpawner.ChildProcessHandle,
     command: ResourceMonitorCommand,
   ): Effect.Effect<void, NativeTelemetryClientError> =>
-    commandMutex.withPermits(1)(
-      encodeMonitorCommand(command).pipe(
-        Effect.map((encoded) => `${encoded}\n`),
-        Effect.mapError(
-          (cause) =>
-            new NativeTelemetryCommandFailed({
-              operation: command.type,
-              cause,
-            }),
-        ),
-        Effect.flatMap((encoded) =>
-          Stream.run(Stream.encodeText(Stream.make(encoded)), handle.stdin),
-        ),
-        Effect.mapError(
-          (cause) =>
-            new NativeTelemetryCommandFailed({
-              operation: command.type,
-              cause,
-            }),
+    // INV-T2-RES-MONITOR / monitor-stdin-write-succeeded: after stdin write.
+    // Agent: G10 S5 bridge + G9; command type only in A (no args / encoded body).
+    resMonitorStdinWriteViaG10Bridge(
+      command.type,
+      commandMutex.withPermits(1)(
+        encodeMonitorCommand(command).pipe(
+          Effect.map((encoded) => `${encoded}\n`),
+          Effect.mapError(
+            (cause) =>
+              new NativeTelemetryCommandFailed({
+                operation: command.type,
+                cause,
+              }),
+          ),
+          Effect.flatMap((encoded) =>
+            Stream.run(Stream.encodeText(Stream.make(encoded)), handle.stdin),
+          ),
+          Effect.mapError(
+            (cause) =>
+              new NativeTelemetryCommandFailed({
+                operation: command.type,
+                cause,
+              }),
+          ),
+          Effect.tap(() =>
+            withOptionalG9Capture((capture) =>
+              captureMonitorStdinWriteSucceeded(capture, command.type),
+            ),
+          ),
         ),
       ),
     );
@@ -545,15 +576,23 @@ export const make = Effect.fn("resourceTelemetry.nativeTelemetryClient.make")(fu
         killSignal: "SIGTERM",
         forceKillAfter: Duration.seconds(2),
       });
-      const handle = yield* Effect.acquireRelease(
-        spawner
-          .spawn(command)
-          .pipe(
-            Effect.mapError(
-              (cause) => new NativeTelemetrySpawnFailed({ path: executablePath, cause }),
+      // INV-T2-RES-MONITOR / monitor-spawn-succeeded: after ChildProcess spawn.
+      // Agent: G10 S5 bridge + G9; site "spawned" only (no path in A).
+      const handle = yield* resMonitorSpawnViaG10Bridge(
+        Effect.acquireRelease(
+          spawner
+            .spawn(command)
+            .pipe(
+              Effect.mapError(
+                (cause) => new NativeTelemetrySpawnFailed({ path: executablePath, cause }),
+              ),
             ),
+          (child) => child.kill().pipe(Effect.ignore),
+        ).pipe(
+          Effect.tap(() =>
+            withOptionalG9Capture((capture) => captureMonitorSpawnSucceeded(capture)),
           ),
-        (child) => child.kill().pipe(Effect.ignore),
+        ),
       );
       yield* Ref.update(state, (current) => ({
         ...current,
@@ -583,8 +622,21 @@ export const make = Effect.fn("resourceTelemetry.nativeTelemetryClient.make")(fu
                 }),
               );
             }
+            // INV-T2-RES-MONITOR / monitor-event-decoded: after schema decode.
+            // Agent: G10 S5 bridge + G9; event_type only (no payload in A).
             return decodeMonitorEvent(value).pipe(
               Effect.mapError((cause) => new NativeTelemetryDecodeFailed({ cause })),
+              Effect.flatMap((event) =>
+                resMonitorEventDecodedViaG10Bridge(
+                  event.type,
+                  Effect.gen(function* () {
+                    yield* withOptionalG9Capture((capture) =>
+                      captureMonitorEventDecoded(capture, event.type),
+                    );
+                    return event;
+                  }),
+                ),
+              ),
             );
           },
         ),

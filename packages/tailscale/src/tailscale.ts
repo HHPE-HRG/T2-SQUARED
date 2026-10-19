@@ -1,3 +1,11 @@
+/**
+ * Tailscale CLI helpers + G10 S3 TAILSCALE cutover (shared-package hook).
+ *
+ * Intended: ensureTailscaleServe / disableTailscaleServe success wraps through
+ * optional G10 S3 shared seam. Absent ⇒ live unchanged. Equality A is
+ * operation configure|disable only (no host/port/stderr).
+ */
+import { runViaOptionalG10S3SharedSeam } from "@t3tools/shared/g10S3CutoverHook";
 import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -344,7 +352,12 @@ export const ensureTailscaleServe = (input: {
   const servePort = input.servePort ?? DEFAULT_TAILSCALE_SERVE_PORT;
   const localHost = input.localHost ?? "127.0.0.1";
   const args = ["serve", "--bg", `--https=${servePort}`, `http://${localHost}:${input.localPort}`];
-  return runTailscaleCommand(args, TAILSCALE_SERVE_TIMEOUT);
+  return runViaOptionalG10S3SharedSeam(
+    "INV-T2-TAILSCALE",
+    "tailscale-command-succeeded",
+    { operation: "configure" },
+    runTailscaleCommand(args, TAILSCALE_SERVE_TIMEOUT),
+  );
 };
 
 export const disableTailscaleServe = (
@@ -354,9 +367,11 @@ export const disableTailscaleServe = (
 ): Effect.Effect<void, TailscaleCommandError, ChildProcessSpawner.ChildProcessSpawner> =>
   Effect.gen(function* () {
     const servePort = input.servePort ?? DEFAULT_TAILSCALE_SERVE_PORT;
-    return yield* runTailscaleCommand(
-      ["serve", `--https=${servePort}`, "off"],
-      TAILSCALE_SERVE_TIMEOUT,
+    return yield* runViaOptionalG10S3SharedSeam(
+      "INV-T2-TAILSCALE",
+      "tailscale-command-succeeded",
+      { operation: "disable" },
+      runTailscaleCommand(["serve", `--https=${servePort}`, "off"], TAILSCALE_SERVE_TIMEOUT),
     );
   });
 

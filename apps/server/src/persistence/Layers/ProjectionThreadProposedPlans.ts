@@ -12,6 +12,8 @@ import {
   type ProjectionThreadProposedPlanRepositoryShape,
 } from "../Services/ProjectionThreadProposedPlans.ts";
 
+import { wrapProjectionThreadProposedPlansWithG10 } from "../../scm/g10SliceS7.ts";
+
 const makeProjectionThreadProposedPlanRepository = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
@@ -98,11 +100,12 @@ const makeProjectionThreadProposedPlanRepository = Effect.gen(function* () {
       ),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionThreadProposedPlansWithG10({
     upsert,
     listByThreadId,
     deleteByThreadId,
-  } satisfies ProjectionThreadProposedPlanRepositoryShape;
+  });
 });
 
 export const ProjectionThreadProposedPlanRepositoryLive = Layer.effect(

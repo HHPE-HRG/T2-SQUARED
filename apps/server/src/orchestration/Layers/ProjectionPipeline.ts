@@ -4,6 +4,10 @@
  * G9 W5c (B1): INV-T2-PROJECT-QUEUE / projection-event-succeeded captures after
  * projectEvent succeeds (Effect success channel only). Optional G9CaptureService
  * — absent ⇒ projection behavior unchanged. Does not claim SQL commit durability.
+ *
+ * G10 S1: projectEvent success path also runs through g10SeamBridge
+ * (projectQueueViaG10Bridge). Absent G10S1 / not replaced ⇒ live projection
+ * unchanged. G9 capture remains observe-beside inside the live effect.
  */
 import {
   ApprovalRequestId,
@@ -24,6 +28,7 @@ import {
   captureProjectQueueSucceeded,
   captureWhenG9Present,
 } from "../../scm/g9FamilyQueuePubSubCallback.ts";
+import { projectQueueViaG10Bridge } from "../../scm/g10SliceS1.ts";
 
 import { toPersistenceSqlError, type ProjectionRepositoryError } from "../../persistence/Errors.ts";
 import { OrchestrationEventStore } from "../../persistence/Services/OrchestrationEventStore.ts";
@@ -1707,17 +1712,21 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
         );
 
     const projectEvent: OrchestrationProjectionPipelineShape["projectEvent"] = (event) =>
-      Effect.forEach(projectors, (projector) => runProjectorForEvent(projector, event), {
-        concurrency: 1,
-      }).pipe(
-        Effect.provideService(FileSystem.FileSystem, fileSystem),
-        Effect.provideService(Path.Path, path),
-        Effect.provideService(ServerConfig, serverConfig),
-        Effect.asVoid,
-        // PROJECT-QUEUE: success channel only; fail/SqlError → no capture.
-        Effect.tap(() => captureWhenG9Present((capture) => captureProjectQueueSucceeded(capture))),
-        Effect.catchTag("SqlError", (sqlError) =>
-          Effect.fail(toPersistenceSqlError("ProjectionPipeline.projectEvent:query")(sqlError)),
+      projectQueueViaG10Bridge(
+        Effect.forEach(projectors, (projector) => runProjectorForEvent(projector, event), {
+          concurrency: 1,
+        }).pipe(
+          Effect.provideService(FileSystem.FileSystem, fileSystem),
+          Effect.provideService(Path.Path, path),
+          Effect.provideService(ServerConfig, serverConfig),
+          Effect.asVoid,
+          // PROJECT-QUEUE G9: success channel only; fail/SqlError → no capture.
+          Effect.tap(() =>
+            captureWhenG9Present((capture) => captureProjectQueueSucceeded(capture)),
+          ),
+          Effect.catchTag("SqlError", (sqlError) =>
+            Effect.fail(toPersistenceSqlError("ProjectionPipeline.projectEvent:query")(sqlError)),
+          ),
         ),
       );
 

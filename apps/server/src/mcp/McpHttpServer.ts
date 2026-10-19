@@ -25,6 +25,7 @@ import {
   captureMcpHttpMessageAdmitted,
   withOptionalG9Capture,
 } from "../scm/g9FamilyTypedHooks.ts";
+import { mcpHttpViaG10Bridge } from "../scm/g10SliceS4.ts";
 import * as McpInvocationContext from "./McpInvocationContext.ts";
 import * as McpSessionRegistry from "./McpSessionRegistry.ts";
 import * as PreviewAutomationBroker from "./PreviewAutomationBroker.ts";
@@ -101,12 +102,15 @@ const makeMcpAuthMiddleware = McpSessionRegistry.McpSessionRegistry.pipe(
         // INV-T2-MCP-HTTP / mcp-http-message-admitted (B4→WP6): after auth resolve.
         // Agent: site only; never put bearer token in A.
         yield* withOptionalG9Capture((capture) => captureMcpHttpMessageAdmitted(capture));
-        return yield* httpEffect.pipe(
-          Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
-          Effect.map(normalizeMcpHttpResponse),
-          // INV-T2-MCP-HTTP / mcp-http-handler-succeeded (B4→WP6): after normalize.
-          Effect.tap(() =>
-            withOptionalG9Capture((capture) => captureMcpHttpHandlerSucceeded(capture)),
+        // G10 S4: MCP-HTTP cutover wraps handler success; G9 capture observe-beside.
+        return yield* mcpHttpViaG10Bridge(
+          httpEffect.pipe(
+            Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
+            Effect.map(normalizeMcpHttpResponse),
+            // INV-T2-MCP-HTTP / mcp-http-handler-succeeded (B4→WP6): after normalize.
+            Effect.tap(() =>
+              withOptionalG9Capture((capture) => captureMcpHttpHandlerSucceeded(capture)),
+            ),
           ),
         );
       }),

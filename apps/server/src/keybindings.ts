@@ -42,6 +42,7 @@ import * as Stream from "effect/Stream";
 import * as Semaphore from "effect/Semaphore";
 import * as ServerConfig from "./config.ts";
 import { writeFileStringAtomically } from "./atomicWrite.ts";
+import { runtimeStateWriteViaG10Bridge } from "./scm/g10SliceS7.ts";
 import { fromJsonStringPretty, fromLenientJson } from "@t3tools/shared/schemaJson";
 import {
   DEFAULT_KEYBINDINGS,
@@ -426,12 +427,16 @@ const make = Effect.gen(function* () {
     return encodeKeybindingsConfigPrettyJson(rules).pipe(
       Effect.map((encoded) => `${encoded}\n`),
       Effect.flatMap((encoded) =>
-        writeFileStringAtomically({
-          filePath: keybindingsConfigPath,
-          contents: encoded,
-        }).pipe(
-          Effect.provideService(FileSystem.FileSystem, fs),
-          Effect.provideService(Path.Path, path),
+        // G10 S7 FILE-RUNTIME-STATE / keybindingsConfigPath-write-succeeded.
+        runtimeStateWriteViaG10Bridge(
+          "keybindingsConfigPath",
+          writeFileStringAtomically({
+            filePath: keybindingsConfigPath,
+            contents: encoded,
+          }).pipe(
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, path),
+          ),
         ),
       ),
       Effect.mapError(

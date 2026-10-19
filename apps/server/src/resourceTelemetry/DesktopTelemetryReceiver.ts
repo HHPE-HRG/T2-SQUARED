@@ -1,11 +1,12 @@
 /**
  * Desktop telemetry receiver (inbound host NDJSON + outbound control fd).
  *
- * Agent (G9 W5c B5): sole WP5 lander for this file. Integrates B3
- * INV-T2-TEL-DESKTOP-CONTROL handoff after sendControlMessage write succeeds.
- * Uses withOptionalG9Capture; absent G9CaptureService ⇒ live unchanged.
- * Equality A is operation only (setDiagnosticsDemand | setHostPowerIntervals);
- * never put enabled / intervals / encoded bytes in A. Does not flip gates.
+ * Agent (G9 W5c B5 + G10 S5): sole lander for this file. Integrates S3
+ * INV-T2-TEL-DESKTOP-CONTROL handoff + INV-T2-TEL-DESKTOP-IN decode via
+ * g10SliceS5 bridges; G9 capture stays observe-beside. Absent G10/G9 ⇒ live
+ * unchanged. CONTROL A is operation only; DESKTOP-IN A uses ledger
+ * representative message_type (frozen quirk vs live desktopTelemetry*).
+ * Never put enabled / intervals / encoded / payload bytes in A.
  */
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeFS from "node:fs";
@@ -36,6 +37,7 @@ import * as Ndjson from "effect/unstable/encoding/Ndjson";
 import { ServerConfig } from "../config.ts";
 import { captureDesktopControlSendSucceeded } from "../scm/g9FamilySubprocessExternalTransport.ts";
 import { withOptionalG9Capture } from "../scm/g9FamilyTerminalLocalStreams.ts";
+import { desktopControlViaG10Bridge, desktopInViaG10Bridge } from "../scm/g10SliceS5.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
 import { subscribeBeforeSnapshotWithoutMutex } from "../utils/subscribeBeforeSnapshot.ts";
 
@@ -375,19 +377,24 @@ export const make = Effect.fn("resourceTelemetry.desktopTelemetryReceiver.make")
               }),
           ),
         );
-        yield* writeAllToFileDescriptor(fd, Buffer.from(`${encoded}\n`)).pipe(
-          Effect.tapError((error) =>
-            updateHealth((current) => ({
-              ...current,
-              status: "degraded",
-              lastError: Option.some(error.message),
-            })),
+        // INV-T2-TEL-DESKTOP-CONTROL / desktop-control-send-succeeded (S3→S5):
+        // after write succeeds. Agent: G10 S5 bridge + G9; operation only in A.
+        yield* desktopControlViaG10Bridge(
+          message.type,
+          writeAllToFileDescriptor(fd, Buffer.from(`${encoded}\n`)).pipe(
+            Effect.tapError((error) =>
+              updateHealth((current) => ({
+                ...current,
+                status: "degraded",
+                lastError: Option.some(error.message),
+              })),
+            ),
+            Effect.tap(() =>
+              withOptionalG9Capture((capture) =>
+                captureDesktopControlSendSucceeded(capture, message.type),
+              ),
+            ),
           ),
-        );
-        // INV-T2-TEL-DESKTOP-CONTROL / desktop-control-send-succeeded (B3→B5):
-        // after write succeeds. Agent: operation tag only; no control payload in A.
-        yield* withOptionalG9Capture((capture) =>
-          captureDesktopControlSendSucceeded(capture, message.type),
         );
       }),
     );
@@ -490,8 +497,11 @@ export const make = Effect.fn("resourceTelemetry.desktopTelemetryReceiver.make")
                 }),
               );
             }
+            // INV-T2-TEL-DESKTOP-IN / desktop-message-decoded: after schema decode.
+            // Agent: G10 S5 bridge; ledger A uses representative message_type.
             return decodeMessage(value).pipe(
               Effect.mapError((cause) => new DesktopTelemetryDecodeFailed({ cause })),
+              Effect.flatMap((message) => desktopInViaG10Bridge(Effect.succeed(message))),
             );
           },
         ),

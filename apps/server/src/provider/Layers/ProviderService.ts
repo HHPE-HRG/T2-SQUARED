@@ -62,6 +62,7 @@ import {
   captureProviderEventPublishedIfKnown,
   captureProviderTurnPhase,
 } from "../../scm/g9FamilyProviderProtocol.ts";
+import { providerEventsViaG10Bridge, providerTurnViaG10Bridge } from "../../scm/g10SliceS4.ts";
 const isModelSelection = Schema.is(ModelSelection);
 
 /**
@@ -243,9 +244,13 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
           : Effect.void,
       ),
       Effect.flatMap((canonicalEvent) =>
-        PubSub.publish(runtimeEventPubSub, canonicalEvent).pipe(
-          // Agent: INV-T2-PROVIDER-EVENTS after successful pubsub publish; type → member_id.
-          Effect.andThen(captureProviderEventPublishedIfKnown(canonicalEvent.type)),
+        // G10 S4: PROVIDER-EVENTS cutover wraps pubsub publish; G9 capture observe-beside.
+        providerEventsViaG10Bridge(
+          canonicalEvent.type,
+          PubSub.publish(runtimeEventPubSub, canonicalEvent).pipe(
+            // Agent: INV-T2-PROVIDER-EVENTS after successful pubsub publish; type → member_id.
+            Effect.andThen(captureProviderEventPublishedIfKnown(canonicalEvent.type)),
+          ),
         ),
       ),
       Effect.asVoid,
@@ -726,53 +731,56 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
     yield* captureProviderTurnPhase("send-turn-admitted");
     let metricProvider = "unknown";
     let metricModel = input.modelSelection?.model;
-    return yield* Effect.gen(function* () {
-      const routed = yield* resolveRoutableSession({
-        threadId: input.threadId,
-        operation: "ProviderService.sendTurn",
-        allowRecovery: true,
-      });
-      metricProvider = routed.adapter.provider;
-      metricModel = input.modelSelection?.model;
-      yield* Effect.annotateCurrentSpan({
-        "provider.kind": routed.adapter.provider,
-        ...(input.modelSelection?.model ? { "provider.model": input.modelSelection.model } : {}),
-      });
-      // A turn is the clearest sign a session is still alive. The MCP
-      // credential is minted once at session start and cannot be rotated into
-      // an already-spawned agent process, so we keep the existing token valid
-      // rather than issuing a new one: sessions that go a long time between
-      // browser tool calls used to lose the toolkit outright.
-      yield* McpSessionRegistry.touchActiveMcpThread(input.threadId);
-      const turn = yield* routed.adapter.sendTurn(input);
-      // Agent: INV-T2-PROVIDER-TURN succeed after adapter sendTurn returns.
-      yield* captureProviderTurnPhase("send-turn-succeeded");
-      yield* directory.upsert({
-        threadId: input.threadId,
-        provider: routed.adapter.provider,
-        providerInstanceId: routed.instanceId,
-        status: "running",
-        ...(turn.resumeCursor !== undefined ? { resumeCursor: turn.resumeCursor } : {}),
-        runtimePayload: {
-          ...(input.modelSelection !== undefined ? { modelSelection: input.modelSelection } : {}),
-          activeTurnId: turn.turnId,
-          lastRuntimeEvent: "provider.sendTurn",
-          lastRuntimeEventAt: yield* nowIso,
-        },
-      });
-      yield* analytics.record("provider.turn.sent", {
-        provider: routed.adapter.provider,
-        model: input.modelSelection?.model,
-        interactionMode: input.interactionMode,
-        // Session-start events alone skew runtime mode toward users who toggle
-        // often, since every toggle restarts the session. Recording it per turn
-        // gives a usage-weighted view and lets it cross with interactionMode.
-        runtimeMode: routed.runtimeMode,
-        attachmentCount: input.attachments.length,
-        hasInput: typeof input.input === "string" && input.input.trim().length > 0,
-      });
-      return turn;
-    }).pipe(
+    // G10 S4: PROVIDER-TURN cutover wraps sendTurn success path; G9 capture observe-beside.
+    return yield* providerTurnViaG10Bridge(
+      Effect.gen(function* () {
+        const routed = yield* resolveRoutableSession({
+          threadId: input.threadId,
+          operation: "ProviderService.sendTurn",
+          allowRecovery: true,
+        });
+        metricProvider = routed.adapter.provider;
+        metricModel = input.modelSelection?.model;
+        yield* Effect.annotateCurrentSpan({
+          "provider.kind": routed.adapter.provider,
+          ...(input.modelSelection?.model ? { "provider.model": input.modelSelection.model } : {}),
+        });
+        // A turn is the clearest sign a session is still alive. The MCP
+        // credential is minted once at session start and cannot be rotated into
+        // an already-spawned agent process, so we keep the existing token valid
+        // rather than issuing a new one: sessions that go a long time between
+        // browser tool calls used to lose the toolkit outright.
+        yield* McpSessionRegistry.touchActiveMcpThread(input.threadId);
+        const turn = yield* routed.adapter.sendTurn(input);
+        // Agent: INV-T2-PROVIDER-TURN succeed after adapter sendTurn returns.
+        yield* captureProviderTurnPhase("send-turn-succeeded");
+        yield* directory.upsert({
+          threadId: input.threadId,
+          provider: routed.adapter.provider,
+          providerInstanceId: routed.instanceId,
+          status: "running",
+          ...(turn.resumeCursor !== undefined ? { resumeCursor: turn.resumeCursor } : {}),
+          runtimePayload: {
+            ...(input.modelSelection !== undefined ? { modelSelection: input.modelSelection } : {}),
+            activeTurnId: turn.turnId,
+            lastRuntimeEvent: "provider.sendTurn",
+            lastRuntimeEventAt: yield* nowIso,
+          },
+        });
+        yield* analytics.record("provider.turn.sent", {
+          provider: routed.adapter.provider,
+          model: input.modelSelection?.model,
+          interactionMode: input.interactionMode,
+          // Session-start events alone skew runtime mode toward users who toggle
+          // often, since every toggle restarts the session. Recording it per turn
+          // gives a usage-weighted view and lets it cross with interactionMode.
+          runtimeMode: routed.runtimeMode,
+          attachmentCount: input.attachments.length,
+          hasInput: typeof input.input === "string" && input.input.trim().length > 0,
+        });
+        return turn;
+      }),
+    ).pipe(
       (effect) => withCatalogBridge("provider-turn", effect),
       withMetrics({
         counter: providerTurnsTotal,

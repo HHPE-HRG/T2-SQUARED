@@ -13,6 +13,7 @@ import {
   type VcsError,
 } from "@t3tools/contracts";
 
+import { scCliExecuteViaG10Bridge } from "../scm/g10SliceS3.ts";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import {
   decodeGitLabMergeRequestJson,
@@ -411,10 +412,14 @@ export const make = Effect.gen(function* () {
       .pipe(Effect.mapError(mapError));
 
   const execute: GitLabCli["Service"]["execute"] = (input) =>
-    run(input, (error) =>
-      GitLabCliCommandError.fromVcsError(
-        { operation: "execute", command: "glab", cwd: input.cwd },
-        error,
+    // G10 S3 SC-GITLAB cutover on CLI execute success.
+    scCliExecuteViaG10Bridge(
+      "INV-T2-SC-GITLAB",
+      run(input, (error) =>
+        GitLabCliCommandError.fromVcsError(
+          { operation: "execute", command: "glab", cwd: input.cwd },
+          error,
+        ),
       ),
     );
 

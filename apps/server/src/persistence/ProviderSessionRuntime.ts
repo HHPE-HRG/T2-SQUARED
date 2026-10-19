@@ -24,6 +24,8 @@ import {
   type ProviderSessionRuntimeRepositoryError,
 } from "./Errors.ts";
 
+import { wrapProviderSessionRuntimeWithG10 } from "../scm/g10SliceS7.ts";
+
 /**
  * ProviderSessionRuntimeRepository - Repository interface for provider runtime sessions.
  *
@@ -322,12 +324,13 @@ export const make = Effect.gen(function* () {
       ),
     );
 
-  return {
+  // G10 S7 FILE-PROVIDER-SESSION binding phases (cache phases handoff to S4).
+  return wrapProviderSessionRuntimeWithG10({
     upsert,
     getByThreadId,
     list,
     deleteByThreadId,
-  } satisfies ProviderSessionRuntimeRepository["Service"];
+  });
 });
 
 export const layer = Layer.effect(ProviderSessionRuntimeRepository, make);

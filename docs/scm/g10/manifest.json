@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "gate": "G10",
+  "status": "authorized_implement_complete_pending_live_test",
+  "authorized": true,
+  "authorizedImplementComplete": true,
+  "completed": false,
+  "definitionClosed": true,
+  "adversarialSeal": "pass",
+  "doesNotAuthorizeLaterGates": true,
+  "g8g9toG10AuthorizedRemainsFalse": false,
+  "plan": "docs/superpowers/plans/2026-10-18-scm-g10-cutover-rollback.md",
+  "design": "docs/superpowers/specs/2026-10-18-scm-g10-cutover-rollback-design.md",
+  "planningInput": "docs/scm/g9/g9-to-g10-recon.md",
+  "seamInventory": "docs/scm/g10/seam-inventory-completeness.json",
+  "proofBar": "docs/scm/g10/proof-bar.md",
+  "adversarialFindings": "docs/scm/g10/adversarial-findings.md",
+  "authFreeze": "docs/scm/g10/governance/auth-freeze.md",
+  "liveCutoverOps": "docs/scm/g10/ops/live-cutover-runbook.md",
+  "authorization": {
+    "identity": "Max Holden",
+    "scope": "Increment 6 cutover/rollback runtime (S0–S8 one session)",
+    "note": "Human runtime ceremony 2026-10-18. Auth-freeze 2026-10-18: authorized implement complete pending live test. completed stays false until live evidence. G9 auth did not unlock G10. Home-bus dormant; codec/eleventh bus out of scope; bridge cutover model (not second physical fabric)."
+  }
+}

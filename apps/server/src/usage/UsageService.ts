@@ -37,6 +37,7 @@ import { ServerConfig } from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import { resolveClaudeHomePath } from "../provider/Drivers/ClaudeHome.ts";
 import { resolveCodexHomeLayout } from "../provider/Drivers/CodexHomeLayout.ts";
+import { usageCacheViaG10Bridge } from "../scm/g10SliceS7.ts";
 import { UsageAggregator } from "./usageAggregation.ts";
 import { parseRateTable, type RateTable } from "./usagePricing.ts";
 import {
@@ -247,13 +248,16 @@ export const make = Effect.gen(function* () {
     if (!cacheDirty) return;
     // Cleared only after the write lands, so a failed persist is retried on
     // the next scan instead of leaving disk permanently stale.
-    yield* encodeScanCacheFile(encodeScanCache(fileCache)).pipe(
-      Effect.flatMap((serialized) => fileSystem.writeFileString(scanCachePath, serialized)),
-      Effect.map(() => {
-        cacheDirty = false;
-      }),
-      // A cache we cannot write is a slower next start, not a failed read.
-      Effect.catchCause(() => Effect.void),
+    // G10 S7 FILE-USAGE-CACHE / usage-cache-persisted.
+    yield* usageCacheViaG10Bridge(
+      encodeScanCacheFile(encodeScanCache(fileCache)).pipe(
+        Effect.flatMap((serialized) => fileSystem.writeFileString(scanCachePath, serialized)),
+        Effect.map(() => {
+          cacheDirty = false;
+        }),
+        // A cache we cannot write is a slower next start, not a failed read.
+        Effect.catchCause(() => Effect.void),
+      ),
     );
   });
 

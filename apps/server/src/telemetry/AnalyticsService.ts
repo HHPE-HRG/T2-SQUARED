@@ -20,6 +20,7 @@ import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
+import { telAnalyticsViaG10Bridge } from "../scm/g10SliceS3.ts";
 import { getTelemetryIdentifier } from "./Identify.ts";
 
 interface BufferedAnalyticsEvent {
@@ -126,10 +127,13 @@ export const make = Effect.gen(function* () {
       })),
     };
 
-    yield* HttpClientRequest.post(`${telemetryConfig.posthogHost}/batch/`).pipe(
-      HttpClientRequest.bodyJson(payload),
-      Effect.flatMap(httpClient.execute),
-      Effect.flatMap(HttpClientResponse.filterStatusOk),
+    // G10 S3 TEL-ANALYTICS cutover on successful PostHog batch.
+    yield* telAnalyticsViaG10Bridge(
+      HttpClientRequest.post(`${telemetryConfig.posthogHost}/batch/`).pipe(
+        HttpClientRequest.bodyJson(payload),
+        Effect.flatMap(httpClient.execute),
+        Effect.flatMap(HttpClientResponse.filterStatusOk),
+      ),
     );
   });
 

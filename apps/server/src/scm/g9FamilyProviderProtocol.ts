@@ -19,6 +19,13 @@ import * as Option from "effect/Option";
 
 import { G9CaptureService, type G9CaptureServiceShape } from "./g9OrchQueueCapture.ts";
 import type { G9CaptureOccurrenceInput } from "./g9Occurrence.ts";
+import {
+  httpAuthViaG10Bridge,
+  httpConnectViaG10Bridge,
+  httpMetaViaG10Bridge,
+  httpOrchViaG10Bridge,
+  httpPrViaG10Bridge,
+} from "./g10SliceS4.ts";
 
 /**
  * Ledger comm_ids owned by bundle B4 (plan § B4). Sixteen rows, forty-one
@@ -780,98 +787,127 @@ export const G9_B4_PROVIDER_EVENT_MEMBERS: ReadonlySet<string> = new Set([
   "runtime.error",
 ]);
 
-/** Optional-service HTTP AUTH admit+succeed around a successful handler body. */
+/**
+ * Optional-service HTTP AUTH admit+succeed around a successful handler body.
+ * Agent: G10 S4 cutover wraps the live handler (environmentHttp Auth group);
+ * G9 capture remains observe-beside.
+ */
 export const withHttpAuthCapture = <A, E, R>(
   endpoint: G9B4HttpAuthEndpoint,
   body: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>
-  Effect.gen(function* () {
-    yield* captureWhenG9Present((c) => captureHttpAuthAdmitted(c, endpoint));
-    const result = yield* body;
-    yield* captureWhenG9Present((c) => captureHttpAuthSucceeded(c, endpoint));
-    return result;
-  });
+  httpAuthViaG10Bridge(
+    endpoint,
+    Effect.gen(function* () {
+      yield* captureWhenG9Present((c) => captureHttpAuthAdmitted(c, endpoint));
+      const result = yield* body;
+      yield* captureWhenG9Present((c) => captureHttpAuthSucceeded(c, endpoint));
+      return result;
+    }),
+  );
 
-/** Optional-service HTTP META admit+succeed. */
+/**
+ * Optional-service HTTP META admit+succeed.
+ * Agent: G10 S4 cutover wraps descriptor handler; G9 capture observe-beside.
+ */
 export const withHttpMetaCapture = <A, E, R>(
   body: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>
-  Effect.gen(function* () {
-    yield* captureWhenG9Present((c) =>
-      captureProviderProtocolOccurrence(c, buildHttpMetaCaptureInput("http-request-admitted")),
-    );
-    const result = yield* body;
-    yield* captureWhenG9Present((c) =>
-      captureProviderProtocolOccurrence(c, buildHttpMetaCaptureInput("http-handler-succeeded")),
-    );
-    return result;
-  });
+  httpMetaViaG10Bridge(
+    Effect.gen(function* () {
+      yield* captureWhenG9Present((c) =>
+        captureProviderProtocolOccurrence(c, buildHttpMetaCaptureInput("http-request-admitted")),
+      );
+      const result = yield* body;
+      yield* captureWhenG9Present((c) =>
+        captureProviderProtocolOccurrence(c, buildHttpMetaCaptureInput("http-handler-succeeded")),
+      );
+      return result;
+    }),
+  );
 
-/** Optional-service HTTP ORCH admit+succeed. */
+/**
+ * Optional-service HTTP ORCH admit+succeed.
+ * Agent: G10 S4 cutover wraps orch handlers; G9 capture observe-beside.
+ */
 export const withHttpOrchCapture = <A, E, R>(
   endpoint: G9B4HttpOrchEndpoint,
   body: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>
-  Effect.gen(function* () {
-    yield* captureWhenG9Present((c) =>
-      captureProviderProtocolOccurrence(
-        c,
-        buildHttpOrchCaptureInput("http-request-admitted", endpoint),
-      ),
-    );
-    const result = yield* body;
-    yield* captureWhenG9Present((c) =>
-      captureProviderProtocolOccurrence(
-        c,
-        buildHttpOrchCaptureInput("http-handler-succeeded", endpoint),
-      ),
-    );
-    return result;
-  });
+  httpOrchViaG10Bridge(
+    endpoint,
+    Effect.gen(function* () {
+      yield* captureWhenG9Present((c) =>
+        captureProviderProtocolOccurrence(
+          c,
+          buildHttpOrchCaptureInput("http-request-admitted", endpoint),
+        ),
+      );
+      const result = yield* body;
+      yield* captureWhenG9Present((c) =>
+        captureProviderProtocolOccurrence(
+          c,
+          buildHttpOrchCaptureInput("http-handler-succeeded", endpoint),
+        ),
+      );
+      return result;
+    }),
+  );
 
-/** Optional-service HTTP PR admit+succeed. */
+/**
+ * Optional-service HTTP PR admit+succeed.
+ * Agent: G10 S4 cutover wraps PR diff handler; G9 capture observe-beside.
+ */
 export const withHttpPrCapture = <A, E, R>(
   endpoint: G9B4HttpPrEndpoint,
   body: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>
-  Effect.gen(function* () {
-    yield* captureWhenG9Present((c) =>
-      captureProviderProtocolOccurrence(
-        c,
-        buildHttpPrCaptureInput("http-request-admitted", endpoint),
-      ),
-    );
-    const result = yield* body;
-    yield* captureWhenG9Present((c) =>
-      captureProviderProtocolOccurrence(
-        c,
-        buildHttpPrCaptureInput("http-handler-succeeded", endpoint),
-      ),
-    );
-    return result;
-  });
+  httpPrViaG10Bridge(
+    Effect.gen(function* () {
+      yield* captureWhenG9Present((c) =>
+        captureProviderProtocolOccurrence(
+          c,
+          buildHttpPrCaptureInput("http-request-admitted", endpoint),
+        ),
+      );
+      const result = yield* body;
+      yield* captureWhenG9Present((c) =>
+        captureProviderProtocolOccurrence(
+          c,
+          buildHttpPrCaptureInput("http-handler-succeeded", endpoint),
+        ),
+      );
+      return result;
+    }),
+  );
 
-/** Optional-service HTTP CONNECT admit+succeed. */
+/**
+ * Optional-service HTTP CONNECT admit+succeed.
+ * Agent: G10 S4 cutover wraps connect handlers; G9 capture observe-beside.
+ */
 export const withHttpConnectCapture = <A, E, R>(
   endpoint: G9B4HttpConnectEndpoint,
   body: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>
-  Effect.gen(function* () {
-    yield* captureWhenG9Present((c) =>
-      captureProviderProtocolOccurrence(
-        c,
-        buildHttpConnectCaptureInput("http-request-admitted", endpoint),
-      ),
-    );
-    const result = yield* body;
-    yield* captureWhenG9Present((c) =>
-      captureProviderProtocolOccurrence(
-        c,
-        buildHttpConnectCaptureInput("http-handler-succeeded", endpoint),
-      ),
-    );
-    return result;
-  });
+  httpConnectViaG10Bridge(
+    endpoint,
+    Effect.gen(function* () {
+      yield* captureWhenG9Present((c) =>
+        captureProviderProtocolOccurrence(
+          c,
+          buildHttpConnectCaptureInput("http-request-admitted", endpoint),
+        ),
+      );
+      const result = yield* body;
+      yield* captureWhenG9Present((c) =>
+        captureProviderProtocolOccurrence(
+          c,
+          buildHttpConnectCaptureInput("http-handler-succeeded", endpoint),
+        ),
+      );
+      return result;
+    }),
+  );
 
 /** INV-T2-HTTP-STATIC selection capture (one phase per selected response). */
 export const captureHttpStaticSelected = (

@@ -7,6 +7,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import * as ProjectionSnapshotQuery from "../orchestration/Services/ProjectionSnapshotQuery.ts";
+import { projectSetupViaG10Bridge } from "../scm/g10SliceS3.ts";
 import * as TerminalManager from "../terminal/Manager.ts";
 
 export interface ProjectSetupScriptRunnerResultNoScript {
@@ -173,13 +174,16 @@ export const make = Effect.gen(function* () {
         ),
       );
 
-    return {
-      status: "started",
-      scriptId: script.id,
-      scriptName: script.name,
-      terminalId,
-      cwd,
-    } as const;
+    // G10 S3 PROJECT-SETUP cutover only on started success (not no-script).
+    return yield* projectSetupViaG10Bridge(
+      Effect.succeed({
+        status: "started",
+        scriptId: script.id,
+        scriptName: script.name,
+        terminalId,
+        cwd,
+      } as const),
+    );
   });
 
   return ProjectSetupScriptRunner.of({ runForThread });

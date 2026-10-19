@@ -23,6 +23,7 @@ import {
   type NormalizedBitbucketPullRequestRecord,
 } from "./bitbucketPullRequests.ts";
 import { collectUint8StreamText } from "../stream/collectUint8StreamText.ts";
+import { scBitbucketViaG10Bridge } from "../scm/g10SliceS3.ts";
 import * as SourceControlProvider from "./SourceControlProvider.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as VcsDriverRegistry from "../vcs/VcsDriverRegistry.ts";
@@ -861,32 +862,35 @@ export const make = Effect.gen(function* () {
   };
 
   const request: BitbucketApi["Service"]["request"] = (input) =>
-    send({ ...input, redirects: 0 }).pipe(
-      Effect.flatMap((response) =>
-        HttpClientResponse.matchStatus({
-          // Read through the body stream rather than `text`, so an oversized diff is stopped
-          // as it arrives instead of being materialized whole and then cut. The same collector
-          // the process runner bounds command output with.
-          "2xx": (success) =>
-            collectUint8StreamText({
-              stream: success.stream,
-              maxBytes: input.maxBytes ?? DEFAULT_MAX_RESPONSE_BYTES,
-            }).pipe(
-              Effect.mapError(
-                (cause) =>
-                  new BitbucketResponseBodyReadError({
-                    operation: "request",
-                    status: success.status,
-                    cause,
-                  }),
+    // G10 S3 SC-BITBUCKET cutover on http-client success (request op).
+    scBitbucketViaG10Bridge(
+      send({ ...input, redirects: 0 }).pipe(
+        Effect.flatMap((response) =>
+          HttpClientResponse.matchStatus({
+            // Read through the body stream rather than `text`, so an oversized diff is stopped
+            // as it arrives instead of being materialized whole and then cut. The same collector
+            // the process runner bounds command output with.
+            "2xx": (success) =>
+              collectUint8StreamText({
+                stream: success.stream,
+                maxBytes: input.maxBytes ?? DEFAULT_MAX_RESPONSE_BYTES,
+              }).pipe(
+                Effect.mapError(
+                  (cause) =>
+                    new BitbucketResponseBodyReadError({
+                      operation: "request",
+                      status: success.status,
+                      cause,
+                    }),
+                ),
+                Effect.map((collected) => ({
+                  body: collected.text,
+                  truncated: collected.truncated,
+                })),
               ),
-              Effect.map((collected) => ({
-                body: collected.text,
-                truncated: collected.truncated,
-              })),
-            ),
-          orElse: (failed) => responseError("request", failed),
-        })(response),
+            orElse: (failed) => responseError("request", failed),
+          })(response),
+        ),
       ),
     );
 

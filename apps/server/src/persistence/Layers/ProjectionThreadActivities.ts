@@ -16,6 +16,8 @@ import {
   type ProjectionThreadActivityRepositoryShape,
 } from "../Services/ProjectionThreadActivities.ts";
 
+import { wrapProjectionThreadActivitiesWithG10 } from "../../scm/g10SliceS7.ts";
+
 const ProjectionThreadActivityDbRowSchema = ProjectionThreadActivity.mapFields(
   Struct.assign({
     payload: Schema.fromJsonString(Schema.Unknown),
@@ -146,11 +148,12 @@ const makeProjectionThreadActivityRepository = Effect.gen(function* () {
       ),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionThreadActivitiesWithG10({
     upsert,
     listByThreadId,
     deleteByThreadId,
-  } satisfies ProjectionThreadActivityRepositoryShape;
+  });
 });
 
 export const ProjectionThreadActivityRepositoryLive = Layer.effect(

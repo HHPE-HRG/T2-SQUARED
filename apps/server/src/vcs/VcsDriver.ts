@@ -1,10 +1,14 @@
 /**
- * VCS driver Context service + W5c G9 capture wrap (WP5-B3-Owner sole lander).
+ * VCS driver Context service + W5c G9 capture wrap + G10 S3 GIT cutover
+ * (G10-S3-GitRelay sole lander).
  *
  * Intended: GitVcsDriver builds a shape and calls VcsDriver.of; of wraps every
  * public GIT method and optional checkpoint ops so success taps optional
- * G9CaptureService. Absent service ⇒ identity behavior (live unchanged).
- * Equality A carries method/operation tokens only (no stdout, refs, diffs).
+ * G9CaptureService. G10 S3 admit/route/replace wraps GIT via
+ * gitExecuteViaG10Bridge. S8 lander-reopen also wraps FILE-CHECKPOINTS via
+ * fileCheckpointsViaG10Bridge (S7→S3 handoff; not historical S3 exit (a)).
+ * Absent G10/G9 ⇒ identity behavior (live unchanged). Equality A carries
+ * method/operation tokens only (no stdout, refs, diffs).
  *
  * Observed: wrapVcsDriverShapeWithG9Capture is the sole live capture fan-out
  * for INV-T2-GIT and B2 INV-T2-FILE-CHECKPOINTS on this hotspot. Does not edit
@@ -31,6 +35,7 @@ import {
   whenG9CapturePresent,
   type G9B3GitMethod,
 } from "../scm/g9FamilySubprocessExternalTransport.ts";
+import { fileCheckpointsViaG10Bridge, gitExecuteViaG10Bridge } from "../scm/g10SliceS3.ts";
 import * as VcsProcess from "./VcsProcess.ts";
 
 export interface VcsCaptureCheckpointInput {
@@ -108,9 +113,13 @@ const tapGitSucceeded = <A, E, R>(
   method: G9B3GitMethod,
   effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>
-  effect.pipe(
-    Effect.tap(() =>
-      whenG9CapturePresent((capture) => captureGitExecuteSucceeded(capture, method)),
+  // G10 S3 cutover wraps the live GIT method; G9 capture remains observe-beside.
+  gitExecuteViaG10Bridge(
+    method,
+    effect.pipe(
+      Effect.tap(() =>
+        whenG9CapturePresent((capture) => captureGitExecuteSucceeded(capture, method)),
+      ),
     ),
   );
 
@@ -120,55 +129,39 @@ const tapGitSucceeded = <A, E, R>(
  * Agent: hasCheckpointRef projects operation "succeeded" (not the method name).
  * Capture only after Effect succeeds (boolean true/false both count as success).
  */
+/**
+ * Wrap one checkpoint op: G10 S8 reopen bridge + G9 capture-beside.
+ * Agent: cutover ≠ capture; FILE-CHECKPOINTS not claimed under historical S3 exit (a).
+ */
+const wrapCheckpointOp = <A, E, R>(
+  operation:
+    | "captureCheckpoint"
+    | "restoreCheckpoint"
+    | "diffCheckpoints"
+    | "deleteCheckpointRefs"
+    | "hasCheckpointRef",
+  liveOp: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
+  fileCheckpointsViaG10Bridge(
+    operation,
+    liveOp.pipe(
+      Effect.tap(() =>
+        whenG9CapturePresent((capture) => captureCheckpointSucceeded(operation, capture)),
+      ),
+    ),
+  );
+
 const wrapCheckpointOpsWithG9Capture = (checkpoints: VcsCheckpointOps): VcsCheckpointOps => ({
   captureCheckpoint: (input) =>
-    checkpoints
-      .captureCheckpoint(input)
-      .pipe(
-        Effect.tap(() =>
-          whenG9CapturePresent((capture) =>
-            captureCheckpointSucceeded("captureCheckpoint", capture),
-          ),
-        ),
-      ),
+    wrapCheckpointOp("captureCheckpoint", checkpoints.captureCheckpoint(input)),
   hasCheckpointRef: (input) =>
-    checkpoints
-      .hasCheckpointRef(input)
-      .pipe(
-        Effect.tap(() =>
-          whenG9CapturePresent((capture) =>
-            captureCheckpointSucceeded("hasCheckpointRef", capture),
-          ),
-        ),
-      ),
+    wrapCheckpointOp("hasCheckpointRef", checkpoints.hasCheckpointRef(input)),
   restoreCheckpoint: (input) =>
-    checkpoints
-      .restoreCheckpoint(input)
-      .pipe(
-        Effect.tap(() =>
-          whenG9CapturePresent((capture) =>
-            captureCheckpointSucceeded("restoreCheckpoint", capture),
-          ),
-        ),
-      ),
+    wrapCheckpointOp("restoreCheckpoint", checkpoints.restoreCheckpoint(input)),
   diffCheckpoints: (input) =>
-    checkpoints
-      .diffCheckpoints(input)
-      .pipe(
-        Effect.tap(() =>
-          whenG9CapturePresent((capture) => captureCheckpointSucceeded("diffCheckpoints", capture)),
-        ),
-      ),
+    wrapCheckpointOp("diffCheckpoints", checkpoints.diffCheckpoints(input)),
   deleteCheckpointRefs: (input) =>
-    checkpoints
-      .deleteCheckpointRefs(input)
-      .pipe(
-        Effect.tap(() =>
-          whenG9CapturePresent((capture) =>
-            captureCheckpointSucceeded("deleteCheckpointRefs", capture),
-          ),
-        ),
-      ),
+    wrapCheckpointOp("deleteCheckpointRefs", checkpoints.deleteCheckpointRefs(input)),
 });
 
 /**

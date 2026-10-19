@@ -11,6 +11,7 @@ import {
   type VcsError,
 } from "@t3tools/contracts";
 
+import { scCliExecuteViaG10Bridge } from "../scm/g10SliceS3.ts";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import {
   decodeAzureDevOpsPullRequestJson,
@@ -338,27 +339,31 @@ export const make = Effect.gen(function* () {
   const process = yield* VcsProcess.VcsProcess;
 
   const execute: AzureDevOpsCli["Service"]["execute"] = (input) =>
-    process
-      .run({
-        operation: "AzureDevOpsCli.execute",
-        command: "az",
-        args: input.args,
-        cwd: input.cwd,
-        timeoutMs: input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-      })
-      .pipe(
-        Effect.mapError((error) =>
-          AzureDevOpsCommandFailedError.fromVcsError(
-            {
-              operation: "execute",
-              command: "az",
-              cwd: input.cwd,
-              argumentCount: input.args.length,
-            },
-            error,
+    // G10 S3 SC-ADO cutover on CLI execute success.
+    scCliExecuteViaG10Bridge(
+      "INV-T2-SC-ADO",
+      process
+        .run({
+          operation: "AzureDevOpsCli.execute",
+          command: "az",
+          args: input.args,
+          cwd: input.cwd,
+          timeoutMs: input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        })
+        .pipe(
+          Effect.mapError((error) =>
+            AzureDevOpsCommandFailedError.fromVcsError(
+              {
+                operation: "execute",
+                command: "az",
+                cwd: input.cwd,
+                argumentCount: input.args.length,
+              },
+              error,
+            ),
           ),
         ),
-      );
+    );
 
   const executeJson = (input: Parameters<AzureDevOpsCli["Service"]["execute"]>[0]) =>
     execute({

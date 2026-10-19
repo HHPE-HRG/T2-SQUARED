@@ -175,6 +175,10 @@
       "types": "./src/relayClient.ts",
       "import": "./src/relayClient.ts"
     },
+    "./g10S3CutoverHook": {
+      "types": "./src/g10S3CutoverHook.ts",
+      "import": "./src/g10S3CutoverHook.ts"
+    },
     "./relayTracing": {
       "types": "./src/relayTracing.ts",
       "import": "./src/relayTracing.ts"

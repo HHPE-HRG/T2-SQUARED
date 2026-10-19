@@ -6,6 +6,7 @@ import * as Schema from "effect/Schema";
 
 import { writeFileStringAtomically } from "./atomicWrite.ts";
 import type * as ServerConfig from "./config.ts";
+import { runtimeStateWriteViaG10Bridge } from "./scm/g10SliceS7.ts";
 import { formatHostForUrl, isWildcardHost } from "./startupAccess.ts";
 
 export const PersistedServerRuntimeState = Schema.Struct({
@@ -65,17 +66,21 @@ export const persistServerRuntimeState = (input: {
   readonly path: string;
   readonly state: PersistedServerRuntimeState;
 }) =>
-  writeFileStringAtomically({
-    filePath: input.path,
-    contents: `${JSON.stringify(input.state)}\n`,
-  }).pipe(
-    Effect.mapError(
-      (cause) =>
-        new ServerRuntimeStateError({
-          operation: "persist",
-          statePath: input.path,
-          cause,
-        }),
+  // G10 S7 FILE-RUNTIME-STATE / serverRuntimeStatePath-write-succeeded.
+  runtimeStateWriteViaG10Bridge(
+    "serverRuntimeStatePath",
+    writeFileStringAtomically({
+      filePath: input.path,
+      contents: `${JSON.stringify(input.state)}\n`,
+    }).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ServerRuntimeStateError({
+            operation: "persist",
+            statePath: input.path,
+            cause,
+          }),
+      ),
     ),
   );
 

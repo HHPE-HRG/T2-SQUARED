@@ -1,3 +1,11 @@
+/**
+ * CLI / env server-config resolution (Effect CLI flags + EnvServerConfig).
+ *
+ * G10 S2 sole lander for INV-T2-FLAG-SERVER-CONFIG: admit/route/replace via
+ * g10SeamBridge at EnvServerConfig resolve inside resolveServerConfig.
+ * S8 lander-reopen also wires INV-T2-FLAG-T3-OTEL (S6→S2 handoff) after T3
+ * OTEL members resolve. Absent G10S2 controller / not replaced ⇒ live only.
+ */
 import * as NetService from "@t3tools/shared/Net";
 import { parsePersistedServerObservabilitySettings } from "@t3tools/shared/serverSettings";
 import { DesktopBackendBootstrap, PortSchema } from "@t3tools/contracts";
@@ -16,6 +24,10 @@ import { Argument, Flag } from "effect/unstable/cli";
 import { readBootstrapEnvelope } from "../bootstrap.ts";
 import * as ServerConfig from "../config.ts";
 import { expandHomePath, resolveBaseDir } from "../os-jank.ts";
+import {
+  resolveFlagServerConfigViaG10Bridge,
+  resolveFlagT3OtelViaG10Bridge,
+} from "../scm/g10SliceS2.ts";
 
 export const modeFlag = Flag.choice("mode", ServerConfig.RuntimeMode.literals).pipe(
   Flag.withDescription("Runtime mode. `desktop` keeps loopback defaults unless overridden."),
@@ -219,7 +231,8 @@ export const resolveServerConfig = (
     const { findAvailablePort } = yield* NetService.NetService;
     const path = yield* Path.Path;
     const fs = yield* FileSystem.FileSystem;
-    const env = yield* EnvServerConfig;
+    // FLAG-SERVER-CONFIG: G10 S2 bridge selects live vs manifold at EnvServerConfig.
+    const env = yield* resolveFlagServerConfigViaG10Bridge(EnvServerConfig);
     const normalizedFlags = {
       mode: flags.mode ?? Option.none(),
       port: flags.port ?? Option.none(),
@@ -349,6 +362,22 @@ export const resolveServerConfig = (
     );
     const logLevel = Option.getOrElse(cliLogLevel, () => env.logLevel);
 
+    // FLAG-T3-OTEL (S6→S2 handoff; S8 lander reopen): one bridge hit when T3
+    // OTEL URL members resolve (env / bootstrap / persisted). Equality A is
+    // { comm_id: "resolved" } only — no URLs in traffic.
+    const otlpUrls = yield* resolveFlagT3OtelViaG10Bridge(
+      Effect.succeed({
+        otlpTracesUrl:
+          env.otlpTracesUrl ??
+          bootstrap?.otlpTracesUrl ??
+          persistedObservabilitySettings.otlpTracesUrl,
+        otlpMetricsUrl:
+          env.otlpMetricsUrl ??
+          bootstrap?.otlpMetricsUrl ??
+          persistedObservabilitySettings.otlpMetricsUrl,
+      }),
+    );
+
     const config: ServerConfig.ServerConfig["Service"] = {
       logLevel,
       traceMinLevel: env.traceMinLevel,
@@ -356,14 +385,8 @@ export const resolveServerConfig = (
       traceBatchWindowMs: env.traceBatchWindowMs,
       traceMaxBytes: env.traceMaxBytes,
       traceMaxFiles: env.traceMaxFiles,
-      otlpTracesUrl:
-        env.otlpTracesUrl ??
-        bootstrap?.otlpTracesUrl ??
-        persistedObservabilitySettings.otlpTracesUrl,
-      otlpMetricsUrl:
-        env.otlpMetricsUrl ??
-        bootstrap?.otlpMetricsUrl ??
-        persistedObservabilitySettings.otlpMetricsUrl,
+      otlpTracesUrl: otlpUrls.otlpTracesUrl,
+      otlpMetricsUrl: otlpUrls.otlpMetricsUrl,
       otlpExportIntervalMs: env.otlpExportIntervalMs,
       otlpServiceName: env.otlpServiceName,
       mode,

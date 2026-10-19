@@ -15,6 +15,8 @@ import {
   type ProjectionProjectRepositoryShape,
 } from "../Services/ProjectionProjects.ts";
 
+import { wrapProjectionProjectsWithG10 } from "../../scm/g10SliceS7.ts";
+
 const ProjectionProjectDbRow = ProjectionProject.mapFields(
   Struct.assign({
     defaultModelSelection: Schema.NullOr(Schema.fromJsonString(ModelSelection)),
@@ -139,12 +141,13 @@ const makeProjectionProjectRepository = Effect.gen(function* () {
       Effect.mapError(toPersistenceSqlError("ProjectionProjectRepository.deleteById:query")),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionProjectsWithG10({
     upsert,
     getById,
     listAll,
     deleteById,
-  } satisfies ProjectionProjectRepositoryShape;
+  });
 });
 
 export const ProjectionProjectRepositoryLive = Layer.effect(

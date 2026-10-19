@@ -51,6 +51,11 @@ import { G9CaptureService, captureIfOfferAccepted } from "../../scm/g9OrchQueueC
 // B1 owns the helper; Slice swaps raw PubSub.publish → this wrapper (Mode B).
 // Absent G9CaptureService ⇒ publish unchanged. Do not touch ORCH-QUEUE offer capture.
 import { publishOrchestrationEventWithCapture } from "../orchEventsPubSub.ts";
+// Agent: G10 S1 cutover bridge (ORCH-EVENTS + ORCH-QUEUE). Absent G10S1CutoverService
+// / process-global controller ⇒ today’s live unchanged. Present + not exited ⇒ live
+// authoritative; G9 capture stays observe-beside inside publishOrchestrationEventWithCapture
+// and captureIfOfferAccepted. Do not call markDualRunExited here.
+import { offerOrchQueueViaG10Bridge, publishOrchEventsViaG10Bridge } from "../../scm/g10SliceS1.ts";
 const isOrchestrationCommandPreviouslyRejectedError = Schema.is(
   OrchestrationCommandPreviouslyRejectedError,
 );
@@ -128,7 +133,11 @@ const makeOrchestrationEngine = Effect.gen(function* () {
 
       for (const persistedEvent of persistedEvents) {
         // Agent: ORCH-EVENTS capture on true publish; A.member_id = event.type only.
-        yield* publishOrchestrationEventWithCapture(eventPubSub, persistedEvent);
+        // G10 S1: optional bridge (live authoritative until dual-run-exit).
+        yield* publishOrchEventsViaG10Bridge(
+          publishOrchestrationEventWithCapture(eventPubSub, persistedEvent),
+          persistedEvent,
+        );
       }
     });
 
@@ -222,7 +231,11 @@ const makeOrchestrationEngine = Effect.gen(function* () {
         commandReadModel = committedCommand.nextCommandReadModel;
         for (const [index, event] of committedCommand.committedEvents.entries()) {
           // Agent: ORCH-EVENTS capture on true publish; A.member_id = event.type only.
-          yield* publishOrchestrationEventWithCapture(eventPubSub, event);
+          // G10 S1: optional bridge (live authoritative until dual-run-exit).
+          yield* publishOrchEventsViaG10Bridge(
+            publishOrchestrationEventWithCapture(eventPubSub, event),
+            event,
+          );
           if (index === 0) {
             yield* Metric.update(
               Metric.withAttributes(
@@ -325,11 +338,16 @@ const makeOrchestrationEngine = Effect.gen(function* () {
       const result = yield* Deferred.make<{ sequence: number }, OrchestrationDispatchError>();
       // Agent: capture only after offer; live offer success is independent of G9.
       // Optional G9CaptureService (RFC-023 Engine = Slice only). Absent ⇒ no-op.
-      const accepted = yield* Queue.offer(commandQueue, {
+      // G10 S1: optional offer bridge (live authoritative until dual-run-exit).
+      const startedAtMs = yield* Clock.currentTimeMillis;
+      const accepted = yield* offerOrchQueueViaG10Bridge(
+        Queue.offer(commandQueue, {
+          command,
+          result,
+          startedAtMs,
+        }),
         command,
-        result,
-        startedAtMs: yield* Clock.currentTimeMillis,
-      });
+      );
       const capture = yield* Effect.serviceOption(G9CaptureService);
       if (Option.isSome(capture)) {
         yield* captureIfOfferAccepted(accepted, command, (input) =>

@@ -25,6 +25,7 @@ import * as Schedule from "effect/Schedule";
 import * as Scope from "effect/Scope";
 
 import * as ProcessRunner from "../processRunner.ts";
+import { previewScanViaG10Bridge } from "../scm/g10SliceS3.ts";
 
 export class PortDiscovery extends Context.Service<
   PortDiscovery,
@@ -229,7 +230,7 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
         platform: hostPlatform,
       }).pipe(Effect.as(null));
 
-  const scanOnce = Effect.fn("PortDiscovery.scan")(function* () {
+  const scanOnceLive = Effect.fn("PortDiscovery.scan")(function* () {
     const state = yield* Ref.get(stateRef);
     const terminalByProcessId = new Map<number, TerminalProcessOwner>();
     for (const registration of state.terminalProcesses.values()) {
@@ -284,6 +285,9 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
     if (lsofResult !== null) return lsofResult;
     return yield* probeCommonPorts();
   });
+
+  // G10 S3 PREVIEW-SCAN cutover on successful scan process completion.
+  const scanOnce = () => previewScanViaG10Bridge(scanOnceLive());
 
   const broadcast = Effect.fn("PortDiscovery.broadcast")(function* (
     servers: ReadonlyArray<DiscoveredLocalServer>,

@@ -12,6 +12,10 @@
  * EVENTS via B1 family helpers. Optional G9CaptureService — absent ⇒ settings
  * I/O and pub/sub unchanged. No path/bytes/JSON body in equality A.
  *
+ * G10 S2 sole lander: FILE-SETTINGS admit/route/replace via g10SeamBridge at
+ * exists/read/write; SETTINGS-EVENTS S1→S2 handoff land at emitChange /
+ * subscribeChanges. Absent G10S2 controller / not replaced ⇒ live only.
+ *
  * @module ServerSettings
  */
 import {
@@ -65,6 +69,13 @@ import {
   captureSettingsSubscriptionEstablished,
   captureWhenG9Present,
 } from "./scm/g9FamilyQueuePubSubCallback.ts";
+import {
+  fileSettingsExistsViaG10Bridge,
+  fileSettingsReadViaG10Bridge,
+  fileSettingsWriteViaG10Bridge,
+  publishSettingsEventsViaG10Bridge,
+  subscribeSettingsEventsViaG10Bridge,
+} from "./scm/g10SliceS2.ts";
 
 export { resolveSourceControlWriterModelSelection } from "@t3tools/shared/serverSettings";
 
@@ -277,26 +288,32 @@ const make = Effect.gen(function* () {
   const watcherScope = yield* Scope.make("sequential");
   yield* Effect.addFinalizer(() => Scope.close(watcherScope, Exit.void));
 
-  // SETTINGS-EVENTS: capture after PubSub.publish Effect succeeds (boolean discarded).
+  // SETTINGS-EVENTS: G10 S2 bridge selects live vs manifold; G9 capture stays beside.
   const emitChange = (settings: ServerSettings) =>
     Effect.gen(function* () {
-      yield* PubSub.publish(changesPubSub, settings).pipe(Effect.asVoid);
-      yield* captureWhenG9Present((capture) => captureSettingsEmitChange(capture));
+      yield* publishSettingsEventsViaG10Bridge(
+        PubSub.publish(changesPubSub, settings).pipe(
+          Effect.tap(() => captureWhenG9Present((capture) => captureSettingsEmitChange(capture))),
+          Effect.as(true),
+        ),
+      ).pipe(Effect.asVoid);
     });
 
-  // FILE-SETTINGS exists: capture once the exists check completes without error
+  // FILE-SETTINGS exists: G10 S2 bridge + G9 capture once exists check completes
   // (boolean true/false both count; path stays out of A).
-  const readConfigExists = fs.exists(settingsPath).pipe(
-    Effect.mapError(
-      (cause) =>
-        new ServerSettingsError({
-          settingsPath,
-          operation: "check-exists",
-          cause,
-        }),
-    ),
-    Effect.tap(() =>
-      captureWhenG9Present((capture) => captureSettingsFileExistsSucceeded(capture)),
+  const readConfigExists = fileSettingsExistsViaG10Bridge(
+    fs.exists(settingsPath).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ServerSettingsError({
+            settingsPath,
+            operation: "check-exists",
+            cause,
+          }),
+      ),
+      Effect.tap(() =>
+        captureWhenG9Present((capture) => captureSettingsFileExistsSucceeded(capture)),
+      ),
     ),
   );
 
@@ -326,9 +343,13 @@ const make = Effect.gen(function* () {
       });
       return DEFAULT_SERVER_SETTINGS;
     }
-    // FILE-SETTINGS read: only after successful read+decode (usable settings).
-    yield* captureWhenG9Present((capture) => captureSettingsFileReadSucceeded(capture));
-    return decoded.value;
+    // FILE-SETTINGS read: G10 S2 bridge on successful read+decode; G9 capture beside.
+    return yield* fileSettingsReadViaG10Bridge(
+      Effect.gen(function* () {
+        yield* captureWhenG9Present((capture) => captureSettingsFileReadSucceeded(capture));
+        return decoded.value;
+      }),
+    );
   });
 
   const settingsCache = yield* Cache.make<typeof cacheKey, ServerSettings, ServerSettingsError>({
@@ -507,15 +528,19 @@ const make = Effect.gen(function* () {
         stripDefaultServerSettings(settings, DEFAULT_SERVER_SETTINGS) ?? {},
       );
 
-      // FILE-SETTINGS write: after atomic write completes; A.operation is "write".
-      yield* writeFileStringAtomically({
-        filePath: settingsPath,
-        contents: `${sparseSettingsJson}\n`,
-      }).pipe(
-        Effect.provideService(FileSystem.FileSystem, fs),
-        Effect.provideService(Path.Path, pathService),
+      // FILE-SETTINGS write: G10 S2 bridge after atomic write; A.operation is "write".
+      yield* fileSettingsWriteViaG10Bridge(
+        writeFileStringAtomically({
+          filePath: settingsPath,
+          contents: `${sparseSettingsJson}\n`,
+        }).pipe(
+          Effect.provideService(FileSystem.FileSystem, fs),
+          Effect.provideService(Path.Path, pathService),
+          Effect.tap(() =>
+            captureWhenG9Present((capture) => captureSettingsFileWriteSucceeded(capture)),
+          ),
+        ),
       );
-      yield* captureWhenG9Present((capture) => captureSettingsFileWriteSucceeded(capture));
     },
     Effect.mapError(
       (cause) =>
@@ -622,12 +647,14 @@ const make = Effect.gen(function* () {
       return materializeChanges(Stream.fromPubSub(changesPubSub));
     },
     get subscribeChanges() {
-      // SETTINGS-EVENTS: capture after a live listener is established.
-      return Effect.gen(function* () {
-        const subscription = yield* PubSub.subscribe(changesPubSub);
-        yield* captureWhenG9Present((capture) => captureSettingsSubscriptionEstablished(capture));
-        return materializeChanges(Stream.fromSubscription(subscription));
-      });
+      // SETTINGS-EVENTS: G10 S2 S1-handoff land + G9 capture after listener established.
+      return subscribeSettingsEventsViaG10Bridge(
+        Effect.gen(function* () {
+          const subscription = yield* PubSub.subscribe(changesPubSub);
+          yield* captureWhenG9Present((capture) => captureSettingsSubscriptionEstablished(capture));
+          return materializeChanges(Stream.fromSubscription(subscription));
+        }),
+      );
     },
   } satisfies ServerSettingsService["Service"];
 });

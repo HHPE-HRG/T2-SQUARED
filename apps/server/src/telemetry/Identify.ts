@@ -9,6 +9,7 @@ import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 
 import * as ServerConfig from "../config.ts";
+import { runtimeStateWriteViaG10Bridge } from "../scm/g10SliceS7.ts";
 
 const CodexAuthJsonSchema = Schema.Struct({
   tokens: Schema.Struct({
@@ -231,14 +232,18 @@ const upsertAnonymousId = Effect.gen(function* () {
         }),
     ),
   );
-  yield* fileSystem.writeFileString(anonymousIdPath, anonymousId).pipe(
-    Effect.mapError(
-      (cause) =>
-        new TelemetryAnonymousIdPersistenceError({
-          source: "anonymous",
-          filePath: anonymousIdPath,
-          cause,
-        }),
+  // G10 S7 FILE-RUNTIME-STATE / anonymousIdPath-write-succeeded.
+  yield* runtimeStateWriteViaG10Bridge(
+    "anonymousIdPath",
+    fileSystem.writeFileString(anonymousIdPath, anonymousId).pipe(
+      Effect.mapError(
+        (cause) =>
+          new TelemetryAnonymousIdPersistenceError({
+            source: "anonymous",
+            filePath: anonymousIdPath,
+            cause,
+          }),
+      ),
     ),
   );
 

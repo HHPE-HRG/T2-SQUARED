@@ -123,43 +123,34 @@ import * as PairingGrantStore from "./auth/PairingGrantStore.ts";
 import * as SessionStore from "./auth/SessionStore.ts";
 import { failEnvironmentAuthInvalid, failEnvironmentInternal } from "./auth/http.ts";
 import * as RelayClient from "@t3tools/shared/relayClient";
-import {
-  G9RpcServerRequestHooksLayer,
-  captureOrchLiveIfOfferAccepted,
-  withOptionalG9Capture,
-} from "./scm/g9FamilyTypedHooks.ts";
+import { G10RpcServerRequestHooksLayer, offerOrchLiveViaG10Bridge } from "./scm/g10SliceS6.ts";
 
 /**
- * WP6-Consumer-Owner sole lander for this file (RFC-014 A).
+ * G10 S6 sole lander for this file (WP6 + ORCH-LIVE handoff FROM S2).
  *
- * Intended: provide G9RpcServerRequestHooksLayer on the RpcServer websocket
- * stack (admit / unary / stream via Effect patch seams). Land B1 ORCH-LIVE
- * after liveBuffer Queue.offer returns true (kind event|synchronized only).
- * Absent G9CaptureService / hook layer ⇒ live unchanged. Hook fault must not
- * rewrite live success. No event payload in equality A.
+ * Intended: provide G10RpcServerRequestHooksLayer on the RpcServer websocket
+ * stack (admit / unary / stream via Effect patch seams + g10SeamBridge). Land
+ * S2 ORCH-LIVE handoff after liveBuffer Queue.offer returns true (kind
+ * event|synchronized only). G9 capture stays observe-beside inside the bridge.
+ * Absent G10 controller / G9CaptureService ⇒ live unchanged. Hook fault must
+ * not rewrite live success. No event payload in equality A.
  *
- * Observed: offerOrchLiveBuffer is the sole ORCH-LIVE capture bridge; Rpc hooks
- * resolve via Layer.provideMerge(G9RpcServerRequestHooksLayer).
+ * Observed: offerOrchLiveBuffer delegates to offerOrchLiveViaG10Bridge; Rpc
+ * hooks resolve via Layer.provideMerge(G10RpcServerRequestHooksLayer).
  */
 const isOrchestrationDispatchCommandError = Schema.is(OrchestrationDispatchCommandError);
 
 /**
  * ORCH-LIVE offer gate for subscribeShell / subscribeThreadDetail liveBuffer.
  *
- * Agent: Queue.offer first; capture only when accepted and kind is ledger-known.
- * Projects A.kind only. False offer ⇒ zero captureOccurrence calls.
+ * Agent: S6 land of S2→S6 handoff. Queue.offer first; G9 capture + G10 traffic
+ * only when accepted and kind is ledger-known. Projects A.kind only.
+ * False offer ⇒ zero captureOccurrence / zero G10 traffic.
  */
 export const offerOrchLiveBuffer = <E extends { readonly kind: "event" | "synchronized" }>(
   liveBuffer: Queue.Queue<E, never>,
   item: E,
-): Effect.Effect<boolean> =>
-  Effect.gen(function* () {
-    const accepted = yield* Queue.offer(liveBuffer, item);
-    yield* withOptionalG9Capture((capture) =>
-      captureOrchLiveIfOfferAccepted(capture, accepted, item.kind),
-    );
-    return accepted;
-  });
+): Effect.Effect<boolean> => offerOrchLiveViaG10Bridge(liveBuffer, item);
 
 const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
 const EDITOR_DISCOVERY_TIMEOUT = Duration.seconds(5);
@@ -2350,9 +2341,9 @@ export const websocketRpcRouteLayer = Layer.unwrap(
           Effect.provide(
             makeWsRpcLayer(session, previewAutomationBroker).pipe(
               Layer.provideMerge(RpcSerialization.layerJson),
-              // Agent (WP6): optional RpcServerRequestHooks → ledger capture via family layer.
-              // Absent G9CaptureService ⇒ hook callbacks no-op; live RPC unchanged.
-              Layer.provideMerge(G9RpcServerRequestHooksLayer),
+              // Agent (G10 S6): RpcServerRequestHooks → g10SeamBridge + G9 capture-beside.
+              // Absent G10 controller / G9CaptureService ⇒ live RPC unchanged.
+              Layer.provideMerge(G10RpcServerRequestHooksLayer),
               Layer.provide(ProviderMaintenanceRunner.layer),
               Layer.provide(Layer.succeed(ServerSelfUpdate.ServerSelfUpdate, serverSelfUpdate)),
               // One server-lifetime service means clients share the same PR caches, and a WS

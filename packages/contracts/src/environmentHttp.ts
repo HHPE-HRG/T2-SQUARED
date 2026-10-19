@@ -1,3 +1,12 @@
+/**
+ * Environment HTTP API surface (Auth / Connect / Metadata / Orchestration / PR).
+ *
+ * Agent (G10 S4 sole lander): this module defines the HttpApi groups for
+ * INV-T2-HTTP-{AUTH,CONNECT,META,ORCH,PR}. Runtime cutover admit/route/replace
+ * lands via withHttp*Capture in apps/server (g9FamilyProviderProtocol +
+ * g10SliceS4) on the handler peers that implement these groups. Do not put
+ * apps/server imports here. S4 owns commits to this file for cutover docs.
+ */
 import * as Context from "effect/Context";
 import type * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";

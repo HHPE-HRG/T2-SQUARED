@@ -13,6 +13,8 @@ import {
   type ProjectionPendingApprovalRepositoryShape,
 } from "../Services/ProjectionPendingApprovals.ts";
 
+import { wrapProjectionPendingApprovalsWithG10 } from "../../scm/g10SliceS7.ts";
+
 const makeProjectionPendingApprovalRepository = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
@@ -123,12 +125,13 @@ const makeProjectionPendingApprovalRepository = Effect.gen(function* () {
       ),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionPendingApprovalsWithG10({
     upsert,
     listByThreadId,
     getByRequestId,
     deleteByRequestId,
-  } satisfies ProjectionPendingApprovalRepositoryShape;
+  });
 });
 
 export const ProjectionPendingApprovalRepositoryLive = Layer.effect(

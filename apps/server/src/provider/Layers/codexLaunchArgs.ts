@@ -4,14 +4,17 @@
  * Intended: tokenize shared flags for app-server and exec paths without inventing
  * new env parsing. G9 W5c (B4 lander): resolveCodexLaunchArgsCaptured captures
  * INV-T2-FLAG-CODEX-LAUNCH / flag-resolved once per successful resolution when
- * G9CaptureService is present (configured|absent). Sync resolveCodexLaunchArgs
- * stays for non-Effect callers; presence/shape only in equality A.
+ * G9CaptureService is present (configured|absent). S8 lander-reopen also wraps
+ * FLAG-CODEX-LAUNCH via flagCodexLaunchViaG10Bridge (S7→S4; not historical S4
+ * exit (a)). Sync resolveCodexLaunchArgs stays for non-Effect callers;
+ * presence/shape only in equality A.
  */
 import { tokenizeCliArgs } from "@t3tools/shared/cliArgs";
 import * as Effect from "effect/Effect";
 
 import { captureFlagCodexLaunchResolved } from "../../scm/g9FamilyFileDbProcessConfig.ts";
 import { captureWhenG9Present } from "../../scm/g9FamilyProviderProtocol.ts";
+import { flagCodexLaunchViaG10Bridge } from "../../scm/g10SliceS4.ts";
 
 export const T3CODE_CODEX_LAUNCH_ARGS_ENV = "T3CODE_CODEX_LAUNCH_ARGS";
 
@@ -31,8 +34,16 @@ export const resolveCodexLaunchArgsCaptured = Effect.fn("resolveCodexLaunchArgsC
   function* (launchArgs?: string, environment: NodeJS.ProcessEnv = process.env) {
     const resolved = resolveCodexLaunchArgs(launchArgs, environment);
     const state_label = resolved.length > 0 ? ("configured" as const) : ("absent" as const);
-    yield* captureWhenG9Present((capture) => captureFlagCodexLaunchResolved(state_label, capture));
-    return resolved;
+    // G10 S8 reopen cutover + G9 capture-beside (cutover ≠ capture).
+    return yield* flagCodexLaunchViaG10Bridge(
+      state_label,
+      Effect.gen(function* () {
+        yield* captureWhenG9Present((capture) =>
+          captureFlagCodexLaunchResolved(state_label, capture),
+        );
+        return resolved;
+      }),
+    );
   },
 );
 

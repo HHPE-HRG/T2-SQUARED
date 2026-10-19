@@ -36,6 +36,7 @@ import { ServerConfig } from "../../config.ts";
 import * as ResourceAttribution from "../../resourceTelemetry/ResourceAttribution.ts";
 import { captureProviderEventLogWriterSucceeded } from "../../scm/g9FamilyFileDbProcessConfig.ts";
 import { captureWhenG9Present } from "../../scm/g9FamilyProviderProtocol.ts";
+import { fileLogsProviderEventLogViaG10Bridge } from "../../scm/g10SliceS4.ts";
 import * as EventNdjsonLogger from "./EventNdjsonLogger.ts";
 
 /**
@@ -87,7 +88,10 @@ export const make = Effect.gen(function* () {
   }
 
   // Agent: B2→B4 FILE-LOGS writer success; path/bytes never enter equality A.
-  yield* captureWhenG9Present((capture) => captureProviderEventLogWriterSucceeded(capture));
+  // G10 auth-freeze: phase residual via S4 lander bridge (not historical S4 exit a).
+  yield* fileLogsProviderEventLogViaG10Bridge(
+    captureWhenG9Present((capture) => captureProviderEventLogWriterSucceeded(capture)),
+  );
 
   yield* Effect.addFinalizer(() => store.close());
   return ProviderEventLoggers.of({

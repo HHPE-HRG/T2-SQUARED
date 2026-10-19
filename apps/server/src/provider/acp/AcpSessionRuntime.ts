@@ -39,6 +39,7 @@ import {
   captureAcpRuntimeSpawn,
   captureProviderPermPhase,
 } from "../../scm/g9FamilyProviderProtocol.ts";
+import { providerAcpSpawnViaG10Bridge, providerPermViaG10Bridge } from "../../scm/g10SliceS4.ts";
 
 function formatConfigOptionValue(value: string | boolean): string {
   return JSON.stringify(value);
@@ -354,7 +355,7 @@ export const make = (
       options.spawn.args,
       options.spawn.env ? { env: options.spawn.env, extendEnv: true } : {},
     );
-    const child = yield* spawner
+    const spawnChild = spawner
       .spawn(
         ChildProcess.make(spawnCommand.command, spawnCommand.args, {
           ...(options.spawn.cwd ? { cwd: options.spawn.cwd } : {}),
@@ -372,10 +373,13 @@ export const make = (
             }),
         ),
       );
-    // Agent: CURSOR/GROK runtime-spawn-succeeded when g9SpawnCommId is set by adapter.
-    if (options.g9SpawnCommId) {
-      yield* captureAcpRuntimeSpawn(options.g9SpawnCommId);
-    }
+    // G10 S4: CURSOR/GROK spawn cutover when g9SpawnCommId set; G9 capture observe-beside.
+    const child = yield* options.g9SpawnCommId
+      ? providerAcpSpawnViaG10Bridge(
+          options.g9SpawnCommId,
+          spawnChild.pipe(Effect.tap(() => captureAcpRuntimeSpawn(options.g9SpawnCommId!))),
+        )
+      : spawnChild;
 
     const acpContext = yield* Layer.build(
       EffectAcpClient.layerChildProcess(child, {
@@ -714,14 +718,17 @@ export const make = (
 
     return {
       // Agent: INV-T2-PROVIDER-PERM admit+outcome around permission handler success.
+      // G10 S4: PROVIDER-PERM cutover wraps permission outcome; G9 capture observe-beside.
       handleRequestPermission: (handler) =>
         acp.handleRequestPermission((params) =>
-          Effect.gen(function* () {
-            yield* captureProviderPermPhase("permission-request-admitted");
-            const result = yield* handler(params);
-            yield* captureProviderPermPhase("permission-outcome-succeeded");
-            return result;
-          }),
+          providerPermViaG10Bridge(
+            Effect.gen(function* () {
+              yield* captureProviderPermPhase("permission-request-admitted");
+              const result = yield* handler(params);
+              yield* captureProviderPermPhase("permission-outcome-succeeded");
+              return result;
+            }),
+          ),
         ),
       handleElicitation: acp.handleElicitation,
       handleReadTextFile: acp.handleReadTextFile,

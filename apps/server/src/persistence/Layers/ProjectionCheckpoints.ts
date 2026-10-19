@@ -17,6 +17,8 @@ import {
   type ProjectionCheckpointRepositoryShape,
 } from "../Services/ProjectionCheckpoints.ts";
 
+import { wrapProjectionCheckpointsWithG10 } from "../../scm/g10SliceS7.ts";
+
 const ProjectionCheckpointDbRowSchema = ProjectionCheckpoint.mapFields(
   Struct.assign({
     files: Schema.fromJsonString(Schema.Array(OrchestrationCheckpointFile)),
@@ -203,12 +205,13 @@ const makeProjectionCheckpointRepository = Effect.gen(function* () {
       ),
     );
 
-  return {
+  // G10 S7 PROJECT-SQL cutover on Layers impl (Services tag is inventory hotspot).
+  return wrapProjectionCheckpointsWithG10({
     upsert,
     listByThreadId,
     getByThreadAndTurnCount,
     deleteByThreadId,
-  } satisfies ProjectionCheckpointRepositoryShape;
+  });
 });
 
 export const ProjectionCheckpointRepositoryLive = Layer.effect(
