@@ -1,0 +1,110 @@
+{
+  "schema": "fabric.def.cache.v1",
+  "wave": "research-1",
+  "date": "2026-10-19",
+  "baseline": "origin/main@8e96bbfb5",
+  "note": "Four isolated research councils. Confirmation wave must read this cache + fabric-depth plan docs only. Not authorization. Steward amendments: research/cache-amendment-batteries.md (2026-10-19).",
+  "entries": {
+    "fabric.def.r1.seam-io": {
+      "council": "R1 seam-io",
+      "fabric_is": "Manifold authority that performs the same class of real seam I/O as live (publish/offer/file/flag/transport)—sole-I/O honesty after dual-run-exit, not record-only stubs; soft live recovery is interim bridge safety until FD depth retires it.",
+      "fabric_is_not": [
+        "G10 Increment 6 bridge cutover alone (authority selection + Ordered proof + rollback)",
+        "Observe-beside / stub-shaped manifoldEffect carriers that prove bridge Ordered without second physical I/O",
+        "Soft live fallback as the durable post-exit recovery story",
+        "Codec/nibble/dictionary, home-bus activation, eleventh bus, OQ7/radius resize, Kuatos/freeze-store, G5–G8 server.ts promotion",
+        "G11 or any unlock implied by draft fabric-depth docs"
+      ],
+      "necessary_properties": [
+        "When authority is manifold, manifoldEffect does real seam I/O of the same inventoried class as live",
+        "Post dual-run-exit + inversion armed: manifold failure fails the user op",
+        "Soft live fallback retired per slice only after FD Ordered depth GREEN with real I/O",
+        "Callers keep G9 capture-beside on live/manifold I/O; bridge does not invent capture",
+        "Bridge remains pure Effect authority selector (no dual-run-exit mark, no radius resize, no G9 capture)",
+        "Campaign radius unchanged (73 + 1 dormant; home-bus dormant-preserved)",
+        "Human ceremony unlock required; draft design/auth is not fabric"
+      ],
+      "relation_to_g10_bridge": "G10 sealed runG10SeamBridge cutover phases including soft live fallback when !inverted post-exit; fabric-depth is the fenced next charter for separate physical manifold I/O—bridge cutover is not that bus.",
+      "open_questions": [
+        "Per-slice inventory: which landers still pass stub/observe-shaped manifoldEffect vs real I/O carriers?",
+        "Exact Ordered depth proof criteria that authorize soft-fallback kill per slice?",
+        "Does same-class real seam I/O require outcome equivalence to live or only matching I/O verb class?"
+      ]
+    },
+    "fabric.def.r2.product-dod": {
+      "council": "R2 product-dod",
+      "fabric_is": "Named campaign charter Fabric-depth: next large multi-slice program for real manifoldEffect I/O under manifold authority plus soft-fallback retirement. Product/DoD object is a depth charter after G10, not a numbered ladder gate. Stewards speak charter name only—never invent G11.",
+      "fabric_is_not": [
+        "Numbered gate G11 or any new DoD ladder number",
+        "G10 bridge/Increment 6 cutover, live Ordered proof, or manifest.completed alone",
+        "Unlock from authorization.DRAFT.md, council majority, or overloaded G8/G10 flags",
+        "Claim that G10 already delivered real manifold I/O or soft-fallback retirement",
+        "Radius resize, home-bus/eleventh bus, codec, Kuatos, or client-OTEL campaigns"
+      ],
+      "necessary_properties": [
+        "Named charter language only (Fabric-depth), never G11",
+        "Separate human ceremony promoting DRAFT to durable authorization.md before implement",
+        "Campaign-specific unlock flag; do not overload g9toG10Authorized",
+        "Unchanged G10 radius set (73 activatable + 1 dormant-preserved)",
+        "Depth evidence/proof bar distinct from G10 bridge harness GREEN",
+        "Soft-fallback retirement only after per-slice Ordered depth proof + inversion",
+        "Codec, home-bus, OQ7, Kuatos, G5–G8 entry merge remain explicit non-unlocks"
+      ],
+      "relation_to_g10_bridge": "G10 sealed bridge/authority selection and fabric-claim freeze; Fabric-depth is the next new-auth program that makes manifold authority real I/O and retires soft fallback, not authorized by G10 alone.",
+      "open_questions": [
+        "Exact Fabric-depth unlock flag name/shape (ceremony-defined)",
+        "Whether casual 'fabric' must always expand to 'Fabric-depth' to avoid conflating with G10 fabric-claim freeze"
+      ]
+    },
+    "fabric.def.r3.runtime-ops": {
+      "council": "R3 runtime-ops",
+      "fabric_is": "Env-gated process-live G10 campaign cutover: T2CODE_SCM_G10_CUTOVER installs S1–S7 controllers so seam bridges resolve; default off is today's live (Layer.empty). Ordered proof is ops/live-drive owned (not boot). Operator observes pairing/UI smoke, manifold authority after Ordered, rollback and env-off restore, dormant home-bus.",
+      "fabric_is_not": [
+        "Second physical I/O / fabric-depth real-manifold implement",
+        "Boot Ordered proof or auth ceremony flip",
+        "G9 shadow env or shadow env-off as G10 rollback",
+        "Soft-fallback retirement / FD depth campaign",
+        "WP8 763, radius resize, home-bus on, auto completed:true"
+      ],
+      "necessary_properties": [
+        "Default-off cutover env; restart toggles Layer",
+        "Present mode = same S1–S7 stack as live Ordered driver",
+        "Worktree .t3 only; never ~/.t3 RW",
+        "UI/untouched seams usable; wired seams no-crash under cutover",
+        "Slice/S8 rollback and env-off restore default live",
+        "Home-bus dormant; radius 73+1 unchanged",
+        "Live steward evidence required; harness GREEN insufficient"
+      ],
+      "relation_to_g10_bridge": "2026-10-18 live GREEN proved bridge cutover authority selection under existing G10 auth, not second-physical fabric or soft-fallback kill. Fabric-depth runbook: G10 live evidence alone is not depth proof.",
+      "open_questions": [
+        "Operator-visible soft-fallback active vs retired signal?",
+        "Fabric-depth reuse T2CODE_SCM_G10_CUTOVER or need distinct env?"
+      ]
+    },
+    "fabric.def.r4.vocabulary-radius": {
+      "council": "R4 vocabulary-radius",
+      "fabric_is": "Inventoried activatable seam surface owned by G10 fabric slices S1–S7 (comm_ids that admit/route/replace under cutover toward manifold). Campaign substrate inside frozen radius (73 activatable); not S0/S8. Fabric-depth is a later named campaign on the same surface for real manifoldEffect I/O, not a synonym for G10 bridge GREEN.",
+      "fabric_is_not": [
+        "A bus (ten-bus / home-bus / eleventh bus)",
+        "A resizable radius dial",
+        "Manifold authority itself",
+        "Home-bus-link activation (INV-T2-SCM-HOME-BUS-LINK dormant-preserved)",
+        "Cutover, inversion, capture, codec/nibble/dictionary, or invented G11"
+      ],
+      "necessary_properties": [
+        "Inventory-bounded comm_ids in seam-inventory-completeness.json assigned S1–S7",
+        "Activatable excludes dormant home-bus from cutover/exit/inversion/≡",
+        "G10FabricSliceId is S1–S7 only; S0 no fabric land; S8 audits frozen set",
+        "Exclusive comm_id ownership plus lander/handoff file rules",
+        "Radius-stable: refuse shrink/expand via proof or cutover APIs",
+        "Authority-agnostic noun across live→inverted phases",
+        "Distinct from Fabric-depth (bridge stubs ≠ real sole I/O; separate ceremony)"
+      ],
+      "relation_to_g10_bridge": "G10 bridge proves authority selection across the fabric radius; package-complete does not unlock Fabric-depth, resize radius, or activate home-bus/eleventh bus.",
+      "open_questions": [
+        "Qualify everyday 'fabric' vs campaign name 'Fabric-depth' so agents do not conflate",
+        "Is 'ten-bus' a citable count or only a cohesion decision label?"
+      ]
+    }
+  }
+}

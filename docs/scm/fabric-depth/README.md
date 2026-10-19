@@ -1,31 +1,36 @@
 # Fabric-depth campaign (named charter — not G11)
 
-<!-- Agent: design + draft auth only (steward 1B). No implement until ceremony
-promotes authorization.DRAFT.md. Does not resize radius. Does not unlock
-home-bus / codec / eleventh bus. -->
+<!-- Agent: durable ceremony unlock 2026-10-19. Implement under
+T2CODE_SCM_FABRIC_DEPTH + authorization.md. Not G11. -->
 
-- Date: 2026-10-18
-- Status: **charter draft** (implement blocked)
-- Relation to G10: G10 sealed **bridge / authority selection**
-  (`apps/server/src/scm/g10SeamBridge.ts`). Fabric-depth is the next large
-  multi-slice program that makes `manifoldEffect` **real I/O** when manifold
-  authority is active, then retires soft live fallback.
-- Prerequisite: G10 package complete (`docs/scm/g10/manifest.json`
-  `completed: true`; live evidence
-  `docs/scm/g10/evidence/live-cutover-2026-10-18.md`).
+- Date: 2026-10-19
+- Status: **authorized_pending_implement** (`manifest.json`)
+- Unlock: `fabricDepthAuthorized: true` (ceremony 2026-10-19, Max Holden)
+- Process env: `T2CODE_SCM_FABRIC_DEPTH` (not `T2CODE_SCM_G10_CUTOVER`)
+- Relation to G10: G10 sealed **G10 bridge** authority selection
+  (`apps/server/src/scm/g10SeamBridge.ts`). **Fabric-depth** makes
+  `manifoldEffect` **real I/O** then retires soft live fallback.
+- Prerequisite: G10 package complete + live evidence
+  `docs/scm/g10/evidence/live-cutover-2026-10-18.md`
 
 ## Index
 
-| Doc                                              | Role                                              |
-| ------------------------------------------------ | ------------------------------------------------- |
-| [design.md](design.md)                           | End-state honesty + soft-fallback retirement plan |
-| [planning-scope.md](planning-scope.md)           | In / out / non-unlocks                            |
-| [session-runbook.md](session-runbook.md)         | Proposed FD0–FD8 slice map (draft)                |
-| [authorization.DRAFT.md](authorization.DRAFT.md) | Ceremony-ready body — **not** durable unlock      |
-| [ceremony-checklist.md](ceremony-checklist.md)   | Preconditions before human ceremony               |
+| Doc                                                              | Role                                                          |
+| ---------------------------------------------------------------- | ------------------------------------------------------------- |
+| [glossary.md](glossary.md)                                       | Speech lock: fabric seams / G10 bridge / Fabric-depth         |
+| [design.md](design.md)                                           | End-state + bridge purity + soft-fallback retire plan         |
+| [planning-scope.md](planning-scope.md)                           | In / out / env / ownership fences                             |
+| [session-runbook.md](session-runbook.md)                         | FD0–FD8 map → proof-bar                                       |
+| [proof-bar.md](proof-bar.md)                                     | Binding Ordered depth law                                     |
+| [ops/soft-fallback-signal.md](ops/soft-fallback-signal.md)       | `g10.softFallback` active\|retired                            |
+| [evidence/manifold-io-census.md](evidence/manifold-io-census.md) | Stub/observe/real census                                      |
+| [manifest.json](manifest.json)                                   | `fabricDepthAuthorized: true`                                 |
+| [authorization.md](authorization.md)                             | Durable unlock (ceremony 2026-10-19)                          |
+| [ceremony-checklist.md](ceremony-checklist.md)                   | Docs readiness + human unlock complete                        |
+| [research/](research/)                                           | Wave 4 def cache + confirm (post-batteries); Wave 1–3 history |
 
 ## Explicit
 
 - Do **not** invent numbered gate “G11”.
-- Do **not** implement under G10 auth alone.
-- Promote DRAFT → `authorization.md` only in a **separate** human ceremony.
+- Do **not** treat G10 auth / live-cutover alone as Fabric-depth proof.
+- Implement under durable `authorization.md` + `T2CODE_SCM_FABRIC_DEPTH`.

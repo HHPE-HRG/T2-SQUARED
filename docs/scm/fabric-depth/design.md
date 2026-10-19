@@ -1,26 +1,32 @@
-# Fabric-depth design (draft)
+# Fabric-depth design
 
-<!-- Agent: product law for named Fabric-depth campaign. Not runtime auth.
-Not implement. Not G11. -->
+<!-- Agent: product law for named Fabric-depth campaign. Ceremony unlocked
+2026-10-19. Not G11. -->
 
-- Date: 2026-10-18
-- Status: **draft** pending separate ceremony
+- Date: 2026-10-19
+- Status: **authorized** charter (implement under `T2CODE_SCM_FABRIC_DEPTH`)
 - G10 baseline: Increment 6 bridge cutover package-complete
+- Unlock: `authorization.md` + `fabricDepthAuthorized: true`
 
 ## Honest starting point
 
-G10 sealed **authority selection** via `runG10SeamBridge`:
+G10 sealed **authority selection** via `runG10SeamBridge` (pure Effect
+selector — does not mark dual-run-exit, resize radius, or invent G9 capture;
+callers keep capture-beside on the Effects they pass):
 
 - not replaced → live only
 - dual-run / rehearsal → live authoritative; optional observe-beside
 - post dual-run-exit → manifold authoritative; if `!inversionArmed` and
   manifold fails → **soft fallback to live** (pre-inversion safety)
 
-Many landers still pass observe/stub-shaped `manifoldEffect` carriers. That
-is enough for bridge Ordered proof. It is **not** a second physical I/O bus
-and not sole-I/O honesty after exit.
+Many landers still pass observe/stub-shaped `manifoldEffect` carriers
+(see `evidence/manifold-io-census.md`). That is enough for G10 bridge Ordered
+proof. It is **not** sole-I/O honesty after exit and not Fabric-depth.
 
-## End-state (authorized implement target after ceremony)
+Speech: use **fabric seams** / **G10 bridge** / **Fabric-depth**
+(`glossary.md`) — never bare “fabric”.
+
+## End-state (authorized implement target)
 
 1. When authority is **manifold**, `manifoldEffect` performs the **same class
    of real seam I/O** the live path would (publish / offer / file / flag /
@@ -48,8 +54,17 @@ Codec / nibble / dictionary; home-bus activation; eleventh bus; OQ7 / radius
 resize; Kuatos / freeze-store; G5–G8 `server.ts` entry promotion; inventing
 G11; claiming G10 bridge alone was fabric-depth.
 
+## Bridge purity + ownership
+
+- Bridge remains selector-only; I/O lives in caller-supplied Effects.
+- Exclusive `comm_id` ownership + sole-lander/handoff rules unchanged
+  (`docs/scm/g10/cross-slice-cohesion-index.md`).
+- S0 = contracts only (no fabric-seam land). S1–S7 = fabric-seam slices.
+  S8 = campaign audit of frozen set.
+
 ## Implement gate
 
-No code lands until human ceremony promotes
-`authorization.DRAFT.md` → durable `authorization.md` (and any unlock flag
-the ceremony defines). Draft docs are not unlocks.
+Ceremony complete 2026-10-19: durable `authorization.md` +
+`manifest.json` `fabricDepthAuthorized: true`. Workers may land under
+process env `T2CODE_SCM_FABRIC_DEPTH` against `proof-bar.md`. Do not invent
+G11; do not overload `g9toG10Authorized`.

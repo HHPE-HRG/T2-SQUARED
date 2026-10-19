@@ -25,9 +25,25 @@
 | Inventing numbered **G11**                             | Use named charter `Fabric-depth`        |
 | Client OTEL / multi-surface remote                     | Separate product-surface campaign       |
 
+## Process env
+
+- Fabric-depth process gate: **`T2CODE_SCM_FABRIC_DEPTH`**
+- Does **not** reuse `T2CODE_SCM_G10_CUTOVER`
+- Unlock flag: `docs/scm/fabric-depth/manifest.json` → `fabricDepthAuthorized`
+  (**true** after ceremony 2026-10-19; see `authorization.md`)
+
+## Ownership / slice fences
+
+- Inventory-bounded fabric seams assigned S1–S7 only
+- Exclusive `comm_id` + lander/handoff file rules (G10 cohesion index)
+- S0: no fabric-seam land; S8: audits frozen set only
+
 ## False friends
 
-- G10 `completed: true` does **not** authorize Fabric-depth implement
-- `authorization.DRAFT.md` does **not** unlock code
-- Env `T2CODE_SCM_G10_CUTOVER` does **not** mean fabric-depth
-- Unsetting G9 shadow env is **not** fabric-depth rollback
+- G10 `completed: true` does **not** alone prove Fabric-depth depth
+- Pre-ceremony `authorization.DRAFT.md` did **not** unlock (removed at ceremony)
+- Env `T2CODE_SCM_G10_CUTOVER` does **not** mean Fabric-depth
+- Unsetting G9 shadow env is **not** Fabric-depth rollback
+- Bare “fabric” speech without glossary qualification
+- Soft-fallback still `active` does not mean depth GREEN
+- Inventing numbered G11

@@ -1,0 +1,100 @@
+{
+  "schema": "fabric.def.cache.v1",
+  "wave": "research-4-post-batteries",
+  "date": "2026-10-19",
+  "baseline": "charter_pending_ceremony (batteries A–E landed)",
+  "note": "Four isolated research councils after ceremony-gate charter close. Confirmation wave reads THIS file + plan package only. Not authorization. Supersedes Wave 1 as current definition cache for ceremony briefing.",
+  "entries": {
+    "fabric.def.w4.r1.seam-io": {
+      "council": "W4-R1 seam-io",
+      "fabric_is": "Under the closed charter, the seam/IO noun is fabric seams: the inventoried activatable comm_id surface owned by G10 slices S1–S7 inside the frozen radius (73 + 1 dormant home-bus). Fabric-depth is the named campaign that makes that surface honest when manifold is authority—manifoldEffect performs the same inventoried verb-class I/O as live (publish/offer/file/flag/spawn/transport), then retires soft live fallback after Ordered depth. Bare fabric alone is not a defined term.",
+      "fabric_is_not": [
+        "The G10 bridge / cutover selector (runG10SeamBridge) or env T2CODE_SCM_G10_CUTOVER",
+        "Manifold authority, dual-run-exit, inversion, or G9 capture (phase/law verbs or paths)",
+        "Record-only stub / observe-beside carriers counted as sole I/O",
+        "A radius resize, eleventh bus, or home-bus activation dial",
+        "Gate G11, or G10 live/bridge GREEN as Fabric-depth proof"
+      ],
+      "necessary_properties": [
+        "Frozen inventory radius; exclusive comm_id ownership; S1–S7 land fabric seams (S0 contracts-only; S8 audit)",
+        "When manifold is authority, manifoldEffect runs the same inventoried verb class as live",
+        "Sole-lander census class real before Ordered depth exit (stub/observe block sole-I/O GREEN)",
+        "Outcome ≡ under the campaign equality carrier",
+        "Soft-fallback retire only after Ordered depth through arm-inversion + operator signal",
+        "Dormant home-bus exempt from exit / inversion / soft-fallback retire",
+        "I/O lives in caller-supplied Effects; bridge stays selector-only"
+      ],
+      "relation_to_g10_bridge": "G10 bridge is package-complete authority selection over live vs manifold Effects; it does not perform seam I/O, mark dual-run-exit, resize radius, or invent capture. Fabric-depth supplies real manifold I/O (and later soft-fallback kill) behind that already-sealed selector.",
+      "open_questions": []
+    },
+    "fabric.def.w4.r2.product-dod": {
+      "council": "W4-R2 product-dod",
+      "fabric_is": "Fabric-depth is the named post-G10 product campaign whose Definition of Done is real manifoldEffect I/O under manifold authority plus per-slice Ordered depth through soft-fallback retirement across the frozen G10 radius. Done is ceremony-gated (fabricDepthAuthorized + durable authorization.md) and proven under T2CODE_SCM_FABRIC_DEPTH against the binding proof-bar—not a numbered ladder gate.",
+      "fabric_is_not": [
+        "Numbered gate G11 or any new DoD ladder number",
+        "G10 bridge / Increment 6 cutover, live Ordered GREEN, or manifest.completed alone as Fabric-depth done",
+        "Unlock from authorization.DRAFT.md, checklist docs-readiness alone, council majority, or overloaded g9toG10Authorized",
+        "Claim that G10 already delivered real manifold I/O or soft-fallback retirement",
+        "Radius resize, home-bus/eleventh bus, codec, Kuatos, client-OTEL, or WP8 763 as campaign DoD"
+      ],
+      "necessary_properties": [
+        "Named charter language only (Fabric-depth); speech-locked; never invent G11",
+        "Separate human ceremony: durable authorization.md + fabricDepthAuthorized true same changeset before implement",
+        "Distinct process env T2CODE_SCM_FABRIC_DEPTH (not T2CODE_SCM_G10_CUTOVER)",
+        "Unchanged G10 radius (73 activatable + 1 dormant-preserved); home-bus dormant-exempt",
+        "Proof-bar Ordered depth (land → rehearsal → ≡ → rollback → exit → arm-inversion → soft-fallback-retire) with sole-lander census real",
+        "Soft-fallback retire only after per-slice inversion GREEN + g10.softFallback=retired operator signal",
+        "FD8 campaign close: all activatable seams depth-complete (or dormant-exempt); refuse G10/harness/763 as Fabric-depth proof"
+      ],
+      "relation_to_g10_bridge": "G10 sealed pure-selector authority selection (runG10SeamBridge) and may leave stub/observe manifold carriers with soft fallback active. Fabric-depth is the next authorized product program that makes manifold authority real I/O and retires soft live recovery; G10 alone does not unlock or satisfy its DoD.",
+      "open_questions": []
+    },
+    "fabric.def.w4.r3.runtime-ops": {
+      "council": "W4-R3 runtime-ops",
+      "fabric_is": "Fabric-depth runtime/ops is the process-live campaign under T2CODE_SCM_FABRIC_DEPTH: FD0–FD8 Ordered depth (land → rehearsal → cutover ≡ → rollback → dual-run-exit → arm inversion → soft-fallback retire) on the frozen G10 radius, with operator-visible g10.softFallback=active|retired per S1–S7. Proof requires process-live depth drive and observed active→retired (and rollback re-emit), not harness-only GREEN or G10 live-cutover alone.",
+      "fabric_is_not": [
+        "T2CODE_SCM_G10_CUTOVER / g10Bootstrap cutover install as the Fabric-depth process gate",
+        "G10 live-cutover / bridge-harness / WP8 763 as Fabric-depth proof",
+        "Soft-fallback retire before Ordered depth through arm-inversion + real sole-lander census",
+        "Gating active on !inversionArmed; omitting active re-emit on FD env-off / campaign rollback",
+        "Home-bus activation, radius resize, inventing G11, or hunting a dormant S6 softFallback field"
+      ],
+      "necessary_properties": [
+        "Distinct process env T2CODE_SCM_FABRIC_DEPTH (does not reuse T2CODE_SCM_G10_CUTOVER; clearing FD ≠ G9 shadow env-off)",
+        "Per-slice g10.softFallback: post dual-run-exit emit active until FD retire GREEN; then retired and no soft-fall to live on manifold failure",
+        "Rollback / FD env-off must re-emit active for every restored slice; home-bus/dormant omits the field",
+        "Binding Ordered depth sequence per FD1–FD7; no exit/inversion/retire while census is stub/observe",
+        "Soft-fallback retire only after Ordered depth through arm-inversion + operator signal contract + real sole-lander census for that slice’s activatable comm_ids",
+        "Campaign close (FD8): all activatable seams real + retired (or dormant-exempt); aggregate ≡; campaign rollback restores bridge-complete G10 live",
+        "Implement blocked until ceremony; fabricDepthAuthorized unlock separate from G10 completed"
+      ],
+      "relation_to_g10_bridge": "G10 bridge cutover (runG10SeamBridge + T2CODE_SCM_G10_CUTOVER / g10Bootstrap) seals authority selection and may leave soft-fallback active; Fabric-depth is a separate process-gated campaign that deepens manifold I/O and retires soft-fallback. G10 live GREEN alone is not Fabric-depth proof.",
+      "open_questions": [
+        "Must process-live depth drive run with both T2CODE_SCM_FABRIC_DEPTH and T2CODE_SCM_G10_CUTOVER present, or is FD env alone sufficient on bridge-complete live?",
+        "Does toggling T2CODE_SCM_FABRIC_DEPTH require process restart (G10 cutover Layer parity), or is hot semantics specified at implement?"
+      ]
+    },
+    "fabric.def.w4.r4.vocabulary-radius": {
+      "council": "W4-R4 vocabulary-radius",
+      "fabric_is": "The inventoried activatable seam surface — S1–S7 comm_ids inside the frozen G10 radius (73 activatable + 1 dormant-preserved home-bus-link). Speech lock: say fabric seams / radius for that noun; Fabric-depth for the named depth campaign; G10 bridge / cutover for Increment 6 authority selection — never bare fabric.",
+      "fabric_is_not": [
+        "A resizable blast-radius dial (OQ7 / multi-session / proof-order shrink)",
+        "Home-bus activation, eleventh bus, or ten-bus as a count/resize lever (cohesion label only)",
+        "Manifold authority, cutover, inversion, capture, or dual-run-exit (phase/law verbs)",
+        "S0 fabric-seam land or S8 lander role (S0 contracts; S8 audits frozen set)",
+        "Invented G11, codec/nibble campaigns, or ownership reassignment without handoff docs"
+      ],
+      "necessary_properties": [
+        "Radius set = inventory-authoritative comm_ids in seam-inventory assigned S1–S7, phases not dormant-preserved (73 + 1 dormant of 74)",
+        "Radius-stable across G10 and Fabric-depth: Ordered proof / cutover / depth do not resize membership",
+        "Exclusive comm_id ownership + sole-lander / handoff rules (G10 cohesion); FD does not reassign without handoff",
+        "G10FabricSliceId fabric-seam land = S1–S7 only",
+        "Dormant home-bus-link exempt from cutover exit / inversion / soft-fallback retire",
+        "Authority-agnostic noun: same surface under live → manifold → inverted",
+        "Qualify terms per glossary; refuse bare fabric in FD charter docs"
+      ],
+      "relation_to_g10_bridge": "G10 bridge (runG10SeamBridge + T2CODE_SCM_G10_CUTOVER) selects authority across this frozen radius and must not resize it or invent capture. Fabric-depth reuses the same seam surface for real manifoldEffect I/O; G10 package-complete / live GREEN does not unlock depth, activate home-bus, or expand the set.",
+      "open_questions": []
+    }
+  }
+}

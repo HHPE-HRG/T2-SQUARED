@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "campaign": "Fabric-depth",
+  "status": "authorized_pending_implement",
+  "fabricDepthAuthorized": true,
+  "authorized": true,
+  "completed": false,
+  "g10PrerequisiteCompleted": true,
+  "g10LiveEvidence": "docs/scm/g10/evidence/live-cutover-2026-10-18.md",
+  "processEnv": "T2CODE_SCM_FABRIC_DEPTH",
+  "doesNotOverload": "g9toG10Authorized",
+  "proofBar": "docs/scm/fabric-depth/proof-bar.md",
+  "census": "docs/scm/fabric-depth/evidence/manifold-io-census.json",
+  "glossary": "docs/scm/fabric-depth/glossary.md",
+  "authorization": "docs/scm/fabric-depth/authorization.md",
+  "note": "Durable unlock 2026-10-19 (Max Holden verbal ceremony). fabricDepthAuthorized true with authorization.md. Implement may proceed under T2CODE_SCM_FABRIC_DEPTH. completed flips true only at FD8."
+}
