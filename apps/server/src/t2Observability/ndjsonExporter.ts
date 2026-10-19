@@ -4,7 +4,11 @@ import { dirname } from "node:path";
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
 
 export class T2NdjsonSpanExporter implements SpanExporter {
-  constructor(readonly filePath: string) {}
+  readonly filePath: string;
+
+  constructor(filePath: string) {
+    this.filePath = filePath;
+  }
 
   export(
     spans: Array<ReadableSpan>,

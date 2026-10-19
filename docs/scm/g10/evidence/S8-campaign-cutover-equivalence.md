@@ -45,6 +45,14 @@ document is the campaign rollup.
 - Home-bus activation
 - Closing via 763 alone (`refuse763AsProof`)
 
+## Live-run (2026-10-18 / 2026-10-19T06:52Z)
+
+Process-live campaign close via `scripts/g10-live-ordered-drive.ts` →
+`runS8CampaignCloseProof`: activatable 73, dormant 1, radiusUnchanged,
+homeBusDormant, rollback valid+allLive, ≡ samples 12 under G9DeferredEquality.
+Rollup: `docs/scm/g10/evidence/live-cutover-2026-10-18.md`.
+
 ## Verdict
 
 **GREEN** — campaign aggregate ≡ under G9DeferredEquality.
+**LIVE GREEN** — see live-cutover rollup.

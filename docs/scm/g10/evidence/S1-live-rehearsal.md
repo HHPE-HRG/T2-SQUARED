@@ -21,6 +21,12 @@
 - One rollback restore (`restorePreCutoverLive`) + re-land under live authority; live re-proven.
 - Inversion not armed; treating rehearsal as exit/inversion is forbidden.
 
+## Live-run pointer
+
+Campaign live Ordered drive (S1–S8) 2026-10-18:
+`docs/scm/g10/evidence/live-cutover-2026-10-18.md` — S1 steps 6, authority
+manifold, inversionArmed true after full Ordered.
+
 ## Verdict
 
 **GREEN**

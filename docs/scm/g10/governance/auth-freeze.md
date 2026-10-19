@@ -4,10 +4,11 @@
 new auth only. Do not invent G11. Do not flip completed without live evidence. -->
 
 - Date: 2026-10-18
-- Status: **authorized_implement_complete_pending_live_test**
+- Status: **package_complete_after_live** (implement freeze held for non-goals)
 - Auth: `docs/scm/g10/authorization.md` (unchanged)
 - Flag: `g9toG10Authorized: true` (unchanged)
-- Manifest: `authorizedImplementComplete: true`, `completed: false`
+- Manifest: `authorizedImplementComplete: true`, `completed: true`
+- Live evidence: `docs/scm/g10/evidence/live-cutover-2026-10-18.md`
 
 ## Meaning
 
@@ -44,3 +45,10 @@ depth requires a **new design + auth** charter.
 
 Flip `docs/scm/g10/manifest.json` `completed: true` only after steward-accepted
 **live** evidence. Harness GREEN alone is not package complete.
+
+### Live close applied — 2026-10-18
+
+Steward-accepted live Ordered proof + smoke + env-off restore recorded in
+`docs/scm/g10/evidence/live-cutover-2026-10-18.md`. Manifest `completed: true`.
+Fabric-depth remains **new auth** (`docs/scm/fabric-depth/authorization.DRAFT.md`
+is not an unlock).

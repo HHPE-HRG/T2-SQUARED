@@ -11,8 +11,9 @@
 - `runtime_authorized`: **true** (`authorization.md` + G8 flag)
 - `g9toG10Authorized`: **true** (`docs/scm/g8/manifest.json`; ceremony 2026-10-18)
 - `authorization.md`: **present** (`docs/scm/g10/authorization.md`; human: Max Holden)
-- `authorized_implement_complete`: **true** (pending live test; `completed: false`)
-- Auth freeze: `docs/scm/g10/governance/auth-freeze.md`
+- `authorized_implement_complete`: **true**
+- `completed`: **true** (live Ordered proof GREEN — `evidence/live-cutover-2026-10-18.md`)
+- Auth freeze: `docs/scm/g10/governance/auth-freeze.md` (implement freeze held; package closed by live)
 - Live ops: `docs/scm/g10/ops/live-cutover-runbook.md`
 - Planning input: `docs/scm/g9/g9-to-g10-recon.md`
 - Design: `docs/superpowers/specs/2026-10-18-scm-g10-cutover-rollback-design.md`
@@ -57,11 +58,13 @@ Definition + adversarial harden are **closed** (`adversarial_seal: pass`).
 
 ## Auth-freeze wall (2026-10-18)
 
-Authorized implement is **complete** pending live test. Next actions only:
+Authorized implement froze pending live test. Live Ordered proof **GREEN**
+2026-10-18 (`evidence/live-cutover-2026-10-18.md`); `manifest.completed: true`.
 
-1. Live testing (`docs/scm/g10/ops/live-cutover-runbook.md`)
-2. Maintenance debug of landed seams (no scope expand)
-3. **New** human authorization for fenced non-goals
+Next actions only:
 
-Do not invent G11. Do not flip `completed: true` without live evidence.
-See `docs/scm/g10/governance/auth-freeze.md`.
+1. Maintenance debug of landed seams (no scope expand)
+2. **New** human authorization for fenced non-goals (Fabric-depth charter
+   draft: `docs/scm/fabric-depth/` — implement blocked until ceremony)
+
+Do not invent G11. See `docs/scm/g10/governance/auth-freeze.md`.

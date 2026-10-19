@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "gate": "G10",
-  "status": "authorized_implement_complete_pending_live_test",
+  "status": "completed",
   "authorized": true,
   "authorizedImplementComplete": true,
-  "completed": false,
+  "completed": true,
   "definitionClosed": true,
   "adversarialSeal": "pass",
   "doesNotAuthorizeLaterGates": true,
@@ -17,9 +17,10 @@
   "adversarialFindings": "docs/scm/g10/adversarial-findings.md",
   "authFreeze": "docs/scm/g10/governance/auth-freeze.md",
   "liveCutoverOps": "docs/scm/g10/ops/live-cutover-runbook.md",
+  "liveEvidence": "docs/scm/g10/evidence/live-cutover-2026-10-18.md",
   "authorization": {
     "identity": "Max Holden",
     "scope": "Increment 6 cutover/rollback runtime (S0–S8 one session)",
-    "note": "Human runtime ceremony 2026-10-18. Auth-freeze 2026-10-18: authorized implement complete pending live test. completed stays false until live evidence. G9 auth did not unlock G10. Home-bus dormant; codec/eleventh bus out of scope; bridge cutover model (not second physical fabric)."
+    "note": "Human runtime ceremony 2026-10-18. Auth-freeze 2026-10-18. Live Ordered proof GREEN 2026-10-18 (evidence/live-cutover-2026-10-18.md); completed true. G9 auth did not unlock G10. Home-bus dormant; codec/eleventh bus out of scope; bridge cutover model (not second physical fabric). Fabric-depth requires separate named charter + ceremony."
   }
 }
