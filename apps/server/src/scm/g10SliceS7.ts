@@ -3,8 +3,10 @@
  *
  * Intended: own S7 admit/route/replace + Ordered proof sequence helpers
  * wrapping createSubstitutionModel / installAdmitRouteReplace /
- * recordOrderedProofStep / armInversion / restorePreCutoverLive. Wired seams
- * on S7 sole landers only:
+ * recordOrderedProofStep / armInversion / restorePreCutoverLive. Under
+ * T2CODE_SCM_FABRIC_DEPTH (Battery FD7), softFallbackRetire runs after
+ * armInversion via recordSoftFallbackRetire (census sole-lander debt EMPTY —
+ * four handoff stubs non-blocking). Wired seams on S7 sole landers only:
  *   - persistence/Layers/Projection* (PROJECT-SQL; Services tags are inventory
  *     hotspots; live I/O lands on Layers implementations)
  *   - NodeSqliteClient.ts (SQLITE)
@@ -22,12 +24,14 @@
  *
  * Observed: in-memory model + traffic log; dualRunExit / armInversion never
  * call markDualRunExited — recordOrderedProofStep is sole dual-run-exit /
- * arm-inversion writer. Absent controller ⇒ live paths unchanged.
+ * arm-inversion writer. softFallbackRetire is Fabric-depth bookkeeping (not a
+ * G10 OrderedProofStep). Absent controller ⇒ live paths unchanged. No G11.
  */
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import { join } from "node:path";
 
 import type { ProjectionSnapshotQueryShape } from "../orchestration/Services/ProjectionSnapshotQuery.ts";
 import type { ProjectionCheckpointRepositoryShape } from "../persistence/Services/ProjectionCheckpoints.ts";
@@ -60,6 +64,8 @@ import {
   type G9SqliteOperation,
 } from "./g9FamilyFileDbProcessConfig.ts";
 import { whenG9CapturePresent } from "./g9FamilySubprocessExternalTransport.ts";
+import { isFabricDepthEnabled } from "./fabricDepthBootstrap.ts";
+import { recordSoftFallbackRetire, softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import {
   activatableCommIdsForSlice,
   loadG10CutoverRegistry,
@@ -83,6 +89,13 @@ import {
   type G10SubstitutionModel,
 } from "./g10Substitution.ts";
 import type { CutoverPhase, OrderedProofStep } from "./g10Types.ts";
+
+/**
+ * Absolute path to Fabric-depth manifold I/O census (soft-fallback retire gate).
+ * Agent: sole-lander debt for S7 is EMPTY (handoff stubs only).
+ */
+const fabricDepthCensusPath = (repoRoot: string): string =>
+  join(repoRoot, "docs/scm/fabric-depth/evidence/manifold-io-census.json");
 
 /**
  * Frozen S7 activatable inventory `comm_id` set (14 rows — B2 remainder).
@@ -153,10 +166,16 @@ export type G10S7TrafficSample = {
   readonly atMs: number;
 };
 
+/**
+ * Evidence step id: G10 Ordered proof steps plus Fabric-depth soft-fallback-retire
+ * (FD7; not an OrderedProofStep).
+ */
+export type G10S7EvidenceStep = OrderedProofStep | "soft-fallback-retire";
+
 /** Structured evidence body for one Ordered proof step (markdown writer input). */
 export type G10S7EvidenceBody = {
   readonly slice: "S7";
-  readonly step: OrderedProofStep | "land";
+  readonly step: G10S7EvidenceStep;
   readonly phase: CutoverPhase;
   readonly authority: "live" | "manifold";
   readonly inversionArmed: boolean;
@@ -244,7 +263,8 @@ const G10_S7_WIRED_REHEARSAL: ReadonlyArray<{
  * S7 campaign controller shape (process-global or Effect service).
  *
  * Agent: land → liveRehearsal → recordEquiv → rollbackDrill → dualRunExit →
- * armInversion. dualRunExit uses recordOrderedProofStep only.
+ * armInversion → (FD) softFallbackRetire. dualRunExit uses
+ * recordOrderedProofStep only. softFallbackRetire uses recordSoftFallbackRetire.
  */
 export type G10S7Controller = {
   readonly slice: "S7";
@@ -257,6 +277,11 @@ export type G10S7Controller = {
   readonly rollbackDrill: () => G10S7EvidenceBody;
   readonly dualRunExit: () => G10S7EvidenceBody;
   readonly armInversion: () => G10S7EvidenceBody;
+  /**
+   * Fabric-depth: retire soft-fallback after arm-inversion (requires
+   * T2CODE_SCM_FABRIC_DEPTH=1 + census sole-lander debt EMPTY).
+   */
+  readonly softFallbackRetire: () => G10S7EvidenceBody;
   readonly recordLiveWiredSeam: (
     commId: G10S7WiredCommId,
     phase: string,
@@ -385,7 +410,7 @@ export const createG10S7Controller = (repoRoot: string = resolveG10RepoRoot()): 
   };
 
   const snapshotEvidence = (
-    step: OrderedProofStep | "land",
+    step: G10S7EvidenceStep,
     notes: readonly string[],
     equalitySamples?: readonly G9DeferredEquality[],
   ): G10S7EvidenceBody => {
@@ -625,6 +650,29 @@ export const createG10S7Controller = (repoRoot: string = resolveG10RepoRoot()): 
       "manifold failure may now fail user-visible S7 persistence/local ops",
       "armed solely via armInversion → recordOrderedProofStep",
       "four handoff-deferred rows remain un-inverted from S7 wiring",
+      "FD7: call softFallbackRetire next under T2CODE_SCM_FABRIC_DEPTH",
+    ]);
+  };
+
+  /**
+   * Fabric-depth soft-fallback retire (proof-bar step 7 after arm-inversion).
+   *
+   * Intended: g10.softFallback=retired when FD on + census sole-lander debt EMPTY.
+   * Observed: delegates to recordSoftFallbackRetire; refuses when FD off.
+   */
+  const softFallbackRetireStep = (): G10S7EvidenceBody => {
+    if (model.sliceStates.get("S7")?.inversionArmed !== true) {
+      throw new Error("G10 S7 softFallbackRetire: requires armInversion first");
+    }
+    recordSoftFallbackRetire(model, "S7", fabricDepthCensusPath(repoRoot));
+    if (softFallbackForSlice(model, "S7") !== "retired") {
+      throw new Error("G10 S7 softFallbackRetire: softFallback not retired");
+    }
+    return snapshotEvidence("soft-fallback-retire", [
+      "g10.softFallback=retired via recordSoftFallbackRetire after armInversion",
+      "census sole-lander debt EMPTY (FILE-CHECKPOINTS / FLAG-CLOUDFLARED / FLAG-CODEX-LAUNCH / FLAG-TERM-ENV are handoff stubs)",
+      "bridge must not soft-fall to live on manifold failure for S7",
+      "no G11; radius unchanged; foreign landers untouched (VcsDriver / relayClient / codexLaunchArgs / Manager)",
     ]);
   };
 
@@ -636,6 +684,10 @@ export const createG10S7Controller = (repoRoot: string = resolveG10RepoRoot()): 
     bodies.push(rollbackDrill());
     bodies.push(dualRunExit());
     bodies.push(armInversionStep());
+    // Fabric-depth Ordered depth step 7 (proof-bar.md); no-op path when FD off.
+    if (isFabricDepthEnabled()) {
+      bodies.push(softFallbackRetireStep());
+    }
     if (!orderedProofSatisfiedThrough(model, "S7", "arm-inversion")) {
       throw new Error("G10 S7 runFullOrderedProof: Ordered proof incomplete");
     }
@@ -653,6 +705,7 @@ export const createG10S7Controller = (repoRoot: string = resolveG10RepoRoot()): 
     rollbackDrill,
     dualRunExit,
     armInversion: armInversionStep,
+    softFallbackRetire: softFallbackRetireStep,
     recordLiveWiredSeam,
     recordManifoldWiredSeam,
     recordStubPair,

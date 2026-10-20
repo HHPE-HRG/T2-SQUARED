@@ -72,9 +72,17 @@ export const NoOpProviderEventLoggers: ProviderEventLoggers["Service"] = {
 export const make = Effect.gen(function* () {
   const { providerEventLogPath } = yield* ServerConfig;
   const attribution = yield* ResourceAttribution.ResourceAttribution;
-  const store = yield* EventNdjsonLogger.makeEventNdjsonLogStore(providerEventLogPath, {
-    attribution,
-  }).pipe(
+  // Agent: B2→B4 FILE-LOGS writer success; path/bytes never enter equality A.
+  // FD4: store create inside liveIo so manifold authority reuses the same verb I/O.
+  const store = yield* fileLogsProviderEventLogViaG10Bridge(
+    EventNdjsonLogger.makeEventNdjsonLogStore(providerEventLogPath, {
+      attribution,
+    }).pipe(
+      Effect.tap(() =>
+        captureWhenG9Present((capture) => captureProviderEventLogWriterSucceeded(capture)),
+      ),
+    ),
+  ).pipe(
     Effect.catch((error) =>
       Effect.logWarning(error.message, { error }).pipe(
         Effect.annotateLogs({ scope: "provider-observability" }),
@@ -86,12 +94,6 @@ export const make = Effect.gen(function* () {
   if (!store) {
     return ProviderEventLoggers.of(NoOpProviderEventLoggers);
   }
-
-  // Agent: B2→B4 FILE-LOGS writer success; path/bytes never enter equality A.
-  // G10 auth-freeze: phase residual via S4 lander bridge (not historical S4 exit a).
-  yield* fileLogsProviderEventLogViaG10Bridge(
-    captureWhenG9Present((capture) => captureProviderEventLogWriterSucceeded(capture)),
-  );
 
   yield* Effect.addFinalizer(() => store.close());
   return ProviderEventLoggers.of({

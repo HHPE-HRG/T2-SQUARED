@@ -3,7 +3,9 @@
  *
  * Intended: own S3 admit/route/replace + Ordered proof sequence helpers
  * wrapping createSubstitutionModel / installAdmitRouteReplace /
- * recordOrderedProofStep / armInversion / restorePreCutoverLive. Wired seams:
+ * recordOrderedProofStep / armInversion / restorePreCutoverLive. Under
+ * T2CODE_SCM_FABRIC_DEPTH, after arm-inversion call recordSoftFallbackRetire
+ * (census sole-lander gate). Wired seams:
  *   - VcsDriver.ts sole lander: INV-T2-GIT (FILE-CHECKPOINTS is S7 handoff —
  *     do not steal)
  *   - relayClient.ts sole lander: INV-T2-RELAY-CLIENT (FLAG-CLOUDFLARED is S7
@@ -15,7 +17,8 @@
  *
  * Observed: in-memory model + traffic log; dualRunExit / armInversion never
  * call markDualRunExited — recordOrderedProofStep is sole dual-run-exit /
- * arm-inversion writer. Absent controller ⇒ live paths unchanged.
+ * arm-inversion writer. softFallbackRetire is Fabric-depth only (not a G10
+ * OrderedProofStep). Absent controller ⇒ live paths unchanged. Not G11.
  */
 import {
   G10S3SharedSeamRunnerService,
@@ -27,7 +30,10 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import { join } from "node:path";
 
+import { isFabricDepthEnabled } from "./fabricDepthBootstrap.ts";
+import { recordSoftFallbackRetire, softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import type { G9EqualityA } from "./g9Occurrence.ts";
 import {
   activatableCommIdsForSlice,
@@ -51,7 +57,10 @@ import {
   phaseForSlice,
   type G10SubstitutionModel,
 } from "./g10Substitution.ts";
-import type { CutoverPhase, OrderedProofStep } from "./g10Types.ts";
+import type { CutoverPhase, OrderedProofStep, SoftFallbackState } from "./g10Types.ts";
+
+/** Relative census path under repo root (Fabric-depth sole-lander gate). */
+const FABRIC_DEPTH_CENSUS_REL = "docs/scm/fabric-depth/evidence/manifold-io-census.json";
 
 /** Frozen S3 inventory `comm_id` set (16 rows — do not resize). */
 export const G10_S3_COMM_IDS = [
@@ -128,13 +137,21 @@ export type G10S3TrafficSample = {
   readonly atMs: number;
 };
 
-/** Structured evidence body for one Ordered proof step (markdown writer input). */
+/**
+ * Evidence step names: G10 Ordered proof steps plus Fabric-depth
+ * soft-fallback-retire (after arm-inversion; not in ORDERED_PROOF_STEPS).
+ */
+export type G10S3EvidenceStep = OrderedProofStep | "soft-fallback-retire";
+
+/** Structured evidence body for one Ordered / Fabric-depth proof step. */
 export type G10S3EvidenceBody = {
   readonly slice: "S3";
-  readonly step: OrderedProofStep | "land";
+  readonly step: G10S3EvidenceStep;
   readonly phase: CutoverPhase;
   readonly authority: "live" | "manifold";
   readonly inversionArmed: boolean;
+  /** Fabric-depth soft-fallback signal (null when FD off / pre-exit). */
+  readonly softFallback: SoftFallbackState;
   readonly commIds: readonly string[];
   readonly notes: readonly string[];
   readonly equalitySamples?: readonly G9DeferredEquality[];
@@ -240,7 +257,8 @@ const G10_S3_WIRED_REHEARSAL: ReadonlyArray<{
  * S3 campaign controller shape (process-global or Effect service).
  *
  * Agent: land → liveRehearsal → recordEquiv → rollbackDrill → dualRunExit →
- * armInversion. dualRunExit uses recordOrderedProofStep only.
+ * armInversion → (FD) softFallbackRetire. dualRunExit uses
+ * recordOrderedProofStep only.
  */
 export type G10S3Controller = {
   readonly slice: "S3";
@@ -262,6 +280,11 @@ export type G10S3Controller = {
   readonly dualRunExit: () => G10S3EvidenceBody;
   /** Arm inversion via armInversion → recordOrderedProofStep. */
   readonly armInversion: () => G10S3EvidenceBody;
+  /**
+   * Fabric-depth soft-fallback retire after arm-inversion (census sole-lander
+   * gate). Requires T2CODE_SCM_FABRIC_DEPTH. Not a G10 OrderedProofStep.
+   */
+  readonly softFallbackRetire: () => G10S3EvidenceBody;
   /**
    * Record live traffic for a wired S3 lander/peer seam or S8 reopen land.
    * Agent: do not use for TEL-DESKTOP-CONTROL handoff — that stays recordStubPair.
@@ -289,7 +312,10 @@ export type G10S3Controller = {
   readonly inversionArmed: () => boolean;
   /** Format evidence markdown for a recorded step body. */
   readonly formatEvidenceMarkdown: (body: G10S3EvidenceBody) => string;
-  /** Run full Ordered proof sequence; returns bodies in order. */
+  /**
+   * Run full Ordered proof sequence; under T2CODE_SCM_FABRIC_DEPTH also runs
+   * soft-fallback-retire after arm-inversion. Returns bodies in order.
+   */
   readonly runFullOrderedProof: () => readonly G10S3EvidenceBody[];
   /** Shared-package seam runner bound to this controller (relay/Net/tailscale). */
   readonly sharedSeamRunner: () => G10S3SharedSeamRunner;
@@ -431,6 +457,7 @@ export const createG10S3Controller = (repoRoot: string = resolveG10RepoRoot()): 
   const registry = loadG10CutoverRegistry(repoRoot);
   const model = createSubstitutionModel(registry);
   const traffic: G10S3ManifoldTrafficLog = { samples: [] };
+  const censusPath = join(repoRoot, FABRIC_DEPTH_CENSUS_REL);
 
   const s3Ids = activatableCommIdsForSlice(registry, "S3");
   // Hard lock: inventory S3 set must match frozen 16 (no silent resize).
@@ -499,7 +526,7 @@ export const createG10S3Controller = (repoRoot: string = resolveG10RepoRoot()): 
   sharedRunnerHolder.current = buildSharedSeamRunner(controllerBase);
 
   const snapshotEvidence = (
-    step: OrderedProofStep | "land",
+    step: G10S3EvidenceStep,
     notes: readonly string[],
     equalitySamples?: readonly G9DeferredEquality[],
   ): G10S3EvidenceBody => {
@@ -511,6 +538,7 @@ export const createG10S3Controller = (repoRoot: string = resolveG10RepoRoot()): 
       phase: phaseForSlice(model, "S3"),
       authority: authorityForSlice(model, "S3"),
       inversionArmed: model.sliceStates.get("S3")?.inversionArmed === true,
+      softFallback: softFallbackForSlice(model, "S3"),
       commIds: [...s3Ids],
       notes,
       equalitySamples,
@@ -522,7 +550,7 @@ export const createG10S3Controller = (repoRoot: string = resolveG10RepoRoot()): 
     const lines = [
       `# S3 ${body.step} evidence`,
       "",
-      `<!-- Agent: G10 S3 Ordered proof step. Slice=${body.slice}. -->`,
+      `<!-- Agent: G10 S3 Ordered / Fabric-depth proof step. Slice=${body.slice}. -->`,
       "",
       `- Date: ${new Date().toISOString().slice(0, 10)}`,
       `- Slice: **S3**`,
@@ -530,6 +558,7 @@ export const createG10S3Controller = (repoRoot: string = resolveG10RepoRoot()): 
       `- Phase: \`${body.phase}\``,
       `- Authority: **${body.authority}**`,
       `- inversionArmed: \`${body.inversionArmed}\``,
+      `- softFallback: \`${body.softFallback === null ? "omit" : body.softFallback}\``,
       `- S3 comm_ids (${body.commIds.length}): ${body.commIds.join(", ")}`,
       "",
       "## Notes",
@@ -731,6 +760,28 @@ export const createG10S3Controller = (repoRoot: string = resolveG10RepoRoot()): 
       "manifold failure may now fail user-visible S3 VCS/relay/peer ops",
       "armed solely via armInversion → recordOrderedProofStep",
       "TEL-DESKTOP-CONTROL remains handoff-deferred — not inverted from S3 wiring",
+      "Fabric-depth soft-fallback still active until softFallbackRetire (FD env)",
+    ]);
+  };
+
+  /**
+   * Fabric-depth step 7: retire soft live recovery after arm-inversion GREEN.
+   *
+   * Intended: recordSoftFallbackRetire + census sole-lander gate (S3 debt empty;
+   * TEL-DESKTOP-CONTROL handoff does not block). Requires FD env.
+   * Observed: throws when FD off, arm-inversion incomplete, or census debt.
+   */
+  const softFallbackRetireStep = (): G10S3EvidenceBody => {
+    recordSoftFallbackRetire(model, "S3", censusPath);
+    if (softFallbackForSlice(model, "S3") !== "retired") {
+      throw new Error("G10 S3 softFallbackRetire: softFallback not retired");
+    }
+    return snapshotEvidence("soft-fallback-retire", [
+      "Fabric-depth soft-fallback retired via recordSoftFallbackRetire",
+      `census gate: ${FABRIC_DEPTH_CENSUS_REL} (S3 sole-lander debt empty; TEL-DESKTOP-CONTROL handoff)`,
+      "g10.softFallback=retired slice=S3 — bridge must not soft-fall to live on manifold failure",
+      "DesktopTelemetryReceiver.ts not edited (S5 owns DESKTOP-IN / TEL-DESKTOP-CONTROL lander)",
+      "Not G11; radius unchanged",
     ]);
   };
 
@@ -744,6 +795,10 @@ export const createG10S3Controller = (repoRoot: string = resolveG10RepoRoot()): 
     bodies.push(armInversionStep());
     if (!orderedProofSatisfiedThrough(model, "S3", "arm-inversion")) {
       throw new Error("G10 S3 runFullOrderedProof: Ordered proof incomplete");
+    }
+    // Fabric-depth Ordered depth continues through soft-fallback-retire when FD on.
+    if (isFabricDepthEnabled()) {
+      bodies.push(softFallbackRetireStep());
     }
     return bodies;
   };
@@ -759,6 +814,7 @@ export const createG10S3Controller = (repoRoot: string = resolveG10RepoRoot()): 
     rollbackDrill,
     dualRunExit,
     armInversion: armInversionStep,
+    softFallbackRetire: softFallbackRetireStep,
     recordLiveWiredSeam,
     recordManifoldWiredSeam,
     recordStubPair,

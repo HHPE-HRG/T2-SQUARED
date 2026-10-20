@@ -138,28 +138,29 @@ export const readProviderStatusCache = (filePath: string) =>
       return undefined;
     }
 
-    const raw = yield* fs.readFileString(filePath).pipe(Effect.orElseSucceed(() => ""));
-    const trimmed = raw.trim();
-    if (trimmed.length === 0) {
-      return undefined;
-    }
-
-    return yield* decodeProviderStatusCache(trimmed).pipe(
-      Effect.matchCauseEffect({
-        onFailure: (cause) =>
-          Effect.logWarning("failed to parse provider status cache, ignoring", {
-            path: filePath,
-            errorTag: causeErrorTag(cause),
-          }).pipe(Effect.as(undefined)),
-        onSuccess: (provider) =>
-          // Agent: B2→B4 cache-read success; member_id is ledger token not path.
-          // G10 auth-freeze: FILE-PROVIDER-SESSION phase residual on S4 lander.
-          fileProviderSessionCacheViaG10Bridge(
-            "provider-status-cache-read-succeeded",
-            captureWhenG9Present((capture) =>
-              captureProviderStatusCacheReadSucceeded(capture),
-            ).pipe(Effect.as(provider)),
-          ),
+    // Agent: B2→B4 cache-read success; member_id is ledger token not path.
+    // FD4: fs read + decode inside liveIo so manifold authority reuses the same verb I/O.
+    return yield* fileProviderSessionCacheViaG10Bridge(
+      "provider-status-cache-read-succeeded",
+      Effect.gen(function* () {
+        const raw = yield* fs.readFileString(filePath).pipe(Effect.orElseSucceed(() => ""));
+        const trimmed = raw.trim();
+        if (trimmed.length === 0) {
+          return undefined;
+        }
+        return yield* decodeProviderStatusCache(trimmed).pipe(
+          Effect.matchCauseEffect({
+            onFailure: (cause) =>
+              Effect.logWarning("failed to parse provider status cache, ignoring", {
+                path: filePath,
+                errorTag: causeErrorTag(cause),
+              }).pipe(Effect.as(undefined)),
+            onSuccess: (provider) =>
+              captureWhenG9Present((capture) =>
+                captureProviderStatusCacheReadSucceeded(capture),
+              ).pipe(Effect.as(provider)),
+          }),
+        );
       }),
     );
   });
@@ -170,15 +171,17 @@ export const writeProviderStatusCache = (input: {
 }) => {
   const { updateState: _updateState, ...cacheableProvider } = input.provider;
   return Effect.gen(function* () {
-    yield* writeFileStringAtomically({
-      filePath: input.filePath,
-      contents: `${JSON.stringify(cacheableProvider, null, 2)}\n`,
-    });
     // Agent: B2→B4 cache-write success after atomic write; member_id = "write".
-    // G10 auth-freeze: FILE-PROVIDER-SESSION phase residual on S4 lander.
+    // FD4: atomic write inside liveIo so manifold authority reuses the same verb I/O.
     yield* fileProviderSessionCacheViaG10Bridge(
       "provider-status-cache-write-succeeded",
-      captureWhenG9Present((capture) => captureProviderStatusCacheWriteSucceeded(capture)),
+      Effect.gen(function* () {
+        yield* writeFileStringAtomically({
+          filePath: input.filePath,
+          contents: `${JSON.stringify(cacheableProvider, null, 2)}\n`,
+        });
+        yield* captureWhenG9Present((capture) => captureProviderStatusCacheWriteSucceeded(capture));
+      }),
     );
   });
 };

@@ -1,9 +1,11 @@
 /**
  * Desktop telemetry receiver (inbound host NDJSON + outbound control fd).
  *
- * Agent (G9 W5c B5 + G10 S5): sole lander for this file. Integrates S3
- * INV-T2-TEL-DESKTOP-CONTROL handoff + INV-T2-TEL-DESKTOP-IN decode via
- * g10SliceS5 bridges; G9 capture stays observe-beside. Absent G10/G9 ⇒ live
+ * Agent (G9 W5c B5 + G10 S5 + Fabric-depth FD5): sole lander for this file.
+ * Integrates S3 INV-T2-TEL-DESKTOP-CONTROL handoff + INV-T2-TEL-DESKTOP-IN
+ * decode via g10SliceS5 bridges. DESKTOP-IN inventoriable decode runs inside
+ * desktopInViaG10Bridge liveIo so manifold authority reuses the same verb
+ * (FD5 real). G9 capture stays observe-beside. Absent G10/G9 ⇒ live
  * unchanged. CONTROL A is operation only; DESKTOP-IN A uses ledger
  * representative message_type (frozen quirk vs live desktopTelemetry*).
  * Never put enabled / intervals / encoded / payload bytes in A.
@@ -497,11 +499,13 @@ export const make = Effect.fn("resourceTelemetry.desktopTelemetryReceiver.make")
                 }),
               );
             }
-            // INV-T2-TEL-DESKTOP-IN / desktop-message-decoded: after schema decode.
+            // INV-T2-TEL-DESKTOP-IN / desktop-message-decoded (FD5 real):
+            // inventoriable decode inside liveIo so manifold reuses same verb.
             // Agent: G10 S5 bridge; ledger A uses representative message_type.
-            return decodeMessage(value).pipe(
-              Effect.mapError((cause) => new DesktopTelemetryDecodeFailed({ cause })),
-              Effect.flatMap((message) => desktopInViaG10Bridge(Effect.succeed(message))),
+            return desktopInViaG10Bridge(
+              decodeMessage(value).pipe(
+                Effect.mapError((cause) => new DesktopTelemetryDecodeFailed({ cause })),
+              ),
             );
           },
         ),

@@ -1,18 +1,21 @@
 /**
- * G10 S3 campaign controller tests (full Ordered proof).
+ * G10 S3 campaign controller tests (full Ordered proof + Fabric-depth FD3).
  *
  * Intended: land → live-rehearsal → ≡ → rollback-drill → dual-run-exit →
- * arm-inversion; fifteen wired seams + TEL-DESKTOP-CONTROL handoff-pending;
+ * arm-inversion; under T2CODE_SCM_FABRIC_DEPTH also soft-fallback-retire;
+ * fifteen wired seams + TEL-DESKTOP-CONTROL handoff-pending;
  * markDualRunExited refuses; bridge helpers absent ⇒ live passthrough.
  * Observed: assertions below. Does not start S4. Does not edit
  * DesktopTelemetryReceiver.ts. S8 lander-reopen lands FILE-CHECKPOINTS /
- * FLAG-CLOUDFLARED (not historical S3 exit (a)).
+ * FLAG-CLOUDFLARED (not historical S3 exit (a)). Not G11.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
+import { FABRIC_DEPTH_ENV } from "./fabricDepthBootstrap.ts";
+import { softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import { resolveG10RepoRoot } from "./g10CutoverRegistry.ts";
 import { orderedProofSatisfiedThrough } from "./g10ProofHarness.ts";
 import { markDualRunExited } from "./g10Substitution.ts";
@@ -37,6 +40,18 @@ import {
 } from "./g10SliceS3.ts";
 
 const repoRoot = resolveG10RepoRoot();
+
+/** Run fn with T2CODE_SCM_FABRIC_DEPTH=1; restore previous env after. */
+const withFdEnv = <A>(fn: () => A): A => {
+  const prev = process.env[FABRIC_DEPTH_ENV];
+  process.env[FABRIC_DEPTH_ENV] = "1";
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env[FABRIC_DEPTH_ENV];
+    else process.env[FABRIC_DEPTH_ENV] = prev;
+  }
+};
 
 describe("G10 S3 controller", () => {
   it("owns frozen 16 S3 comm_ids, fifteen wired, TEL-DESKTOP-CONTROL handoff-pending", () => {
@@ -74,12 +89,63 @@ describe("G10 S3 controller", () => {
     assert.equal(ctrl.inversionArmed(), true);
     assert.equal(ctrl.phase(), "inverted");
     assert.equal(orderedProofSatisfiedThrough(ctrl.model, "S3", "arm-inversion"), true);
+    // FD off: softFallback omit (null) — retire not auto-run
+    assert.equal(bodies[5]?.softFallback, null);
+    assert.equal(softFallbackForSlice(ctrl.model, "S3"), null);
     // 16 inventory (15 wired + 1 handoff stub)
     assert.equal(bodies[2]?.equalitySamples?.length, 16);
     const exitBody = bodies[4];
     assert.ok(exitBody?.notes.some((n) => n.includes("TEL-DESKTOP-CONTROL handoff-deferred")));
     assert.ok(exitBody?.notes.some((n) => n.includes("fifteen wired")));
     assert.throws(() => markDualRunExited(ctrl.model, "S3"), /recordOrderedProofStep/);
+  });
+
+  it("Fabric-depth FD3: Ordered depth through soft-fallback-retire under FD env", () => {
+    withFdEnv(() => {
+      const ctrl = createG10S3Controller(repoRoot);
+      const bodies = ctrl.runFullOrderedProof();
+      assert.equal(bodies.length, 7);
+      assert.deepEqual(
+        bodies.map((b) => b.step),
+        [
+          "land",
+          "live-rehearsal",
+          "cutover-equivalence",
+          "rollback-drill",
+          "dual-run-exit",
+          "arm-inversion",
+          "soft-fallback-retire",
+        ],
+      );
+      assert.equal(ctrl.authority(), "manifold");
+      assert.equal(ctrl.inversionArmed(), true);
+      assert.equal(softFallbackForSlice(ctrl.model, "S3"), "retired");
+      assert.equal(bodies[4]?.softFallback, "active");
+      assert.equal(bodies[5]?.softFallback, "active");
+      assert.equal(bodies[6]?.softFallback, "retired");
+      assert.ok(
+        bodies[6]?.notes.some((n) => n.includes("sole-lander debt empty")),
+        "retire notes cite empty S3 sole-lander debt",
+      );
+      assert.ok(
+        bodies[6]?.notes.some((n) => n.includes("TEL-DESKTOP-CONTROL handoff")),
+        "retire notes cite TEL-DESKTOP-CONTROL handoff",
+      );
+      const md = ctrl.formatEvidenceMarkdown(bodies[6]!);
+      assert.ok(md.includes("softFallback: `retired`"));
+      assert.ok(md.includes("**GREEN**"));
+    });
+  });
+
+  it("Fabric-depth FD3: softFallbackRetire refuses when FD env off", () => {
+    const ctrl = createG10S3Controller(repoRoot);
+    ctrl.land();
+    ctrl.liveRehearsal();
+    ctrl.recordEquiv();
+    ctrl.rollbackDrill();
+    ctrl.dualRunExit();
+    ctrl.armInversion();
+    assert.throws(() => ctrl.softFallbackRetire(), /T2CODE_SCM_FABRIC_DEPTH/);
   });
 
   it("live-rehearsal records bridge traffic for fifteen wired; TEL-DESKTOP stub only", () => {

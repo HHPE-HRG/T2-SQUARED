@@ -10,6 +10,7 @@
  * edits, no halt controller construction, no shadow-env mutation.
  */
 import { G9_SHADOW_PARITY_ENV } from "./g9Bootstrap.ts";
+import { reemitSoftFallbackActiveOnRestore } from "./fabricDepthSoftFallback.ts";
 import type { G10CutoverRegistry } from "./g10CutoverRegistry.ts";
 import {
   authorityForSlice,
@@ -113,6 +114,8 @@ export const restorePreCutoverLive = (
     state.completedProofSteps = [];
   }
   model.sliceStates.set(slice, state);
+  // Fabric-depth: rollback must re-emit g10.softFallback=active when signal existed.
+  reemitSoftFallbackActiveOnRestore(model, slice);
 
   return {
     slice,

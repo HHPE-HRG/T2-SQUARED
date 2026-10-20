@@ -3,27 +3,38 @@
  *
  * Intended: own S6 admit/route/replace + Ordered proof sequence helpers
  * wrapping createSubstitutionModel / installAdmitRouteReplace /
- * recordOrderedProofStep / armInversion / restorePreCutoverLive. Wired seams:
+ * recordOrderedProofStep / armInversion / restorePreCutoverLive. Under
+ * T2CODE_SCM_FABRIC_DEPTH (Battery FD6), softFallbackRetire runs after
+ * armInversion via recordSoftFallbackRetire (census sole-lander debt EMPTY —
+ * FLAG-T3-OTEL handoff stub + HOME-BUS dormant-exempt non-blocking). Wired
+ * seams:
  *   - ws.ts sole lander: ORCH-RPC + RPC-STREAM-* + RPC-WS + ORCH-LIVE handoff
  *     FROM S2
  *   - T2Observability.ts sole lander: FLAG-T2-OTEL + TEL-T2-OTLP + TEL-NDJSON
- *     handoff FROM S5
+ *     handoff FROM S5 (FD6: real manifold I/O)
  *   - Observability.ts sole lander: TEL-T3-OTLP + TEL-T3-TRACE handoff FROM S5
+ *     (FD6: real manifold I/O)
  * FLAG-T3-OTEL is S6→S2 handoff-pending on cli/config.ts — ledger stub only;
- * S6 must NOT commit cli/config.ts. HOME-BUS remains dormant-exempt.
+ * S6 must NOT commit cli/config.ts. HOME-BUS remains dormant-exempt (omits
+ * g10.softFallback field).
  *
  * Observed: in-memory model + traffic log; dualRunExit / armInversion never
  * call markDualRunExited — recordOrderedProofStep is sole dual-run-exit /
- * arm-inversion writer. Absent controller ⇒ live paths unchanged.
+ * arm-inversion writer. softFallbackRetire is Fabric-depth only (not a G10
+ * OrderedProofStep). Absent controller ⇒ live paths unchanged. No G11.
  */
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
+import * as HttpClient from "effect/unstable/http/HttpClient";
 import * as OtlpExporter from "effect/unstable/observability/OtlpExporter";
 import * as RpcServer from "effect/unstable/rpc/RpcServer";
+import { join } from "node:path";
 
+import { isFabricDepthEnabled } from "./fabricDepthBootstrap.ts";
+import { recordSoftFallbackRetire, softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import type { G9EqualityA } from "./g9Occurrence.ts";
 import {
   G9_T3_OTLP_EXPORTER_LABELS,
@@ -61,7 +72,10 @@ import {
   phaseForSlice,
   type G10SubstitutionModel,
 } from "./g10Substitution.ts";
-import type { CutoverPhase, OrderedProofStep } from "./g10Types.ts";
+import type { CutoverPhase, OrderedProofStep, SoftFallbackState } from "./g10Types.ts";
+
+/** Relative census path under repo root (Fabric-depth sole-lander gate). */
+const FABRIC_DEPTH_CENSUS_REL = "docs/scm/fabric-depth/evidence/manifold-io-census.json";
 
 /**
  * Frozen S6 activatable inventory `comm_id` set (12 rows — home-bus excluded).
@@ -148,13 +162,21 @@ export type G10S6TrafficSample = {
   readonly atMs: number;
 };
 
-/** Structured evidence body for one Ordered proof step (markdown writer input). */
+/**
+ * Evidence step names: G10 Ordered proof steps plus Fabric-depth
+ * soft-fallback-retire (after arm-inversion; not in ORDERED_PROOF_STEPS).
+ */
+export type G10S6EvidenceStep = OrderedProofStep | "soft-fallback-retire";
+
+/** Structured evidence body for one Ordered / Fabric-depth proof step. */
 export type G10S6EvidenceBody = {
   readonly slice: "S6";
-  readonly step: OrderedProofStep | "land";
+  readonly step: G10S6EvidenceStep;
   readonly phase: CutoverPhase;
   readonly authority: "live" | "manifold";
   readonly inversionArmed: boolean;
+  /** Fabric-depth soft-fallback signal (null when FD off / pre-exit / omit). */
+  readonly softFallback: SoftFallbackState;
   readonly commIds: readonly string[];
   readonly notes: readonly string[];
   readonly equalitySamples?: readonly G9DeferredEquality[];
@@ -259,7 +281,8 @@ const G10_S6_WIRED_REHEARSAL: ReadonlyArray<{
  * S6 campaign controller shape (process-global or Effect service).
  *
  * Agent: land → liveRehearsal → recordEquiv → rollbackDrill → dualRunExit →
- * armInversion. dualRunExit uses recordOrderedProofStep only.
+ * armInversion → (FD) softFallbackRetire. dualRunExit uses
+ * recordOrderedProofStep only.
  */
 export type G10S6Controller = {
   readonly slice: "S6";
@@ -281,6 +304,12 @@ export type G10S6Controller = {
   readonly dualRunExit: () => G10S6EvidenceBody;
   /** Arm inversion via armInversion → recordOrderedProofStep. */
   readonly armInversion: () => G10S6EvidenceBody;
+  /**
+   * Fabric-depth soft-fallback retire after arm-inversion (census sole-lander
+   * gate). Requires T2CODE_SCM_FABRIC_DEPTH. Not a G10 OrderedProofStep.
+   * Home-bus omits softFallback (dormant-exempt).
+   */
+  readonly softFallbackRetire: () => G10S6EvidenceBody;
   /**
    * Record live traffic for a wired S6 lander seam.
    * Agent: do not use for FLAG-T3-OTEL handoff — that stays recordStubPair.
@@ -308,7 +337,10 @@ export type G10S6Controller = {
   readonly inversionArmed: () => boolean;
   /** Format evidence markdown for a recorded step body. */
   readonly formatEvidenceMarkdown: (body: G10S6EvidenceBody) => string;
-  /** Run full Ordered proof sequence; returns bodies in order. */
+  /**
+   * Run full Ordered proof sequence; under T2CODE_SCM_FABRIC_DEPTH also runs
+   * soft-fallback-retire after arm-inversion. Returns bodies in order.
+   */
   readonly runFullOrderedProof: () => readonly G10S6EvidenceBody[];
 };
 
@@ -382,6 +414,7 @@ export const createG10S6Controller = (repoRoot: string = resolveG10RepoRoot()): 
   const registry = loadG10CutoverRegistry(repoRoot);
   const model = createSubstitutionModel(registry);
   const traffic: G10S6ManifoldTrafficLog = { samples: [] };
+  const censusPath = join(repoRoot, FABRIC_DEPTH_CENSUS_REL);
 
   const s6Ids = activatableCommIdsForSlice(registry, "S6");
   // Hard lock: inventory S6 activatable set must match frozen 12 (no silent resize).
@@ -441,7 +474,7 @@ export const createG10S6Controller = (repoRoot: string = resolveG10RepoRoot()): 
   };
 
   const snapshotEvidence = (
-    step: OrderedProofStep | "land",
+    step: G10S6EvidenceStep,
     notes: readonly string[],
     equalitySamples?: readonly G9DeferredEquality[],
   ): G10S6EvidenceBody => {
@@ -453,6 +486,7 @@ export const createG10S6Controller = (repoRoot: string = resolveG10RepoRoot()): 
       phase: phaseForSlice(model, "S6"),
       authority: authorityForSlice(model, "S6"),
       inversionArmed: model.sliceStates.get("S6")?.inversionArmed === true,
+      softFallback: softFallbackForSlice(model, "S6"),
       commIds: [...s6Ids],
       notes,
       equalitySamples,
@@ -464,7 +498,7 @@ export const createG10S6Controller = (repoRoot: string = resolveG10RepoRoot()): 
     const lines = [
       `# S6 ${body.step} evidence`,
       "",
-      `<!-- Agent: G10 S6 Ordered proof step. Slice=${body.slice}. -->`,
+      `<!-- Agent: G10 S6 Ordered / Fabric-depth proof step. Slice=${body.slice}. -->`,
       "",
       `- Date: ${new Date().toISOString().slice(0, 10)}`,
       `- Slice: **S6**`,
@@ -472,6 +506,7 @@ export const createG10S6Controller = (repoRoot: string = resolveG10RepoRoot()): 
       `- Phase: \`${body.phase}\``,
       `- Authority: **${body.authority}**`,
       `- inversionArmed: \`${body.inversionArmed}\``,
+      `- softFallback: \`${body.softFallback === null ? "omit" : body.softFallback}\``,
       `- S6 activatable comm_ids (${body.commIds.length}): ${body.commIds.join(", ")}`,
       "",
       "## Notes",
@@ -680,7 +715,30 @@ export const createG10S6Controller = (repoRoot: string = resolveG10RepoRoot()): 
       "manifold failure may now fail user-visible S6 RPC/OTLP/obs ops",
       "armed solely via armInversion → recordOrderedProofStep",
       "FLAG-T3-OTEL remains handoff-deferred — not inverted from S6 wiring",
-      "HOME-BUS dormant-exempt — not inverted",
+      "HOME-BUS dormant-exempt — not inverted; omits g10.softFallback field",
+      "Fabric-depth soft-fallback still active until softFallbackRetire (FD env)",
+    ]);
+  };
+
+  /**
+   * Fabric-depth step 7: retire soft live recovery after arm-inversion GREEN.
+   *
+   * Intended: recordSoftFallbackRetire + census sole-lander gate (S6 observe
+   * debt cleared by FD6; FLAG-T3-OTEL handoff + HOME-BUS dormant do not block).
+   * Requires FD env. Observed: throws when FD off / incomplete / census debt.
+   */
+  const softFallbackRetireStep = (): G10S6EvidenceBody => {
+    recordSoftFallbackRetire(model, "S6", censusPath);
+    if (softFallbackForSlice(model, "S6") !== "retired") {
+      throw new Error("G10 S6 softFallbackRetire: softFallback not retired");
+    }
+    return snapshotEvidence("soft-fallback-retire", [
+      "Fabric-depth soft-fallback retired via recordSoftFallbackRetire",
+      `census gate: ${FABRIC_DEPTH_CENSUS_REL} (S6 sole-lander debt empty; FLAG-T3-OTEL handoff; HOME-BUS dormant-exempt)`,
+      "g10.softFallback=retired slice=S6 — bridge must not soft-fall to live on manifold failure",
+      "HOME-BUS omits softFallback field (dormant-exempt; never activated)",
+      "cli/config.ts not edited (S2 owns FLAG-T3-OTEL lander)",
+      "Not G11; radius unchanged",
     ]);
   };
 
@@ -694,6 +752,10 @@ export const createG10S6Controller = (repoRoot: string = resolveG10RepoRoot()): 
     bodies.push(armInversionStep());
     if (!orderedProofSatisfiedThrough(model, "S6", "arm-inversion")) {
       throw new Error("G10 S6 runFullOrderedProof: Ordered proof incomplete");
+    }
+    // Fabric-depth Ordered depth continues through soft-fallback-retire when FD on.
+    if (isFabricDepthEnabled()) {
+      bodies.push(softFallbackRetireStep());
     }
     return bodies;
   };
@@ -709,6 +771,7 @@ export const createG10S6Controller = (repoRoot: string = resolveG10RepoRoot()): 
     rollbackDrill,
     dualRunExit,
     armInversion: armInversionStep,
+    softFallbackRetire: softFallbackRetireStep,
     recordLiveWiredSeam,
     recordManifoldWiredSeam,
     recordStubPair,
@@ -958,9 +1021,43 @@ export const G10RpcServerRequestHooksLayer: Layer.Layer<RpcServer.RpcServerReque
   });
 
 /**
- * Layer for Observability.ts: ExportHooks with G10 bridge + G9 capture-beside.
+ * Layer for Observability.ts: wrap HttpClient so OTLP export POSTs run through
+ * G10 TEL-T3-OTLP bridge (FD6 real manifold I/O).
  *
- * Agent: replace G9T3OtlpExportHooksLayer. Maps traces/metrics labels only.
+ * Intended: when request.url matches traces/metrics OTLP URL, execute goes
+ * through t3OtlpExportViaG10Bridge so manifoldEffect reuses HTTP transport.
+ * Non-OTLP requests pass through. Requires outer HttpClient; provides wrapped.
+ * Observed: G9 capture stays on G9T3OtlpExportHooksLayer (post-success).
+ */
+export const g10T3OtlpHttpClientLayer = (
+  tracesUrl: string | undefined,
+  metricsUrl: string | undefined,
+): Layer.Layer<HttpClient.HttpClient, never, HttpClient.HttpClient> =>
+  Layer.effect(
+    HttpClient.HttpClient,
+    Effect.gen(function* () {
+      const inner = yield* HttpClient.HttpClient;
+      if (tracesUrl === undefined && metricsUrl === undefined) {
+        return inner;
+      }
+      return HttpClient.transform(inner, (effect, request) => {
+        if (tracesUrl !== undefined && request.url === tracesUrl) {
+          return t3OtlpExportViaG10Bridge("t3-otlp-traces-export-succeeded", effect);
+        }
+        if (metricsUrl !== undefined && request.url === metricsUrl) {
+          return t3OtlpExportViaG10Bridge("t3-otlp-metrics-export-succeeded", effect);
+        }
+        return effect;
+      });
+    }),
+  );
+
+/**
+ * Layer: ExportHooks with G10 bridge + G9 capture-beside (hook-path tests).
+ *
+ * Agent: Observability.ts FD6 uses g10T3OtlpHttpClientLayer for real OTLP
+ * transport + G9T3OtlpExportHooksLayer for capture. This layer remains for
+ * harnesses that exercise ExportHooks without HttpClient wrap.
  */
 export const G10T3OtlpExportHooksLayer: Layer.Layer<OtlpExporter.ExportHooks> = Layer.succeed(
   OtlpExporter.ExportHooks,

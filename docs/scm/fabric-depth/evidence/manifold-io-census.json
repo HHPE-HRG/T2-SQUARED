@@ -3,11 +3,11 @@
   "campaign": "Fabric-depth",
   "date": "2026-10-19",
   "baseline": "origin/main@8e96bbfb5",
-  "note": "Battery A census. Classifies manifoldEffect honesty today. stub|observe|real|dormant-exempt|unknown. Docs-only; not implement.",
+  "note": "Battery A census + FD promotions. Classifies manifoldEffect honesty. stub|observe|real|dormant-exempt|unknown.",
   "summary": {
-    "real": 46,
-    "stub": 22,
-    "observe": 5,
+    "real": 58,
+    "stub": 10,
+    "observe": 0,
     "dormantExempt": 1,
     "unknown": 0
   },
@@ -104,9 +104,9 @@
       "commId": "INV-T2-FLAG-T3-OTEL",
       "landerModule": "apps/server/src/cli/config.ts",
       "slice": "S2",
-      "manifoldClass": "stub",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/cli/config.ts",
-      "note": "passthrough Effect.succeed; no Config I/O in bridge"
+      "note": "manifoldEffect reuses FlagT3OtelEnv Config I/O (FD2)"
     },
     {
       "commId": "INV-T2-EDITOR-LAUNCH",
@@ -256,9 +256,9 @@
       "commId": "INV-T2-PROVIDER-CLAUDE",
       "landerModule": "apps/server/src/provider/Layers/ClaudeAdapter.ts",
       "slice": "S4",
-      "manifoldClass": "stub",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/provider/Layers/ClaudeAdapter.ts",
-      "note": "capture-only after createQuery outside bridge"
+      "note": "FD4: createQuery inside liveIo; manifoldEffect reuses live"
     },
     {
       "commId": "INV-T2-PROVIDER-CODEX",
@@ -304,9 +304,9 @@
       "commId": "INV-T2-PROVIDER-OPENCODE",
       "landerModule": "apps/server/src/provider/opencodeRuntime.ts",
       "slice": "S4",
-      "manifoldClass": "stub",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/provider/opencodeRuntime.ts",
-      "note": "capture-only after serve ready outside"
+      "note": "FD4: spawner.spawn inside liveIo; manifoldEffect reuses live"
     },
     {
       "commId": "INV-T2-PROVIDER-PERM",
@@ -328,25 +328,25 @@
       "commId": "INV-T2-FILE-LOGS",
       "landerModule": "apps/server/src/provider/Layers/ProviderEventLoggers.ts",
       "slice": "S4",
-      "manifoldClass": "stub",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/provider/Layers/ProviderEventLoggers.ts",
-      "note": "store create outside; capture-only bridge"
+      "note": "FD4: EventNdjsonLogStore create inside liveIo; manifoldEffect reuses live"
     },
     {
       "commId": "INV-T2-FILE-PROVIDER-SESSION",
       "landerModule": "apps/server/src/provider/providerStatusCache.ts",
       "slice": "S4",
-      "manifoldClass": "stub",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/provider/providerStatusCache.ts",
-      "note": "fs outside; capture-only bridge"
+      "note": "FD4: fs read/write inside liveIo; manifoldEffect reuses live"
     },
     {
       "commId": "INV-T2-FLAG-CODEX-LAUNCH",
       "landerModule": "apps/server/src/provider/Layers/codexLaunchArgs.ts",
       "slice": "S4",
-      "manifoldClass": "stub",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/provider/Layers/codexLaunchArgs.ts",
-      "note": "sync resolve outside; capture+return"
+      "note": "FD4: sync resolve inside liveIo; manifoldEffect reuses live"
     },
     {
       "commId": "INV-T2-RES-MONITOR",
@@ -360,9 +360,9 @@
       "commId": "INV-T2-TEL-DESKTOP-IN",
       "landerModule": "apps/server/src/resourceTelemetry/DesktopTelemetryReceiver.ts",
       "slice": "S5",
-      "manifoldClass": "stub",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/resourceTelemetry/DesktopTelemetryReceiver.ts",
-      "note": "decode outside; succeed-only manifold"
+      "note": "FD5: decodeMessage inside desktopInViaG10Bridge liveIo; manifold reuses decode"
     },
     {
       "commId": "INV-T2-TEL-NDJSON",
@@ -384,9 +384,9 @@
       "commId": "INV-T2-TERM",
       "landerModule": "apps/server/src/terminal/Manager.ts",
       "slice": "S5",
-      "manifoldClass": "stub",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/terminal/Manager.ts",
-      "note": "PTY I/O outside; capture-only bridge"
+      "note": "FD5: PTY spawn/write/callback drain inside termPhaseViaG10Bridge liveIo"
     },
     {
       "commId": "INV-T2-TEL-DESKTOP-CONTROL",
@@ -408,9 +408,9 @@
       "commId": "INV-T2-FLAG-TERM-ENV",
       "landerModule": "apps/server/src/terminal/Manager.ts",
       "slice": "S5",
-      "manifoldClass": "stub",
-      "evidencePath": "apps/server/src/scm/g10SliceS5.ts",
-      "note": "env filter outside; capture-only"
+      "manifoldClass": "real",
+      "evidencePath": "apps/server/src/terminal/Manager.ts",
+      "note": "FD5: createTerminalSpawnEnv inside flagTermEnvViaG10Bridge liveIo"
     },
     {
       "commId": "INV-T2-ORCH-LIVE",
@@ -424,41 +424,41 @@
       "commId": "INV-T2-TEL-NDJSON",
       "landerModule": "apps/server/src/t2Observability/T2Observability.ts",
       "slice": "S6",
-      "manifoldClass": "observe",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/scm/g10SliceS6.ts",
-      "note": "G9 capture only; NDJSON write outside"
+      "note": "FD6: manifoldEffect reuses NDJSON export liveIo (append inside bridge)"
     },
     {
       "commId": "INV-T2-TEL-T3-TRACE",
       "landerModule": "apps/server/src/observability/Layers/Observability.ts",
       "slice": "S6",
-      "manifoldClass": "observe",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/scm/g10SliceS6.ts",
-      "note": "G9 capture; file persist before onFlush"
+      "note": "FD6: manifoldEffect reuses TraceSink.flush (file persist + onFlush)"
     },
     {
       "commId": "INV-T2-TEL-T2-OTLP",
       "landerModule": "apps/server/src/t2Observability/T2Observability.ts",
       "slice": "S6",
-      "manifoldClass": "observe",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/scm/g10SliceS6.ts",
-      "note": "capture only; OTLP outside"
+      "note": "FD6: manifoldEffect reuses OTLPTraceExporter.export liveIo"
     },
     {
       "commId": "INV-T2-TEL-T3-OTLP",
       "landerModule": "apps/server/src/observability/Layers/Observability.ts",
       "slice": "S6",
-      "manifoldClass": "observe",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/scm/g10SliceS6.ts",
-      "note": "post-export capture only"
+      "note": "FD6: g10T3OtlpHttpClientLayer manifoldEffect reuses OTLP HttpClient.execute"
     },
     {
       "commId": "INV-T2-FLAG-T2-OTEL",
       "landerModule": "apps/server/src/t2Observability/T2Observability.ts",
       "slice": "S6",
-      "manifoldClass": "observe",
+      "manifoldClass": "real",
       "evidencePath": "apps/server/src/scm/g10SliceS6.ts",
-      "note": "env resolve outside; capture on manifold"
+      "note": "FD6: manifoldEffect reuses env flag resolve inside liveIo"
     },
     {
       "commId": "INV-T2-FLAG-T3-OTEL",

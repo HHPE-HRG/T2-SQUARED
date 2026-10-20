@@ -1,17 +1,20 @@
 /**
- * G10 S7 campaign controller tests (full Ordered proof).
+ * G10 S7 campaign controller tests (full Ordered proof + FD7 soft-fallback retire).
  *
  * Intended: land → live-rehearsal → ≡ → rollback-drill → dual-run-exit →
- * arm-inversion; ten wired sole-lander seams + four foreign handoff stubs;
- * markDualRunExited refuses; bridge helpers absent ⇒ live passthrough.
+ * arm-inversion; under T2CODE_SCM_FABRIC_DEPTH=1 also softFallbackRetire via
+ * recordSoftFallbackRetire; ten wired sole-lander seams + four foreign handoff
+ * stubs; markDualRunExited refuses; bridge helpers absent ⇒ live passthrough.
  * Does not start S8. Does not steal VcsDriver / relayClient / provider/** /
- * Manager.ts foreign hotspots.
+ * Manager.ts foreign hotspots. Does not invent G11.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
+import { FABRIC_DEPTH_ENV } from "./fabricDepthBootstrap.ts";
+import { setSoftFallbackSignalSink, softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import { resolveG10RepoRoot } from "./g10CutoverRegistry.ts";
 import { orderedProofSatisfiedThrough } from "./g10ProofHarness.ts";
 import { markDualRunExited } from "./g10Substitution.ts";
@@ -37,6 +40,18 @@ import {
 } from "./g10SliceS7.ts";
 
 const repoRoot = resolveG10RepoRoot();
+
+/** Run body with Fabric-depth env on (restore previous value after). */
+const withFdEnv = <A>(fn: () => A): A => {
+  const prev = process.env[FABRIC_DEPTH_ENV];
+  process.env[FABRIC_DEPTH_ENV] = "1";
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env[FABRIC_DEPTH_ENV];
+    else process.env[FABRIC_DEPTH_ENV] = prev;
+  }
+};
 
 describe("G10 S7 controller", () => {
   it("owns frozen 14 activatable, ten wired, four handoff-pending slots", () => {
@@ -216,5 +231,75 @@ describe("G10 S7 controller", () => {
       }).pipe(Effect.provide(Layer.succeed(G10S7CutoverService, ctrl))),
     );
     assert.equal(got.slice, "S7");
+  });
+
+  it("softFallbackRetire refuses without armInversion (FD on)", () => {
+    withFdEnv(() => {
+      const ctrl = createG10S7Controller(repoRoot);
+      ctrl.land();
+      ctrl.liveRehearsal();
+      ctrl.recordEquiv();
+      ctrl.rollbackDrill();
+      ctrl.dualRunExit();
+      assert.throws(() => ctrl.softFallbackRetire(), /armInversion|arm-inversion/);
+    });
+  });
+});
+
+describe("G10 S7 Fabric-depth FD7 (T2CODE_SCM_FABRIC_DEPTH=1)", () => {
+  it("full Ordered proof then softFallbackRetire sets g10.softFallback=retired", () => {
+    withFdEnv(() => {
+      const lines: string[] = [];
+      setSoftFallbackSignalSink((line) => lines.push(line));
+      try {
+        const ctrl = createG10S7Controller(repoRoot);
+        const bodies = ctrl.runFullOrderedProof();
+        assert.equal(bodies.length, 7);
+        assert.deepEqual(
+          bodies.map((b) => b.step),
+          [
+            "land",
+            "live-rehearsal",
+            "cutover-equivalence",
+            "rollback-drill",
+            "dual-run-exit",
+            "arm-inversion",
+            "soft-fallback-retire",
+          ],
+        );
+        assert.equal(ctrl.authority(), "manifold");
+        assert.equal(ctrl.inversionArmed(), true);
+        assert.equal(softFallbackForSlice(ctrl.model, "S7"), "retired");
+        assert.ok(lines.some((l) => l === "g10.softFallback=active slice=S7"));
+        assert.ok(lines.some((l) => l === "g10.softFallback=retired slice=S7"));
+        const retireBody = bodies[6];
+        assert.ok(retireBody?.notes.some((n) => n.includes("sole-lander debt EMPTY")));
+        assert.ok(retireBody?.notes.some((n) => n.includes("no G11")));
+        const md = ctrl.formatEvidenceMarkdown(retireBody!);
+        assert.ok(md.includes("# S7 soft-fallback-retire evidence"));
+        assert.ok(md.includes("**GREEN**"));
+      } finally {
+        setSoftFallbackSignalSink(undefined);
+      }
+    });
+  });
+
+  it("softFallbackRetire after armInversion is idempotent under census EMPTY", () => {
+    withFdEnv(() => {
+      const ctrl = createG10S7Controller(repoRoot);
+      ctrl.land();
+      ctrl.liveRehearsal();
+      ctrl.recordEquiv();
+      ctrl.rollbackDrill();
+      ctrl.dualRunExit();
+      ctrl.armInversion();
+      assert.equal(softFallbackForSlice(ctrl.model, "S7"), "active");
+      const first = ctrl.softFallbackRetire();
+      assert.equal(first.step, "soft-fallback-retire");
+      assert.equal(softFallbackForSlice(ctrl.model, "S7"), "retired");
+      const second = ctrl.softFallbackRetire();
+      assert.equal(second.step, "soft-fallback-retire");
+      assert.equal(softFallbackForSlice(ctrl.model, "S7"), "retired");
+    });
   });
 });

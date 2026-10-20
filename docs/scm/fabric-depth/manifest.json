@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "campaign": "Fabric-depth",
-  "status": "authorized_pending_implement",
+  "status": "completed",
   "fabricDepthAuthorized": true,
   "authorized": true,
-  "completed": false,
+  "completed": true,
   "g10PrerequisiteCompleted": true,
   "g10LiveEvidence": "docs/scm/g10/evidence/live-cutover-2026-10-18.md",
   "processEnv": "T2CODE_SCM_FABRIC_DEPTH",
@@ -13,5 +13,6 @@
   "census": "docs/scm/fabric-depth/evidence/manifold-io-census.json",
   "glossary": "docs/scm/fabric-depth/glossary.md",
   "authorization": "docs/scm/fabric-depth/authorization.md",
-  "note": "Durable unlock 2026-10-19 (Max Holden verbal ceremony). fabricDepthAuthorized true with authorization.md. Implement may proceed under T2CODE_SCM_FABRIC_DEPTH. completed flips true only at FD8."
+  "fd8Evidence": "docs/scm/fabric-depth/evidence/FD8-campaign-close.md",
+  "note": "Fabric-depth completed 2026-10-19. FD0–FD8 batteries GREEN under T2CODE_SCM_FABRIC_DEPTH. Soft-fallback retire audited; aggregate ≡; campaign rollback re-emits active. Not G11."
 }

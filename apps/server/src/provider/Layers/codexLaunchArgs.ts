@@ -32,12 +32,17 @@ export const resolveCodexLaunchArgs = (
  */
 export const resolveCodexLaunchArgsCaptured = Effect.fn("resolveCodexLaunchArgsCaptured")(
   function* (launchArgs?: string, environment: NodeJS.ProcessEnv = process.env) {
-    const resolved = resolveCodexLaunchArgs(launchArgs, environment);
-    const state_label = resolved.length > 0 ? ("configured" as const) : ("absent" as const);
+    // Projection label peek (idempotent env read); inventoriable resolve is inside liveIo.
+    const state_label =
+      resolveCodexLaunchArgs(launchArgs, environment).length > 0
+        ? ("configured" as const)
+        : ("absent" as const);
+    // FD4: sync resolve inside liveIo so manifold authority reuses the same verb I/O.
     // G10 S8 reopen cutover + G9 capture-beside (cutover ≠ capture).
     return yield* flagCodexLaunchViaG10Bridge(
       state_label,
       Effect.gen(function* () {
+        const resolved = resolveCodexLaunchArgs(launchArgs, environment);
         yield* captureWhenG9Present((capture) =>
           captureFlagCodexLaunchResolved(state_label, capture),
         );

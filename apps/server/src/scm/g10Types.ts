@@ -82,10 +82,19 @@ export const CUTOVER_PHASE_ORDER: readonly CutoverPhase[] = [
 export type InversionArmed = boolean;
 
 /**
+ * Fabric-depth soft live recovery signal (ops/soft-fallback-signal.md).
+ *
+ * null = omit field (pre-exit, S0/S8, home-bus dormant). active|retired after
+ * dual-run-exit under T2CODE_SCM_FABRIC_DEPTH.
+ */
+export type SoftFallbackState = "active" | "retired" | null;
+
+/**
  * Mutable (coordinator-owned) per-slice cutover state record.
  *
  * Agent: S0 ships the shape; S1–S7 landers advance phase via substitution /
  * proof harness / inversion APIs. inversionArmed mirrors phase === "inverted".
+ * softFallback is Fabric-depth bookkeeping (null until FD exit / restore).
  */
 export type G10SliceCutoverState = {
   readonly slice: G10SliceId;
@@ -93,6 +102,8 @@ export type G10SliceCutoverState = {
   inversionArmed: InversionArmed;
   /** Ordered proof steps recorded green for this slice (prefix of ORDERED_PROOF_STEPS). */
   completedProofSteps: OrderedProofStep[];
+  /** Fabric-depth soft-fallback signal; null ⇒ omit. */
+  softFallback: SoftFallbackState;
 };
 
 /**
@@ -106,13 +117,14 @@ export type G10SliceCutoverState = {
  * Returns
  * -------
  * G10SliceCutoverState
- *     phase "live", inversionArmed false, no proof steps completed.
+ *     phase "live", inversionArmed false, softFallback null, no proof steps.
  */
 export const makeDefaultSliceState = (slice: G10SliceId): G10SliceCutoverState => ({
   slice,
   phase: "live",
   inversionArmed: false,
   completedProofSteps: [],
+  softFallback: null,
 });
 
 /**

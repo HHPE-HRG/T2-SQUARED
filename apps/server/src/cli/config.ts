@@ -3,8 +3,10 @@
  *
  * G10 S2 sole lander for INV-T2-FLAG-SERVER-CONFIG: admit/route/replace via
  * g10SeamBridge at EnvServerConfig resolve inside resolveServerConfig.
- * S8 lander-reopen also wires INV-T2-FLAG-T3-OTEL (S6→S2 handoff) after T3
- * OTEL members resolve. Absent G10S2 controller / not replaced ⇒ live only.
+ * Fabric-depth FD2: INV-T2-FLAG-T3-OTEL (S6→S2 handoff) bridges real
+ * Config I/O for T3CODE_OTLP_* members — manifoldEffect reuses the same
+ * FlagT3OtelEnv Config resolve as live (not Effect.succeed passthrough).
+ * Absent G10S2 controller / not replaced ⇒ live only.
  */
 import * as NetService from "@t3tools/shared/Net";
 import { parsePersistedServerObservabilitySettings } from "@t3tools/shared/serverSettings";
@@ -148,6 +150,24 @@ const EnvServerConfig = Config.all({
     Config.map(Option.getOrUndefined),
   ),
   tailscaleServePort: Config.port("T3CODE_TAILSCALE_SERVE_PORT").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
+});
+
+/**
+ * FLAG-T3-OTEL inventoriable flag verb class: T3 OTEL URL env members only.
+ *
+ * Agent: passed through resolveFlagT3OtelViaG10Bridge so live + manifold both
+ * execute Config I/O (same pattern as FLAG-SERVER-CONFIG → EnvServerConfig).
+ * Do not wrap Effect.succeed of pre-resolved values — that is census stub debt.
+ */
+const FlagT3OtelEnv = Config.all({
+  otlpTracesUrl: Config.string("T3CODE_OTLP_TRACES_URL").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
+  otlpMetricsUrl: Config.string("T3CODE_OTLP_METRICS_URL").pipe(
     Config.option,
     Config.map(Option.getOrUndefined),
   ),
@@ -362,21 +382,22 @@ export const resolveServerConfig = (
     );
     const logLevel = Option.getOrElse(cliLogLevel, () => env.logLevel);
 
-    // FLAG-T3-OTEL (S6→S2 handoff; S8 lander reopen): one bridge hit when T3
-    // OTEL URL members resolve (env / bootstrap / persisted). Equality A is
+    // FLAG-T3-OTEL (S6→S2; FD2 real Config I/O): bridge runs FlagT3OtelEnv
+    // under live/manifold authority; manifoldEffect reuses the same Config
+    // resolve. Bootstrap/persisted merge stays after the bridge (precedence
+    // only — not the inventoriable flag verb). Equality A is
     // { comm_id: "resolved" } only — no URLs in traffic.
-    const otlpUrls = yield* resolveFlagT3OtelViaG10Bridge(
-      Effect.succeed({
-        otlpTracesUrl:
-          env.otlpTracesUrl ??
-          bootstrap?.otlpTracesUrl ??
-          persistedObservabilitySettings.otlpTracesUrl,
-        otlpMetricsUrl:
-          env.otlpMetricsUrl ??
-          bootstrap?.otlpMetricsUrl ??
-          persistedObservabilitySettings.otlpMetricsUrl,
-      }),
-    );
+    const flagT3Otel = yield* resolveFlagT3OtelViaG10Bridge(FlagT3OtelEnv);
+    const otlpUrls = {
+      otlpTracesUrl:
+        flagT3Otel.otlpTracesUrl ??
+        bootstrap?.otlpTracesUrl ??
+        persistedObservabilitySettings.otlpTracesUrl,
+      otlpMetricsUrl:
+        flagT3Otel.otlpMetricsUrl ??
+        bootstrap?.otlpMetricsUrl ??
+        persistedObservabilitySettings.otlpMetricsUrl,
+    };
 
     const config: ServerConfig.ServerConfig["Service"] = {
       logLevel,

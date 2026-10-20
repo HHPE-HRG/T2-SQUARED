@@ -1,6 +1,6 @@
 # Manifold I/O census (Battery A)
 
-<!-- Agent: docs-only census for Fabric-depth ceremony gate. Not implement. -->
+<!-- Agent: census for Fabric-depth ceremony gate. Updated by FD batteries. -->
 
 - Date: 2026-10-19
 - Machine: `manifold-io-census.json`
@@ -10,9 +10,9 @@
 
 | Class          | Count (rows) |
 | -------------- | ------------ |
-| real           | 46           |
-| stub           | 22           |
-| observe        | 5            |
+| real           | 58           |
+| stub           | 10           |
+| observe        | 0            |
 | dormant-exempt | 1            |
 
 **Fabric-depth implement debt** = every activatable row whose **sole lander**
@@ -29,12 +29,14 @@ double-count when a lander row is already `real`).
 
 ## Hotspots for FD slices (stub/observe on landers)
 
-- S2: `INV-T2-FLAG-T3-OTEL` (passthrough)
-- S4: CLAUDE, OPENCODE, FILE-LOGS (event-log), FILE-PROVIDER-SESSION cache,
-  FLAG-CODEX-LAUNCH
-- S5: TEL-DESKTOP-IN, TERM, FLAG-TERM-ENV
-- S6: ORCH-LIVE lander on `ws.ts` is **real** (S2 stub is handoff-only); TEL-NDJSON,
-  T3-TRACE, T2/T3-OTLP, FLAG-T2-OTEL (observe); FLAG-T3-OTEL stub
+- S2: sole-lander debt empty after FD2 (`INV-T2-FLAG-T3-OTEL` **real**;
+  ORCH-LIVE handoff-only)
+- S4: sole-lander debt empty after FD4 (CLAUDE/OPENCODE/FILE-LOGS/
+  FILE-PROVIDER-SESSION/FLAG-CODEX-LAUNCH → real)
+- S5: TERM / TEL-DESKTOP-IN / FLAG-TERM-ENV promoted **real** (FD5); NDJSON /
+  T3-TRACE remain S5→S6 handoff stubs (lander real on S6)
+- S6: ORCH-LIVE + TEL-NDJSON / T3-TRACE / T2-OTLP / T3-OTLP / FLAG-T2-OTEL
+  landers **real** (FD6); FLAG-T3-OTEL handoff stub; HOME-BUS dormant
 
 Home-bus remains dormant-exempt.
 

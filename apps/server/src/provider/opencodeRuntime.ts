@@ -462,29 +462,34 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
       const args = ["serve", `--hostname=${hostname}`, `--port=${port}`];
       const spawnCommand = yield* resolveCommand(input.binaryPath, args, input.environment);
 
-      const child = yield* spawner
-        .spawn(
-          ChildProcess.make(spawnCommand.command, spawnCommand.args, {
-            detached: hostPlatform !== "win32",
-            shell: spawnCommand.shell,
-            env: {
-              ...input.environment,
-              OPENCODE_CONFIG_CONTENT: OPENCODE_EMPTY_CONFIG_CONTENT,
-            },
-            extendEnv: input.environment === undefined,
-          }),
-        )
-        .pipe(
-          Effect.provideService(Scope.Scope, runtimeScope),
-          Effect.mapError(
-            (cause) =>
-              new OpenCodeRuntimeError({
-                operation: "startOpenCodeServerProcess",
-                detail: `Failed to spawn OpenCode server process: ${openCodeRuntimeErrorDetail(cause)}`,
-                cause,
-              }),
+      // Agent: INV-T2-PROVIDER-OPENCODE runtime-spawn-succeeded (spawn inside bridge).
+      // FD4: spawner.spawn inside liveIo so manifold authority reuses the same verb I/O.
+      const child = yield* providerOpenCodeViaG10Bridge(
+        spawner
+          .spawn(
+            ChildProcess.make(spawnCommand.command, spawnCommand.args, {
+              detached: hostPlatform !== "win32",
+              shell: spawnCommand.shell,
+              env: {
+                ...input.environment,
+                OPENCODE_CONFIG_CONTENT: OPENCODE_EMPTY_CONFIG_CONTENT,
+              },
+              extendEnv: input.environment === undefined,
+            }),
+          )
+          .pipe(
+            Effect.provideService(Scope.Scope, runtimeScope),
+            Effect.mapError(
+              (cause) =>
+                new OpenCodeRuntimeError({
+                  operation: "startOpenCodeServerProcess",
+                  detail: `Failed to spawn OpenCode server process: ${openCodeRuntimeErrorDetail(cause)}`,
+                  cause,
+                }),
+            ),
+            Effect.tap(() => captureProviderOpenCodeRuntime("runtime-spawn-succeeded")),
           ),
-        );
+      );
 
       const killOpenCodeProcessGroup = (signal: NodeJS.Signals) =>
         hostPlatform === "win32"
@@ -586,12 +591,6 @@ const makeOpenCodeRuntime = Effect.gen(function* () {
           detail: `Timed out waiting for OpenCode server start after ${timeoutMs}ms.`,
         });
       }
-
-      // Agent: INV-T2-PROVIDER-OPENCODE runtime-spawn-succeeded after serve ready.
-      // G10 S4: PROVIDER-OPENCODE cutover wraps spawn-ready success.
-      yield* providerOpenCodeViaG10Bridge(
-        captureProviderOpenCodeRuntime("runtime-spawn-succeeded"),
-      );
 
       return {
         url: readyOption.value,

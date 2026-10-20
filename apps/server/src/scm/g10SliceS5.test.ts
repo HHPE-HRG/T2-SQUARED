@@ -1,16 +1,18 @@
 /**
- * G10 S5 campaign controller tests (full Ordered proof).
+ * G10 S5 campaign controller tests (full Ordered proof + Fabric-depth FD5).
  *
  * Intended: land → live-rehearsal → ≡ → rollback-drill → dual-run-exit →
- * arm-inversion; four wired seams + NDJSON/T3-TRACE stubs; markDualRunExited
- * refuses; bridge helpers absent ⇒ live passthrough. Does not start S6.
- * Does not steal FILE-LOGS terminalLogs / FLAG-TERM-ENV.
+ * arm-inversion; under T2CODE_SCM_FABRIC_DEPTH also soft-fallback-retire.
+ * Four wired seams + NDJSON/T3-TRACE stubs; markDualRunExited refuses;
+ * bridge helpers absent ⇒ live passthrough. Does not start S6.
+ * Does not steal FILE-LOGS terminalLogs / edit Observability.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-
+import { FABRIC_DEPTH_ENV } from "./fabricDepthBootstrap.ts";
+import { softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import { resolveG10RepoRoot } from "./g10CutoverRegistry.ts";
 import { orderedProofSatisfiedThrough } from "./g10ProofHarness.ts";
 import { markDualRunExited } from "./g10Substitution.ts";
@@ -36,6 +38,18 @@ import {
 } from "./g10SliceS5.ts";
 
 const repoRoot = resolveG10RepoRoot();
+
+/** Run body with T2CODE_SCM_FABRIC_DEPTH=1, restore prior env. */
+const withFdEnv = <A>(fn: () => A): A => {
+  const prev = process.env[FABRIC_DEPTH_ENV];
+  process.env[FABRIC_DEPTH_ENV] = "1";
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env[FABRIC_DEPTH_ENV];
+    else process.env[FABRIC_DEPTH_ENV] = prev;
+  }
+};
 
 describe("G10 S5 controller", () => {
   it("owns frozen 5 S5 comm_ids, four wired, S6 handoffs pending, FLAG-TERM S8 landed", () => {
@@ -119,6 +133,7 @@ describe("G10 S5 controller", () => {
       assert.ok(md.includes("**GREEN**"));
       assert.ok(md.includes("INV-T2-TERM"));
       assert.ok(md.includes("INV-T2-RES-MONITOR"));
+      assert.ok(md.includes("softFallback:"));
     }
   });
 
@@ -207,5 +222,38 @@ describe("G10 S5 controller", () => {
       }).pipe(Effect.provide(Layer.succeed(G10S5CutoverService, ctrl))),
     );
     assert.equal(got.slice, "S5");
+  });
+
+  it("FD env: softFallbackRetire after arm-inversion retires S5 (census real)", () => {
+    withFdEnv(() => {
+      const ctrl = createG10S5Controller(repoRoot);
+      const bodies = ctrl.runFullOrderedProof();
+      assert.equal(bodies.length, 7);
+      assert.equal(bodies[6]?.step, "soft-fallback-retire");
+      assert.equal(bodies[6]?.softFallback, "retired");
+      assert.equal(softFallbackForSlice(ctrl.model, "S5"), "retired");
+      const md = ctrl.formatEvidenceMarkdown(bodies[6]!);
+      assert.ok(md.includes("softFallback: `retired`"));
+      assert.ok(md.includes("manifold-io-census"));
+    });
+  });
+
+  it("FD env off: softFallbackRetire refuses; runFullOrderedProof stays at 6", () => {
+    const ctrl = createG10S5Controller(repoRoot);
+    const bodies = ctrl.runFullOrderedProof();
+    assert.equal(bodies.length, 6);
+    assert.throws(() => ctrl.softFallbackRetire(), /T2CODE_SCM_FABRIC_DEPTH/);
+  });
+
+  it("FD env: softFallbackRetire refuses before arm-inversion", () => {
+    withFdEnv(() => {
+      const ctrl = createG10S5Controller(repoRoot);
+      ctrl.land();
+      ctrl.liveRehearsal();
+      ctrl.recordEquiv();
+      ctrl.rollbackDrill();
+      ctrl.dualRunExit();
+      assert.throws(() => ctrl.softFallbackRetire(), /arm-inversion/);
+    });
   });
 });

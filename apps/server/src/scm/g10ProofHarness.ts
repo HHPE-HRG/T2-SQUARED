@@ -10,6 +10,7 @@
  * no 763 runner import. WORK-000035 losslessness stays deferred.
  */
 import type { G9EqualityA } from "./g9Occurrence.ts";
+import { markSoftFallbackActiveAfterExit } from "./fabricDepthSoftFallback.ts";
 import type { G10SubstitutionModel } from "./g10Substitution.ts";
 import {
   ORDERED_PROOF_STEPS,
@@ -164,6 +165,8 @@ export const recordOrderedProofStep = (
     if (install !== undefined) {
       model.installs.set(slice, { ...install, authority: "manifold" });
     }
+    // Fabric-depth: post-exit soft-fallback defaults to active (FD env gated).
+    markSoftFallbackActiveAfterExit(model, slice);
   }
   return state.completedProofSteps;
 };

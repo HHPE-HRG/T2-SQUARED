@@ -3,8 +3,9 @@
  *
  * Intended: own S1-only admit/route/replace + Ordered proof sequence helpers
  * wrapping createSubstitutionModel / installAdmitRouteReplace /
- * recordOrderedProofStep / armInversion / restorePreCutoverLive. Six S1-owned
- * seams wire admit/route/replace traffic via g10SeamBridge:
+ * recordOrderedProofStep / armInversion / restorePreCutoverLive /
+ * recordSoftFallbackRetire (Fabric-depth FD1). Six S1-owned seams wire
+ * admit/route/replace traffic via g10SeamBridge:
  *   - Engine sole lander: ORCH-EVENTS publish + ORCH-QUEUE offer
  *     (OrchestrationEngine.ts — do not land other S1 seams there)
  *   - Capture modules: LIFECYCLE / PREVIEW-AUTO / PROJECT-QUEUE / VCS-EVENTS
@@ -16,6 +17,7 @@
  * Observed: in-memory model + traffic log; does not edit ws/provider or
  * serverSettings.ts. dualRunExit / armInversion never call markDualRunExited —
  * recordOrderedProofStep is sole dual-run-exit / arm-inversion writer.
+ * softFallbackRetire requires T2CODE_SCM_FABRIC_DEPTH + census sole-landers real.
  * Absent controller ⇒ live paths unchanged at all wired call sites.
  */
 import type { OrchestrationCommand, OrchestrationEvent } from "@t3tools/contracts";
@@ -23,9 +25,11 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import { join } from "node:path";
 
 import { commandTypeOf } from "./g9OrchQueueCapture.ts";
 import type { G9EqualityA } from "./g9Occurrence.ts";
+import { recordSoftFallbackRetire, softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import {
   activatableCommIdsForSlice,
   loadG10CutoverRegistry,
@@ -48,7 +52,11 @@ import {
   phaseForSlice,
   type G10SubstitutionModel,
 } from "./g10Substitution.ts";
-import type { CutoverPhase, OrderedProofStep } from "./g10Types.ts";
+import type { CutoverPhase, OrderedProofStep, SoftFallbackState } from "./g10Types.ts";
+
+/** Absolute census path for S1 soft-fallback-retire sole-lander gate. */
+const S1_MANIFOLD_IO_CENSUS = (repoRoot: string): string =>
+  join(repoRoot, "docs/scm/fabric-depth/evidence/manifold-io-census.json");
 
 /** Frozen S1 inventory `comm_id` set (7 rows — do not resize). */
 export const G10_S1_COMM_IDS = [
@@ -96,13 +104,20 @@ export type G10S1TrafficSample = {
   readonly atMs: number;
 };
 
-/** Structured evidence body for one Ordered proof step (markdown writer input). */
+/**
+ * Structured evidence body for one Ordered proof / Fabric-depth step.
+ *
+ * Agent: soft-fallback-retire is FD Ordered depth (proof-bar step 7), not a
+ * G10 ORDERED_PROOF_STEPS member — emit softFallback on every body.
+ */
 export type G10S1EvidenceBody = {
   readonly slice: "S1";
-  readonly step: OrderedProofStep | "land";
+  readonly step: OrderedProofStep | "soft-fallback-retire";
   readonly phase: CutoverPhase;
   readonly authority: "live" | "manifold";
   readonly inversionArmed: boolean;
+  /** Fabric-depth g10.softFallback bookkeeping (null pre-exit / FD off). */
+  readonly softFallback: SoftFallbackState;
   readonly commIds: readonly string[];
   readonly notes: readonly string[];
   readonly equalitySamples?: readonly G9DeferredEquality[];
@@ -126,7 +141,8 @@ export type G10S1ManifoldTrafficLog = {
  * S1 campaign controller shape (process-global or Effect service).
  *
  * Agent: land → liveRehearsal → recordEquiv → rollbackDrill → dualRunExit →
- * armInversion. dualRunExit uses recordOrderedProofStep only.
+ * armInversion → softFallbackRetire (FD1; requires T2CODE_SCM_FABRIC_DEPTH).
+ * dualRunExit uses recordOrderedProofStep only.
  */
 export type G10S1Controller = {
   readonly slice: "S1";
@@ -148,6 +164,11 @@ export type G10S1Controller = {
   readonly dualRunExit: () => G10S1EvidenceBody;
   /** Arm inversion via armInversion → recordOrderedProofStep. */
   readonly armInversion: () => G10S1EvidenceBody;
+  /**
+   * Fabric-depth soft-fallback-retire after arm-inversion (FD1).
+   * Requires T2CODE_SCM_FABRIC_DEPTH + census sole-landers real for S1.
+   */
+  readonly softFallbackRetire: () => G10S1EvidenceBody;
   /** Record live ORCH-EVENTS publish sample (Engine live path). */
   readonly recordLivePublish: (event: OrchestrationEvent) => void;
   /** Record manifold ORCH-EVENTS observe/authority sample. */
@@ -183,7 +204,10 @@ export type G10S1Controller = {
   readonly inversionArmed: () => boolean;
   /** Format evidence markdown for a recorded step body. */
   readonly formatEvidenceMarkdown: (body: G10S1EvidenceBody) => string;
-  /** Run full Ordered proof sequence; returns bodies in order. */
+  /**
+   * Run full Ordered proof + FD soft-fallback-retire; returns bodies in order.
+   * Agent: requires T2CODE_SCM_FABRIC_DEPTH (retire refuses otherwise).
+   */
   readonly runFullOrderedProof: () => readonly G10S1EvidenceBody[];
 };
 
@@ -267,7 +291,7 @@ export const createG10S1Controller = (repoRoot: string = resolveG10RepoRoot()): 
   }
 
   const snapshotEvidence = (
-    step: OrderedProofStep | "land",
+    step: OrderedProofStep | "soft-fallback-retire",
     notes: readonly string[],
     equalitySamples?: readonly G9DeferredEquality[],
   ): G10S1EvidenceBody => {
@@ -279,6 +303,7 @@ export const createG10S1Controller = (repoRoot: string = resolveG10RepoRoot()): 
       phase: phaseForSlice(model, "S1"),
       authority: authorityForSlice(model, "S1"),
       inversionArmed: model.sliceStates.get("S1")?.inversionArmed === true,
+      softFallback: softFallbackForSlice(model, "S1"),
       commIds: [...s1Ids],
       notes,
       equalitySamples,
@@ -298,6 +323,7 @@ export const createG10S1Controller = (repoRoot: string = resolveG10RepoRoot()): 
       `- Phase: \`${body.phase}\``,
       `- Authority: **${body.authority}**`,
       `- inversionArmed: \`${body.inversionArmed}\``,
+      `- softFallback: \`${body.softFallback === null ? "null" : body.softFallback}\``,
       `- S1 comm_ids (${body.commIds.length}): ${body.commIds.join(", ")}`,
       "",
       "## Notes",
@@ -650,6 +676,27 @@ export const createG10S1Controller = (repoRoot: string = resolveG10RepoRoot()): 
     ]);
   };
 
+  /**
+   * Fabric-depth soft-fallback-retire (proof-bar step 7 / FD1).
+   *
+   * Intended: after arm-inversion GREEN, set g10.softFallback=retired when
+   * T2CODE_SCM_FABRIC_DEPTH on and S1 sole-lander census debt is empty
+   * (SETTINGS handoff stub only). Observed: recordSoftFallbackRetire + census
+   * path under docs/scm/fabric-depth/evidence/.
+   */
+  const softFallbackRetire = (): G10S1EvidenceBody => {
+    recordSoftFallbackRetire(model, "S1", S1_MANIFOLD_IO_CENSUS(repoRoot));
+    if (softFallbackForSlice(model, "S1") !== "retired") {
+      throw new Error("G10 S1 softFallbackRetire: softFallback not retired");
+    }
+    return snapshotEvidence("soft-fallback-retire", [
+      "g10.softFallback=retired after arm-inversion GREEN (Fabric-depth FD1)",
+      "census sole-lander debt empty (SETTINGS-EVENTS handoff stub only)",
+      "bridge must not soft-fall to live on manifold failure for S1",
+      "requires T2CODE_SCM_FABRIC_DEPTH; does not flip g9toG10Authorized",
+    ]);
+  };
+
   const runFullOrderedProof = (): readonly G10S1EvidenceBody[] => {
     const bodies: G10S1EvidenceBody[] = [];
     bodies.push(land());
@@ -658,8 +705,12 @@ export const createG10S1Controller = (repoRoot: string = resolveG10RepoRoot()): 
     bodies.push(rollbackDrill());
     bodies.push(dualRunExit());
     bodies.push(armInversionStep());
+    bodies.push(softFallbackRetire());
     if (!orderedProofSatisfiedThrough(model, "S1", "arm-inversion")) {
       throw new Error("G10 S1 runFullOrderedProof: Ordered proof incomplete");
+    }
+    if (softFallbackForSlice(model, "S1") !== "retired") {
+      throw new Error("G10 S1 runFullOrderedProof: soft-fallback-retire incomplete");
     }
     return bodies;
   };
@@ -675,6 +726,7 @@ export const createG10S1Controller = (repoRoot: string = resolveG10RepoRoot()): 
     rollbackDrill,
     dualRunExit,
     armInversion: armInversionStep,
+    softFallbackRetire,
     recordLivePublish,
     recordManifoldPublish,
     recordLiveOffer,

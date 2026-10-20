@@ -16,10 +16,11 @@ import {
 } from "./g10Types.ts";
 
 describe("G10 S0 types", () => {
-  it("default slice state is live with inversion disarmed", () => {
+  it("default slice state is live with inversion disarmed and softFallback omit", () => {
     const state = makeDefaultSliceState("S1");
     assert.equal(state.phase, "live");
     assert.equal(state.inversionArmed, false);
+    assert.equal(state.softFallback, null);
     assert.deepEqual(state.completedProofSteps, []);
   });
 

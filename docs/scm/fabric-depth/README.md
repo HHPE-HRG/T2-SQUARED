@@ -1,10 +1,9 @@
 # Fabric-depth campaign (named charter — not G11)
 
-<!-- Agent: durable ceremony unlock 2026-10-19. Implement under
-T2CODE_SCM_FABRIC_DEPTH + authorization.md. Not G11. -->
+<!-- Agent: Fabric-depth completed 2026-10-19 (FD0–FD8 GREEN). Not G11. -->
 
 - Date: 2026-10-19
-- Status: **authorized_pending_implement** (`manifest.json`)
+- Status: **completed** (`manifest.completed: true`; FD0–FD8 GREEN)
 - Unlock: `fabricDepthAuthorized: true` (ceremony 2026-10-19, Max Holden)
 - Process env: `T2CODE_SCM_FABRIC_DEPTH` (not `T2CODE_SCM_G10_CUTOVER`)
 - Relation to G10: G10 sealed **G10 bridge** authority selection
@@ -24,8 +23,9 @@ T2CODE_SCM_FABRIC_DEPTH + authorization.md. Not G11. -->
 | [proof-bar.md](proof-bar.md)                                     | Binding Ordered depth law                                     |
 | [ops/soft-fallback-signal.md](ops/soft-fallback-signal.md)       | `g10.softFallback` active\|retired                            |
 | [evidence/manifold-io-census.md](evidence/manifold-io-census.md) | Stub/observe/real census                                      |
-| [manifest.json](manifest.json)                                   | `fabricDepthAuthorized: true`                                 |
+| [manifest.json](manifest.json)                                   | `fabricDepthAuthorized` + `completed: true`                   |
 | [authorization.md](authorization.md)                             | Durable unlock (ceremony 2026-10-19)                          |
+| [evidence/FD8-campaign-close.md](evidence/FD8-campaign-close.md) | Campaign close (FD8)                                          |
 | [ceremony-checklist.md](ceremony-checklist.md)                   | Docs readiness + human unlock complete                        |
 | [research/](research/)                                           | Wave 4 def cache + confirm (post-batteries); Wave 1–3 history |
 

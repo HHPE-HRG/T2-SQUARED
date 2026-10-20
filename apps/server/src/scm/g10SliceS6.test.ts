@@ -1,10 +1,11 @@
 /**
- * G10 S6 campaign controller tests (full Ordered proof).
+ * G10 S6 campaign controller tests (full Ordered proof + Fabric-depth FD6).
  *
  * Intended: land → live-rehearsal → ≡ → rollback-drill → dual-run-exit →
- * arm-inversion; fourteen wired seams + FLAG-T3 stub; home-bus dormant;
+ * arm-inversion; under T2CODE_SCM_FABRIC_DEPTH also soft-fallback-retire;
+ * fourteen wired seams + FLAG-T3 stub; home-bus dormant (omits softFallback);
  * markDualRunExited refuses; bridge helpers absent ⇒ live passthrough.
- * Does not start S7. Does not steal FLAG-T3-OTEL on cli/config.ts.
+ * Does not start S7. Does not steal FLAG-T3-OTEL on cli/config.ts. No G11.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -12,6 +13,8 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 
+import { FABRIC_DEPTH_ENV } from "./fabricDepthBootstrap.ts";
+import { softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import { G10_DORMANT_HOME_BUS_COMM_ID, resolveG10RepoRoot } from "./g10CutoverRegistry.ts";
 import { orderedProofSatisfiedThrough } from "./g10ProofHarness.ts";
 import { markDualRunExited } from "./g10Substitution.ts";
@@ -41,6 +44,18 @@ import {
 } from "./g10SliceS6.ts";
 
 const repoRoot = resolveG10RepoRoot();
+
+/** Run fn with T2CODE_SCM_FABRIC_DEPTH=1; restore previous env after. */
+const withFdEnv = <A>(fn: () => A): A => {
+  const prev = process.env[FABRIC_DEPTH_ENV];
+  process.env[FABRIC_DEPTH_ENV] = "1";
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env[FABRIC_DEPTH_ENV];
+    else process.env[FABRIC_DEPTH_ENV] = prev;
+  }
+};
 
 describe("G10 S6 controller", () => {
   it("owns frozen 12 activatable, fourteen wired, S2 handoff + dormant slots", () => {
@@ -82,6 +97,9 @@ describe("G10 S6 controller", () => {
     assert.equal(ctrl.inversionArmed(), true);
     assert.equal(ctrl.phase(), "inverted");
     assert.equal(orderedProofSatisfiedThrough(ctrl.model, "S6", "arm-inversion"), true);
+    // FD off: softFallback omit (null) — retire not auto-run
+    assert.equal(bodies[5]?.softFallback, null);
+    assert.equal(softFallbackForSlice(ctrl.model, "S6"), null);
     // Activatable 12 + three handoff lands.
     assert.equal(bodies[2]?.equalitySamples?.length, 15);
     const exitBody = bodies[4];
@@ -89,6 +107,60 @@ describe("G10 S6 controller", () => {
     assert.ok(exitBody?.notes.some((n) => n.includes("FLAG-T3-OTEL")));
     assert.ok(exitBody?.notes.some((n) => n.includes("HOME-BUS") || n.includes("dormant")));
     assert.throws(() => markDualRunExited(ctrl.model, "S6"), /recordOrderedProofStep/);
+  });
+
+  it("Fabric-depth FD6: Ordered depth through soft-fallback-retire under FD env", () => {
+    withFdEnv(() => {
+      const ctrl = createG10S6Controller(repoRoot);
+      const bodies = ctrl.runFullOrderedProof();
+      assert.equal(bodies.length, 7);
+      assert.deepEqual(
+        bodies.map((b) => b.step),
+        [
+          "land",
+          "live-rehearsal",
+          "cutover-equivalence",
+          "rollback-drill",
+          "dual-run-exit",
+          "arm-inversion",
+          "soft-fallback-retire",
+        ],
+      );
+      assert.equal(ctrl.authority(), "manifold");
+      assert.equal(ctrl.inversionArmed(), true);
+      assert.equal(softFallbackForSlice(ctrl.model, "S6"), "retired");
+      assert.equal(bodies[4]?.softFallback, "active");
+      assert.equal(bodies[5]?.softFallback, "active");
+      assert.equal(bodies[6]?.softFallback, "retired");
+      assert.ok(
+        bodies[6]?.notes.some((n) => n.includes("sole-lander debt empty")),
+        "retire notes cite empty S6 sole-lander debt",
+      );
+      assert.ok(
+        bodies[6]?.notes.some((n) => n.includes("HOME-BUS") && n.includes("omits")),
+        "retire notes cite HOME-BUS omits softFallback",
+      );
+      assert.ok(
+        bodies[6]?.notes.some((n) => n.includes("cli/config.ts") || n.includes("FLAG-T3-OTEL")),
+        "retire notes cite FLAG-T3-OTEL / cli/config handoff",
+      );
+      // Home-bus dormant: never gets softFallback bookkeeping on S6 slice state.
+      assert.equal(G10_S6_HOME_BUS_DORMANT.status, "dormant-preserved");
+      const md = ctrl.formatEvidenceMarkdown(bodies[6]!);
+      assert.ok(md.includes("softFallback: `retired`"));
+      assert.ok(md.includes("**GREEN**"));
+    });
+  });
+
+  it("Fabric-depth FD6: softFallbackRetire refuses when FD env off", () => {
+    const ctrl = createG10S6Controller(repoRoot);
+    ctrl.land();
+    ctrl.liveRehearsal();
+    ctrl.recordEquiv();
+    ctrl.rollbackDrill();
+    ctrl.dualRunExit();
+    ctrl.armInversion();
+    assert.throws(() => ctrl.softFallbackRetire(), /T2CODE_SCM_FABRIC_DEPTH/);
   });
 
   it("live-rehearsal records bridge traffic for wired fourteen + stub for FLAG-T3", () => {
@@ -132,6 +204,7 @@ describe("G10 S6 controller", () => {
       assert.ok(md.includes("**GREEN**"));
       assert.ok(md.includes("INV-T2-RPC-WS"));
       assert.ok(md.includes("INV-T2-FLAG-T2-OTEL"));
+      assert.ok(md.includes("softFallback:"));
     }
   });
 

@@ -8,10 +8,12 @@
  *     authoritative; optionally run manifoldObserveEffect beside without
  *     failing live (inversion armed pre-exit is N/A — refuse)
  *   - authority manifold (post dual-run-exit) → manifoldEffect authoritative;
- *     if inversionArmed and manifold fails → fail the user op; if not
- *     inverted → soft live fallback (pre-inversion safety per decisions.md)
+ *     if inversionArmed OR Fabric-depth softFallback=retired → manifold fail
+ *     fails the user op; if soft-fallback still active and !inverted → soft
+ *     live fallback (pre-inversion / pre-retire safety)
  *
  * Observed: pure Effect selector over G10SubstitutionModel bookkeeping.
+ * Emits g10.softFallback signal when FD env on and state non-null.
  * Does not call markDualRunExited. Does not resize radius. Does not touch
  * G9 capture — callers keep capture-beside on the live/manifold I/O they pass.
  * Inversion armed while authority still live throws (illegal Ordered state).
@@ -19,6 +21,11 @@
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 
+import {
+  emitSoftFallbackSignal,
+  isSoftFallbackRetired,
+  softFallbackForSlice,
+} from "./fabricDepthSoftFallback.ts";
 import { isInversionArmed } from "./g10Inversion.ts";
 import { authorityForSlice, type G10SubstitutionModel } from "./g10Substitution.ts";
 import type { G10FabricSliceId } from "./g10Types.ts";
@@ -98,10 +105,15 @@ export const runG10SeamBridge = <A, E, R>(
   }
 
   // Post dual-run-exit: manifold authoritative.
-  // Intended: inversionArmed ⇒ manifold fail fails user op.
-  // Observed safe behavior when !inverted: soft-fallback to liveEffect so
-  // user ops do not fail until Ordered proof arms inversion (decisions.md).
-  if (inverted) {
+  // Fabric-depth: emit softFallback signal (active whether or not inverted).
+  const softFallback = softFallbackForSlice(model, slice);
+  emitSoftFallbackSignal(slice, softFallback);
+
+  // Intended: inversionArmed OR softFallback retired ⇒ manifold fail fails op.
+  // Soft live recovery only while softFallback active (or null pre-FD) and
+  // !inverted (G10 pre-inversion safety + FD retire contract).
+  const retired = isSoftFallbackRetired(model, slice);
+  if (inverted || retired) {
     return manifoldEffect;
   }
 
@@ -110,7 +122,7 @@ export const runG10SeamBridge = <A, E, R>(
     if (Exit.isSuccess(manifoldExit)) {
       return manifoldExit.value;
     }
-    // Pre-inversion safety net: live still callable for soft recovery.
+    // Pre-inversion / pre-retire safety net: live still callable for soft recovery.
     return yield* liveEffect;
   });
 };

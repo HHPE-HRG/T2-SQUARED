@@ -4,12 +4,15 @@
  * Owns terminal lifecycle operations, output fanout, and session state
  * transitions for thread-scoped terminals.
  *
- * Agent (G9 W5c B5 + G10 S5): sole lander for this file. Wires B2 FILE-LOGS
- * handoff helpers and B5 INV-T2-TERM phases via withOptionalG9Capture. G10 S5
- * admit/route/replace wraps TERM phases via termPhaseViaG10Bridge. S8
- * lander-reopen also wraps FLAG-TERM-ENV via flagTermEnvViaG10Bridge (S7→S5;
- * not historical S5 exit (a)). FILE-LOGS terminalLogs stays S7 phase handoff.
- * Absent G10/G9 ⇒ live unchanged. Never put path / env / PTY bytes in equality A.
+ * Agent (G9 W5c B5 + G10 S5 + Fabric-depth FD5): sole lander for this file.
+ * Wires B2 FILE-LOGS handoff helpers and B5 INV-T2-TERM phases via
+ * withOptionalG9Capture. G10 S5 admit/route/replace wraps TERM phases via
+ * termPhaseViaG10Bridge with inventoriable PTY I/O inside liveIo (FD5 real —
+ * manifold reuses spawn/write/callback drain). S8 lander-reopen also wraps
+ * FLAG-TERM-ENV via flagTermEnvViaG10Bridge with createTerminalSpawnEnv inside
+ * liveIo (FD5 real; not historical S5 exit (a)). FILE-LOGS terminalLogs stays
+ * S7 phase handoff (already real). Absent G10/G9 ⇒ live unchanged. Never put
+ * path / env / PTY bytes in equality A.
  *
  * @module TerminalManager
  */
@@ -1273,13 +1276,18 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
   const publishEvent = (event: TerminalEvent) =>
     Effect.gen(function* () {
       for (const listener of terminalEventListeners) {
-        // INV-T2-TERM / terminal-session-callback-emitted: listener invoked
-        // (site only). Agent: G10 S5 bridge + G9 capture; no event payload in A.
-        yield* listener(event).pipe(Effect.ignoreCause({ log: true }));
+        // INV-T2-TERM / terminal-session-callback-emitted (FD5 real): listener
+        // invoke inside liveIo so manifold reuses same callback verb.
+        // Agent: G10 S5 bridge + G9 capture; no event payload in A.
         yield* termPhaseViaG10Bridge(
           "terminal-session-callback-emitted",
-          withOptionalG9Capture((capture) =>
-            captureTermPhase(capture, "terminal-session-callback-emitted"),
+          listener(event).pipe(
+            Effect.ignoreCause({ log: true }),
+            Effect.andThen(
+              withOptionalG9Capture((capture) =>
+                captureTermPhase(capture, "terminal-session-callback-emitted"),
+              ),
+            ),
           ),
         );
       }
@@ -1906,32 +1914,35 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
       );
     }
 
+    // INV-T2-TERM / pty-spawn-succeeded (FD5 real): inventoriable spawn inside
+    // liveIo so manifold authority reuses the same PTY spawn verb.
+    // Agent: site "spawned" only; no shell/cwd/env in A.
     const attempt = yield* Effect.result(
-      options.ptyAdapter.spawn({
-        shell: candidate.shell,
-        ...(candidate.args ? { args: candidate.args } : {}),
-        cwd: session.cwd,
-        cols: session.cols,
-        rows: session.rows,
-        env: spawnEnv,
-      }),
+      termPhaseViaG10Bridge(
+        "pty-spawn-succeeded",
+        options.ptyAdapter
+          .spawn({
+            shell: candidate.shell,
+            ...(candidate.args ? { args: candidate.args } : {}),
+            cwd: session.cwd,
+            cols: session.cols,
+            rows: session.rows,
+            env: spawnEnv,
+          })
+          .pipe(
+            Effect.tap(() =>
+              withOptionalG9Capture((capture) => captureTermPhase(capture, "pty-spawn-succeeded")),
+            ),
+            Effect.map((process) => ({
+              process,
+              shellLabel: formatShellCandidate(candidate),
+            })),
+          ),
+      ),
     );
 
     if (attempt._tag === "Success") {
-      // INV-T2-TERM / pty-spawn-succeeded: G10 S5 bridge + G9 capture per spawn.
-      // Agent: site "spawned" only; no shell/cwd/env in A.
-      return yield* termPhaseViaG10Bridge(
-        "pty-spawn-succeeded",
-        Effect.gen(function* () {
-          yield* withOptionalG9Capture((capture) =>
-            captureTermPhase(capture, "pty-spawn-succeeded"),
-          );
-          return {
-            process: attempt.success,
-            shellLabel: formatShellCandidate(candidate),
-          };
-        }),
-      );
+      return attempt.success;
     }
 
     const spawnError = attempt.failure;
@@ -1984,11 +1995,15 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
             Effect.andThen(
               Effect.gen(function* () {
                 const shellCandidates = resolveShellCandidates(shellResolver, platform, baseEnv);
-                const terminalEnv = createTerminalSpawnEnv(baseEnv, session.runtimeEnv);
-                // INV-T2-FLAG-TERM-ENV / terminal-child-env-filtered (B2→B5):
-                // G10 S8 reopen cutover + G9 capture-beside (kind-only A).
-                yield* flagTermEnvViaG10Bridge(
-                  withOptionalG9Capture((capture) => captureFlagTermEnvFiltered(capture)),
+                // INV-T2-FLAG-TERM-ENV / terminal-child-env-filtered (FD5 real):
+                // inventoriable env filter inside liveIo so manifold reuses same
+                // verb. G10 S8 reopen cutover + G9 capture-beside (kind-only A).
+                const terminalEnv = yield* flagTermEnvViaG10Bridge(
+                  Effect.sync(() => createTerminalSpawnEnv(baseEnv, session.runtimeEnv)).pipe(
+                    Effect.tap(() =>
+                      withOptionalG9Capture((capture) => captureFlagTermEnvFiltered(capture)),
+                    ),
+                  ),
                 );
                 const spawnResult = yield* trySpawn(shellCandidates, terminalEnv, session);
                 ptyProcess = spawnResult.process;
@@ -1999,30 +2014,32 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
                   if (!enqueueProcessEvent(session, processPid, { type: "output", data })) {
                     return;
                   }
-                  // INV-T2-TERM / pty-output-callback-emitted: enqueue accepted.
-                  // Agent: G10 S5 bridge + G9; drop when enqueue false; no PTY bytes in A.
+                  // INV-T2-TERM / pty-output-callback-emitted (FD5 real): drain
+                  // inside liveIo so manifold reuses same callback-continue verb.
+                  // Agent: enqueue gate outside (drop = no occurrence); no PTY bytes in A.
                   runFork(
                     termPhaseViaG10Bridge(
                       "pty-output-callback-emitted",
                       withOptionalG9Capture((capture) =>
                         captureTermPhase(capture, "pty-output-callback-emitted"),
-                      ),
-                    ).pipe(Effect.andThen(drainProcessEvents(session, processPid))),
+                      ).pipe(Effect.andThen(drainProcessEvents(session, processPid))),
+                    ),
                   );
                 });
                 const unsubscribeExit = ptyProcess.onExit((event) => {
                   if (!enqueueProcessEvent(session, processPid, { type: "exit", event })) {
                     return;
                   }
-                  // INV-T2-TERM / pty-exit-succeeded: onExit enqueue accepted.
-                  // Agent: G10 S5 bridge + G9 capture beside.
+                  // INV-T2-TERM / pty-exit-succeeded (FD5 real): drain inside
+                  // liveIo so manifold reuses same callback-continue verb.
+                  // Agent: enqueue gate outside; G9 capture beside.
                   runFork(
                     termPhaseViaG10Bridge(
                       "pty-exit-succeeded",
                       withOptionalG9Capture((capture) =>
                         captureTermPhase(capture, "pty-exit-succeeded"),
-                      ),
-                    ).pipe(Effect.andThen(drainProcessEvents(session, processPid))),
+                      ).pipe(Effect.andThen(drainProcessEvents(session, processPid))),
+                    ),
                   );
                 });
 
@@ -2570,12 +2587,13 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         if (!metadataEvent) {
           return Effect.void;
         }
-        // INV-T2-TERM / terminal-metadata-callback-emitted: null skipped.
-        // Agent: G10 S5 bridge + G9 after listener; no metadata payload in A.
-        return listener(metadataEvent).pipe(
-          Effect.andThen(
-            termPhaseViaG10Bridge(
-              "terminal-metadata-callback-emitted",
+        // INV-T2-TERM / terminal-metadata-callback-emitted (FD5 real): listener
+        // inside liveIo so manifold reuses same callback verb. Null skipped above.
+        // Agent: G10 S5 bridge + G9; no metadata payload in A.
+        return termPhaseViaG10Bridge(
+          "terminal-metadata-callback-emitted",
+          listener(metadataEvent).pipe(
+            Effect.andThen(
               withOptionalG9Capture((capture) =>
                 captureTermPhase(capture, "terminal-metadata-callback-emitted"),
               ),
@@ -2640,21 +2658,27 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         terminalId,
       });
     }
-    yield* Effect.try({
-      try: () => process.write(input.data),
-      catch: (cause) =>
-        new TerminalWriteError({
-          threadId: input.threadId,
-          terminalId,
-          terminalPid: process.pid,
-          cause,
-        }),
-    });
-    // INV-T2-TERM / pty-input-write-succeeded: write Effect.try succeeded.
+    // INV-T2-TERM / pty-input-write-succeeded (FD5 real): inventoriable write
+    // inside liveIo so manifold reuses same PTY write verb.
     // Agent: G10 S5 bridge + G9; no input.data in A. Exited early-return is no-occurrence.
     yield* termPhaseViaG10Bridge(
       "pty-input-write-succeeded",
-      withOptionalG9Capture((capture) => captureTermPhase(capture, "pty-input-write-succeeded")),
+      Effect.try({
+        try: () => process.write(input.data),
+        catch: (cause) =>
+          new TerminalWriteError({
+            threadId: input.threadId,
+            terminalId,
+            terminalPid: process.pid,
+            cause,
+          }),
+      }).pipe(
+        Effect.tap(() =>
+          withOptionalG9Capture((capture) =>
+            captureTermPhase(capture, "pty-input-write-succeeded"),
+          ),
+        ),
+      ),
     );
   });
 

@@ -3,23 +3,30 @@
  *
  * Intended: own S2 admit/route/replace + Ordered proof sequence helpers
  * wrapping createSubstitutionModel / installAdmitRouteReplace /
- * recordOrderedProofStep / armInversion / restorePreCutoverLive. Wired seams:
+ * recordOrderedProofStep / armInversion / restorePreCutoverLive. Under
+ * T2CODE_SCM_FABRIC_DEPTH, after arm-inversion call recordSoftFallbackRetire
+ * (census sole-lander gate; FLAG-T3-OTEL lander must be real). Wired seams:
  *   - serverSettings.ts sole lander: FILE-SETTINGS (exists/read/write) +
  *     SETTINGS-EVENTS handoff FROM S1 (emitChange / subscribeChanges)
  *   - cli/config.ts sole lander: FLAG-SERVER-CONFIG (EnvServerConfig resolve)
+ *     + FLAG-T3-OTEL (FlagT3OtelEnv Config; FD2 real manifold I/O)
  * ORCH-LIVE is S2→S6 handoff-pending on ws.ts — ledger stub only; S2 must
  * NOT commit ws.ts. FLAG-T3-OTEL is S6→S2 handoff landed at S8 reopen on
  * cli/config (not claimed under historical S2 Ordered-proof exit (a)).
  *
  * Observed: in-memory model + traffic log; dualRunExit / armInversion never
  * call markDualRunExited — recordOrderedProofStep is sole dual-run-exit /
- * arm-inversion writer. Absent controller ⇒ live paths unchanged.
+ * arm-inversion writer. softFallbackRetire is Fabric-depth only (not a G10
+ * OrderedProofStep). Absent controller ⇒ live paths unchanged. Not G11.
  */
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import { join } from "node:path";
 
+import { isFabricDepthEnabled } from "./fabricDepthBootstrap.ts";
+import { recordSoftFallbackRetire, softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import type { G9EqualityA } from "./g9Occurrence.ts";
 import {
   activatableCommIdsForSlice,
@@ -43,7 +50,10 @@ import {
   phaseForSlice,
   type G10SubstitutionModel,
 } from "./g10Substitution.ts";
-import type { CutoverPhase, OrderedProofStep } from "./g10Types.ts";
+import type { CutoverPhase, OrderedProofStep, SoftFallbackState } from "./g10Types.ts";
+
+/** Relative census path under repo root (Fabric-depth sole-lander gate). */
+const FABRIC_DEPTH_CENSUS_REL = "docs/scm/fabric-depth/evidence/manifold-io-census.json";
 
 /** Frozen S2 inventory `comm_id` set (3 rows — do not resize). */
 export const G10_S2_COMM_IDS = [
@@ -100,13 +110,21 @@ export type G10S2TrafficSample = {
   readonly atMs: number;
 };
 
-/** Structured evidence body for one Ordered proof step (markdown writer input). */
+/**
+ * Evidence step names: G10 Ordered proof steps plus Fabric-depth
+ * soft-fallback-retire (after arm-inversion; not in ORDERED_PROOF_STEPS).
+ */
+export type G10S2EvidenceStep = OrderedProofStep | "soft-fallback-retire";
+
+/** Structured evidence body for one Ordered / Fabric-depth proof step. */
 export type G10S2EvidenceBody = {
   readonly slice: "S2";
-  readonly step: OrderedProofStep | "land";
+  readonly step: G10S2EvidenceStep;
   readonly phase: CutoverPhase;
   readonly authority: "live" | "manifold";
   readonly inversionArmed: boolean;
+  /** Fabric-depth soft-fallback signal (null when FD off / pre-exit). */
+  readonly softFallback: SoftFallbackState;
   readonly commIds: readonly string[];
   readonly notes: readonly string[];
   readonly equalitySamples?: readonly G9DeferredEquality[];
@@ -130,7 +148,8 @@ export type G10S2ManifoldTrafficLog = {
  * S2 campaign controller shape (process-global or Effect service).
  *
  * Agent: land → liveRehearsal → recordEquiv → rollbackDrill → dualRunExit →
- * armInversion. dualRunExit uses recordOrderedProofStep only.
+ * armInversion → (FD) softFallbackRetire. dualRunExit uses
+ * recordOrderedProofStep only.
  */
 export type G10S2Controller = {
   readonly slice: "S2";
@@ -152,6 +171,11 @@ export type G10S2Controller = {
   readonly dualRunExit: () => G10S2EvidenceBody;
   /** Arm inversion via armInversion → recordOrderedProofStep. */
   readonly armInversion: () => G10S2EvidenceBody;
+  /**
+   * Fabric-depth soft-fallback retire after arm-inversion (census sole-lander
+   * gate). Requires T2CODE_SCM_FABRIC_DEPTH. Not a G10 OrderedProofStep.
+   */
+  readonly softFallbackRetire: () => G10S2EvidenceBody;
   /**
    * Record live traffic for a wired S2 lander seam (settings/flag/SETTINGS).
    * Agent: do not use for ORCH-LIVE handoff — that stays recordStubPair only.
@@ -179,7 +203,10 @@ export type G10S2Controller = {
   readonly inversionArmed: () => boolean;
   /** Format evidence markdown for a recorded step body. */
   readonly formatEvidenceMarkdown: (body: G10S2EvidenceBody) => string;
-  /** Run full Ordered proof sequence; returns bodies in order. */
+  /**
+   * Run full Ordered proof sequence; under T2CODE_SCM_FABRIC_DEPTH also runs
+   * soft-fallback-retire after arm-inversion. Returns bodies in order.
+   */
   readonly runFullOrderedProof: () => readonly G10S2EvidenceBody[];
 };
 
@@ -248,6 +275,7 @@ export const createG10S2Controller = (repoRoot: string = resolveG10RepoRoot()): 
   const registry = loadG10CutoverRegistry(repoRoot);
   const model = createSubstitutionModel(registry);
   const traffic: G10S2ManifoldTrafficLog = { samples: [] };
+  const censusPath = join(repoRoot, FABRIC_DEPTH_CENSUS_REL);
 
   const s2Ids = activatableCommIdsForSlice(registry, "S2");
   // Hard lock: inventory S2 set must match frozen 3 (no silent resize).
@@ -263,7 +291,7 @@ export const createG10S2Controller = (repoRoot: string = resolveG10RepoRoot()): 
   }
 
   const snapshotEvidence = (
-    step: OrderedProofStep | "land",
+    step: G10S2EvidenceStep,
     notes: readonly string[],
     equalitySamples?: readonly G9DeferredEquality[],
   ): G10S2EvidenceBody => {
@@ -275,6 +303,7 @@ export const createG10S2Controller = (repoRoot: string = resolveG10RepoRoot()): 
       phase: phaseForSlice(model, "S2"),
       authority: authorityForSlice(model, "S2"),
       inversionArmed: model.sliceStates.get("S2")?.inversionArmed === true,
+      softFallback: softFallbackForSlice(model, "S2"),
       commIds: [...s2Ids],
       notes,
       equalitySamples,
@@ -286,7 +315,7 @@ export const createG10S2Controller = (repoRoot: string = resolveG10RepoRoot()): 
     const lines = [
       `# S2 ${body.step} evidence`,
       "",
-      `<!-- Agent: G10 S2 Ordered proof step. Slice=${body.slice}. -->`,
+      `<!-- Agent: G10 S2 Ordered / Fabric-depth proof step. Slice=${body.slice}. -->`,
       "",
       `- Date: ${new Date().toISOString().slice(0, 10)}`,
       `- Slice: **S2**`,
@@ -294,6 +323,7 @@ export const createG10S2Controller = (repoRoot: string = resolveG10RepoRoot()): 
       `- Phase: \`${body.phase}\``,
       `- Authority: **${body.authority}**`,
       `- inversionArmed: \`${body.inversionArmed}\``,
+      `- softFallback: \`${body.softFallback === null ? "omit" : body.softFallback}\``,
       `- S2 comm_ids (${body.commIds.length}): ${body.commIds.join(", ")}`,
       "",
       "## Notes",
@@ -555,6 +585,30 @@ export const createG10S2Controller = (repoRoot: string = resolveG10RepoRoot()): 
       "noninterference inversion armed after dual-run-exit",
       "manifold failure may now fail user-visible S2 settings/config ops",
       "armed solely via armInversion → recordOrderedProofStep",
+      "ORCH-LIVE remains handoff-deferred — not inverted from S2 wiring",
+      "Fabric-depth soft-fallback still active until softFallbackRetire (FD env)",
+    ]);
+  };
+
+  /**
+   * Fabric-depth step 7: retire soft live recovery after arm-inversion GREEN.
+   *
+   * Intended: recordSoftFallbackRetire + census sole-lander gate (FLAG-T3-OTEL
+   * lander real after FD2; ORCH-LIVE handoff does not block). Requires FD env.
+   * Observed: throws when FD off, arm-inversion incomplete, or census debt.
+   */
+  const softFallbackRetireStep = (): G10S2EvidenceBody => {
+    recordSoftFallbackRetire(model, "S2", censusPath);
+    if (softFallbackForSlice(model, "S2") !== "retired") {
+      throw new Error("G10 S2 softFallbackRetire: softFallback not retired");
+    }
+    return snapshotEvidence("soft-fallback-retire", [
+      "Fabric-depth soft-fallback retired via recordSoftFallbackRetire",
+      `census gate: ${FABRIC_DEPTH_CENSUS_REL} (S2 sole-lander debt empty; ORCH-LIVE handoff; FLAG-T3-OTEL real)`,
+      "g10.softFallback=retired slice=S2 — bridge must not soft-fall to live on manifold failure",
+      "cli/config.ts FLAG-T3-OTEL manifoldEffect reuses FlagT3OtelEnv Config I/O",
+      "ws.ts not edited (S6 owns ORCH-LIVE lander)",
+      "Not G11; radius unchanged",
     ]);
   };
 
@@ -568,6 +622,10 @@ export const createG10S2Controller = (repoRoot: string = resolveG10RepoRoot()): 
     bodies.push(armInversionStep());
     if (!orderedProofSatisfiedThrough(model, "S2", "arm-inversion")) {
       throw new Error("G10 S2 runFullOrderedProof: Ordered proof incomplete");
+    }
+    // Fabric-depth Ordered depth continues through soft-fallback-retire when FD on.
+    if (isFabricDepthEnabled()) {
+      bodies.push(softFallbackRetireStep());
     }
     return bodies;
   };
@@ -583,6 +641,7 @@ export const createG10S2Controller = (repoRoot: string = resolveG10RepoRoot()): 
     rollbackDrill,
     dualRunExit,
     armInversion: armInversionStep,
+    softFallbackRetire: softFallbackRetireStep,
     recordLiveWiredSeam,
     recordManifoldWiredSeam,
     recordStubPair,
@@ -770,9 +829,11 @@ export const resolveFlagServerConfigViaG10Bridge = <A, E, R>(
  * FLAG-T3-OTEL: S8 lander-reopen wrap on cli/config.ts (S6→S2 handoff land).
  *
  * Intended: admit/route/replace via S2 controller when replaced; traffic on
- * FLAG-T3-OTEL samples. Not in G10_S2_WIRED_COMM_IDS — historical S2 exit (a)
- * unchanged; S8 dual-run-exit audit owns campaign disposition.
- * Agent: call site only in cli/config.ts after T3 OTEL members resolve.
+ * FLAG-T3-OTEL samples. liveResolve must be real Config I/O (FlagT3OtelEnv);
+ * manifoldEffect reuses that same live I/O (FD2 — not Effect.succeed stub).
+ * Not in G10_S2_WIRED_COMM_IDS — historical S2 exit (a) unchanged; S8
+ * dual-run-exit audit owns campaign disposition.
+ * Agent: call site only in cli/config.ts with FlagT3OtelEnv Config effect.
  */
 export const resolveFlagT3OtelViaG10Bridge = <A, E, R>(
   liveResolve: Effect.Effect<A, E, R>,

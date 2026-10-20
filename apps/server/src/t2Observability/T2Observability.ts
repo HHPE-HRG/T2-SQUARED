@@ -1,14 +1,14 @@
 /**
  * T2 OpenTelemetry bridge (catalog spans + optional OTLP / NDJSON exporters).
  *
- * Agent (G10 S6 sole lander + WP6 consumer): admit/route/replace via
- * g10SeamBridge on this file for FLAG-T2-OTEL, TEL-T2-OTLP, and S5→S6
- * TEL-NDJSON handoff. Lands INV-T2-TEL-T2-OTLP after filtered OTLPTraceExporter
- * success. Lands INV-T2-FLAG-T2-OTEL at T2ObservabilityLive flag resolution.
- * Lands INV-T2-TEL-NDJSON after NDJSON export success. G9 capture stays
- * observe-beside. Absent G10 controller / G9CaptureService ⇒ live exporters
- * unchanged. Hook/capture fault must not rewrite live success. Signal /
- * member / presence A only — no URLs, paths, or span payloads in A.
+ * Agent (G10 S6 sole lander + Fabric-depth FD6 + WP6 consumer): admit/route/
+ * replace via g10SeamBridge on this file for FLAG-T2-OTEL, TEL-T2-OTLP, and
+ * S5→S6 TEL-NDJSON handoff. FD6: inventoriable verbs (env resolve / NDJSON
+ * append / OTLP export) run inside liveIo so manifoldEffect reuses the same
+ * verb — not capture-beside-only. G9 capture stays observe-beside inside that
+ * liveIo. Absent G10 controller / G9CaptureService ⇒ live exporters unchanged.
+ * Hook/capture fault must not rewrite live success. Signal / member / presence
+ * A only — no URLs, paths, or span payloads in A.
  */
 // @effect-diagnostics nodeBuiltinImport:off
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -138,23 +138,47 @@ const withT2Span = <A, E, R>(span: Span, effect: Effect.Effect<A, E, R>): Effect
 type ExportResult = { readonly code: number; readonly error?: Error };
 
 /**
- * Wrap a SpanExporter so post-success nonempty batches can run an Effect capture.
+ * Wrap a SpanExporter so inventoriable export I/O runs through a G10 bridge.
  *
- * Agent: live export callback order preserved (inner first, then capture fork).
+ * Intended: liveIo = inner.export + optional G9 capture; viaBridge selects
+ * live vs manifold so manifoldEffect reuses the same export verb (FD6 real).
+ * Observed: resultCallback fires after the bridged Effect settles (runFork).
  * Failure / empty batch ⇒ no capture. Uses runForkWith(context) from make().
  */
-const wrapSpanExporterWithG9Capture = (
+const wrapSpanExporterWithG10RealIo = (
   inner: SpanExporter,
   runFork: (effect: Effect.Effect<void, never>) => void,
-  onSuccess: (batchSize: number) => Effect.Effect<void, never>,
+  viaBridge: (liveIo: Effect.Effect<ExportResult, never>) => Effect.Effect<ExportResult, never>,
+  onSuccessCapture: (batchSize: number) => Effect.Effect<void, never>,
 ): SpanExporter => ({
   export(spans: Array<ReadableSpan>, resultCallback: (result: ExportResult) => void): void {
-    inner.export(spans, (result) => {
-      if (result.code === 0 && spans.length > 0) {
-        runFork(onSuccess(spans.length));
-      }
-      resultCallback(result);
-    });
+    // Agent: export verb inside Effect so manifold authority reuses append/OTLP.
+    const liveIo = Effect.callback<ExportResult>((resume) => {
+      inner.export(spans, (result) => {
+        resume(Effect.succeed(result));
+      });
+    }).pipe(
+      Effect.tap((result) =>
+        result.code === 0 && spans.length > 0 ? onSuccessCapture(spans.length) : Effect.void,
+      ),
+    );
+    runFork(
+      viaBridge(liveIo).pipe(
+        Effect.tap((result) =>
+          Effect.sync(() => {
+            resultCallback(result);
+          }),
+        ),
+        Effect.catchCause(() =>
+          Effect.sync(() => {
+            resultCallback({
+              code: 1,
+              error: new Error("T2Observability G10 bridged export failed"),
+            });
+          }),
+        ),
+      ),
+    );
   },
   shutdown: () => inner.shutdown(),
   forceFlush: () => inner.forceFlush(),
@@ -188,7 +212,8 @@ export const resolveT2OtelFlagState = (
 /**
  * Capture all three FLAG-T2-OTEL members once at layer construction.
  *
- * Agent: G10 S6 bridge selects live vs manifold; G9 capture remains observe-beside.
+ * Agent: FD6 — env resolve runs inside liveIo so manifoldEffect reuses the
+ * flag-resolve verb; G9 capture remains observe-beside inside that Effect.
  */
 export const captureT2OtelFlagsResolved = (
   environment: NodeJS.ProcessEnv = process.env,
@@ -200,12 +225,16 @@ export const captureT2OtelFlagsResolved = (
       "T2CODE_OTLP_SERVICE_NAME",
     ] as const satisfies ReadonlyArray<G9T2OtelFlagMember>;
     for (const member of members) {
-      const state_label = resolveT2OtelFlagState(member, environment);
       yield* flagT2OtelViaG10Bridge(
         member,
-        withOptionalG9Capture((capture) =>
-          captureFlagT2OtelResolved(member, state_label, capture).pipe(Effect.asVoid),
-        ),
+        Effect.gen(function* () {
+          // Inventoriable verb: env member resolve (presence/shape only).
+          const state_label = resolveT2OtelFlagState(member, environment);
+          yield* withOptionalG9Capture((capture) =>
+            captureFlagT2OtelResolved(member, state_label, capture).pipe(Effect.asVoid),
+          );
+          return state_label;
+        }),
       );
     }
   });
@@ -218,16 +247,14 @@ const make = (options: T2ObservabilityMakeOptions) =>
     const context = yield* Effect.context<never>();
     const runFork = Effect.runForkWith(context);
 
-    const ndjsonExporter = wrapSpanExporterWithG9Capture(
+    // INV-T2-TEL-NDJSON: NDJSON append inside bridged liveIo (FD6 real).
+    const ndjsonExporter = wrapSpanExporterWithG10RealIo(
       new T2NdjsonSpanExporter(options.filePath),
       (effect) => {
         runFork(effect);
       },
-      () =>
-        // INV-T2-TEL-NDJSON / ndjson-export-succeeded (S5→S6 handoff land): presence A only.
-        ndjsonExportViaG10Bridge(
-          withOptionalG9Capture((capture) => captureNdjsonExportSucceeded(capture)),
-        ),
+      (liveIo) => ndjsonExportViaG10Bridge(liveIo),
+      () => withOptionalG9Capture((capture) => captureNdjsonExportSucceeded(capture)),
     );
 
     const spanProcessors = [
@@ -237,15 +264,14 @@ const make = (options: T2ObservabilityMakeOptions) =>
         ? []
         : [
             new BatchSpanProcessor(
-              wrapSpanExporterWithG9Capture(
+              // INV-T2-TEL-T2-OTLP: OTLP export inside bridged liveIo (FD6 real).
+              wrapSpanExporterWithG10RealIo(
                 new OTLPTraceExporter({ url: options.tracesUrl }),
                 (effect) => {
                   runFork(effect);
                 },
-                (batchSize) =>
-                  // INV-T2-TEL-T2-OTLP / t2-otlp-export-succeeded (WP6 full-row).
-                  // Agent: nonempty success only; scmOnlyBatch reserved for filter path.
-                  t2OtlpExportViaG10Bridge(captureT2OtlpExportSucceeded({ batchSize })),
+                (liveIo) => t2OtlpExportViaG10Bridge(liveIo),
+                (batchSize) => captureT2OtlpExportSucceeded({ batchSize }),
               ),
             ),
           ]),

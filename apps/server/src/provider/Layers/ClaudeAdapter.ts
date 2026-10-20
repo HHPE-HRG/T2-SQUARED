@@ -4167,23 +4167,28 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         "claude.query.path_to_executable": claudeBinaryPath,
       });
 
-      const queryRuntime = yield* Effect.try({
-        try: () =>
-          createQuery({
-            prompt,
-            options: queryOptions,
-          }),
-        catch: (cause) =>
-          new ProviderAdapterProcessError({
-            provider: PROVIDER,
-            threadId,
-            detail: "Failed to start Claude runtime session.",
-            cause,
-          }),
-      });
       // Agent: INV-T2-PROVIDER-CLAUDE protocol-request-succeeded (claude.sdk.query).
-      // G10 S4: PROVIDER-CLAUDE cutover records protocol-request success.
-      yield* providerClaudeViaG10Bridge(captureProviderClaudePhase("protocol-request-succeeded"));
+      // FD4: createQuery inside liveIo so manifold authority reuses the same verb I/O.
+      const queryRuntime = yield* providerClaudeViaG10Bridge(
+        Effect.gen(function* () {
+          const runtime = yield* Effect.try({
+            try: () =>
+              createQuery({
+                prompt,
+                options: queryOptions,
+              }),
+            catch: (cause) =>
+              new ProviderAdapterProcessError({
+                provider: PROVIDER,
+                threadId,
+                detail: "Failed to start Claude runtime session.",
+                cause,
+              }),
+          });
+          yield* captureProviderClaudePhase("protocol-request-succeeded");
+          return runtime;
+        }),
+      );
 
       const session: ProviderSession = {
         threadId,

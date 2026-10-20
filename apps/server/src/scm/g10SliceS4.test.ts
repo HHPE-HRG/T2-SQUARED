@@ -2,16 +2,20 @@
  * G10 S4 campaign controller tests (full Ordered proof).
  *
  * Intended: land → live-rehearsal → ≡ → rollback-drill → dual-run-exit →
- * arm-inversion; all sixteen S4 seams wired; markDualRunExited refuses;
- * bridge helpers absent ⇒ live passthrough. Does not start S5. Does not
- * steal FILE-PROVIDER-SESSION / FILE-LOGS provider-event-log. S8 lander-reopen
- * lands FLAG-CODEX-LAUNCH (not historical S4 exit (a)).
+ * arm-inversion; under T2CODE_SCM_FABRIC_DEPTH also soft-fallback-retire;
+ * all sixteen S4 seams wired; markDualRunExited refuses; bridge helpers
+ * absent ⇒ live passthrough. Does not start S5. Does not steal inventory
+ * from S7 (S4 owns FLAG-CODEX-LAUNCH / FILE-LOGS / FILE-PROVIDER-SESSION
+ * landers after FD4). S8 lander-reopen lands FLAG-CODEX-LAUNCH (not
+ * historical S4 exit (a)). Not G11.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
+import { FABRIC_DEPTH_ENV } from "./fabricDepthBootstrap.ts";
+import { softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import { resolveG10RepoRoot } from "./g10CutoverRegistry.ts";
 import { orderedProofSatisfiedThrough } from "./g10ProofHarness.ts";
 import { markDualRunExited } from "./g10Substitution.ts";
@@ -34,6 +38,18 @@ import {
 } from "./g10SliceS4.ts";
 
 const repoRoot = resolveG10RepoRoot();
+
+/** Run fn with T2CODE_SCM_FABRIC_DEPTH=1; restore previous env after. */
+const withFdEnv = <A>(fn: () => A): A => {
+  const prev = process.env[FABRIC_DEPTH_ENV];
+  process.env[FABRIC_DEPTH_ENV] = "1";
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env[FABRIC_DEPTH_ENV];
+    else process.env[FABRIC_DEPTH_ENV] = prev;
+  }
+};
 
 describe("G10 S4 controller", () => {
   it("owns frozen 16 S4 comm_ids, all sixteen wired, FLAG-CODEX S8 landed", () => {
@@ -68,11 +84,66 @@ describe("G10 S4 controller", () => {
     assert.equal(ctrl.inversionArmed(), true);
     assert.equal(ctrl.phase(), "inverted");
     assert.equal(orderedProofSatisfiedThrough(ctrl.model, "S4", "arm-inversion"), true);
+    // FD off: softFallback omit (null) — retire not auto-run
+    assert.equal(bodies[5]?.softFallback, null);
+    assert.equal(softFallbackForSlice(ctrl.model, "S4"), null);
     assert.equal(bodies[2]?.equalitySamples?.length, 16);
     const exitBody = bodies[4];
     assert.ok(exitBody?.notes.some((n) => n.includes("sixteen wired")));
     assert.ok(exitBody?.notes.some((n) => n.includes("FILE-PROVIDER-SESSION")));
     assert.throws(() => markDualRunExited(ctrl.model, "S4"), /recordOrderedProofStep/);
+  });
+
+  it("Fabric-depth FD4: Ordered depth through soft-fallback-retire under FD env", () => {
+    withFdEnv(() => {
+      const ctrl = createG10S4Controller(repoRoot);
+      const bodies = ctrl.runFullOrderedProof();
+      assert.equal(bodies.length, 7);
+      assert.deepEqual(
+        bodies.map((b) => b.step),
+        [
+          "land",
+          "live-rehearsal",
+          "cutover-equivalence",
+          "rollback-drill",
+          "dual-run-exit",
+          "arm-inversion",
+          "soft-fallback-retire",
+        ],
+      );
+      assert.equal(ctrl.authority(), "manifold");
+      assert.equal(ctrl.inversionArmed(), true);
+      assert.equal(softFallbackForSlice(ctrl.model, "S4"), "retired");
+      assert.equal(bodies[4]?.softFallback, "active");
+      assert.equal(bodies[5]?.softFallback, "active");
+      assert.equal(bodies[6]?.softFallback, "retired");
+      assert.ok(
+        bodies[6]?.notes.some((n) => n.includes("sole-lander debt empty")),
+        "retire notes cite empty S4 sole-lander debt",
+      );
+      assert.ok(
+        bodies[6]?.notes.some((n) => n.includes("FLAG-CODEX-LAUNCH")),
+        "retire notes cite FLAG-CODEX-LAUNCH lander real",
+      );
+      assert.ok(
+        bodies[6]?.notes.some((n) => n.includes("g10SliceS7.ts not edited")),
+        "retire notes cite S7 not edited",
+      );
+      const md = ctrl.formatEvidenceMarkdown(bodies[6]!);
+      assert.ok(md.includes("softFallback: `retired`"));
+      assert.ok(md.includes("**GREEN**"));
+    });
+  });
+
+  it("Fabric-depth FD4: softFallbackRetire refuses when FD env off", () => {
+    const ctrl = createG10S4Controller(repoRoot);
+    ctrl.land();
+    ctrl.liveRehearsal();
+    ctrl.recordEquiv();
+    ctrl.rollbackDrill();
+    ctrl.dualRunExit();
+    ctrl.armInversion();
+    assert.throws(() => ctrl.softFallbackRetire(), /T2CODE_SCM_FABRIC_DEPTH/);
   });
 
   it("live-rehearsal records bridge traffic for all sixteen wired seams", () => {

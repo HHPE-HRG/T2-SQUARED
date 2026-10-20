@@ -1,9 +1,10 @@
 /**
- * G10 S1 campaign controller tests (full Ordered proof).
+ * G10 S1 campaign controller tests (full Ordered proof + FD1 retire).
  *
  * Intended: land → live-rehearsal → ≡ → rollback-drill → dual-run-exit →
- * arm-inversion; six wired seams + SETTINGS handoff-pending; markDualRunExited
- * refuses; bridge helpers absent ⇒ live passthrough.
+ * arm-inversion → soft-fallback-retire (under T2CODE_SCM_FABRIC_DEPTH); six
+ * wired seams + SETTINGS handoff-pending; markDualRunExited refuses; bridge
+ * helpers absent ⇒ live passthrough.
  * Observed: assertions below. Does not start S2. Does not edit serverSettings.
  */
 import { assert, describe, it } from "@effect/vitest";
@@ -11,6 +12,8 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
+import { FABRIC_DEPTH_ENV } from "./fabricDepthBootstrap.ts";
+import { softFallbackForSlice } from "./fabricDepthSoftFallback.ts";
 import { resolveG10RepoRoot } from "./g10CutoverRegistry.ts";
 import { orderedProofSatisfiedThrough } from "./g10ProofHarness.ts";
 import { markDualRunExited } from "./g10Substitution.ts";
@@ -36,6 +39,18 @@ import {
 
 const repoRoot = resolveG10RepoRoot();
 
+/** Enable Fabric-depth env for Ordered depth through soft-fallback-retire. */
+const withFdEnv = <A>(fn: () => A): A => {
+  const prev = process.env[FABRIC_DEPTH_ENV];
+  process.env[FABRIC_DEPTH_ENV] = "1";
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env[FABRIC_DEPTH_ENV];
+    else process.env[FABRIC_DEPTH_ENV] = prev;
+  }
+};
+
 describe("G10 S1 controller", () => {
   it("owns frozen 7 S1 comm_ids, six wired, SETTINGS handoff-pending", () => {
     assert.equal(G10_S1_COMM_IDS.length, 7);
@@ -50,31 +65,51 @@ describe("G10 S1 controller", () => {
     assert.equal(ctrl.isReplaceInstalled(), false);
   });
 
-  it("full Ordered proof sequence ends inverted with manifold authority", () => {
+  it("full Ordered proof through soft-fallback-retire GREEN under FD env", () => {
+    withFdEnv(() => {
+      const ctrl = createG10S1Controller(repoRoot);
+      const bodies = ctrl.runFullOrderedProof();
+      assert.equal(bodies.length, 7);
+      assert.deepEqual(
+        bodies.map((b) => b.step),
+        [
+          "land",
+          "live-rehearsal",
+          "cutover-equivalence",
+          "rollback-drill",
+          "dual-run-exit",
+          "arm-inversion",
+          "soft-fallback-retire",
+        ],
+      );
+      assert.equal(ctrl.authority(), "manifold");
+      assert.equal(ctrl.inversionArmed(), true);
+      assert.equal(ctrl.phase(), "inverted");
+      assert.equal(orderedProofSatisfiedThrough(ctrl.model, "S1", "arm-inversion"), true);
+      assert.equal(softFallbackForSlice(ctrl.model, "S1"), "retired");
+      assert.equal(bodies[6]?.softFallback, "retired");
+      assert.equal(bodies[2]?.equalitySamples?.length, 7);
+      // Dual-run-exit notes must not claim SETTINGS under exit (a).
+      const exitBody = bodies[4];
+      assert.ok(exitBody?.notes.some((n) => n.includes("SETTINGS-EVENTS handoff-deferred")));
+      assert.ok(exitBody?.notes.some((n) => n.includes("six wired")));
+      // Evidence bodies emit softFallback field throughout the sequence.
+      for (const body of bodies) {
+        assert.ok("softFallback" in body);
+      }
+      assert.throws(() => markDualRunExited(ctrl.model, "S1"), /recordOrderedProofStep/);
+    });
+  });
+
+  it("softFallbackRetire refuses when FD env off", () => {
     const ctrl = createG10S1Controller(repoRoot);
-    const bodies = ctrl.runFullOrderedProof();
-    assert.equal(bodies.length, 6);
-    assert.deepEqual(
-      bodies.map((b) => b.step),
-      [
-        "land",
-        "live-rehearsal",
-        "cutover-equivalence",
-        "rollback-drill",
-        "dual-run-exit",
-        "arm-inversion",
-      ],
-    );
-    assert.equal(ctrl.authority(), "manifold");
-    assert.equal(ctrl.inversionArmed(), true);
-    assert.equal(ctrl.phase(), "inverted");
-    assert.equal(orderedProofSatisfiedThrough(ctrl.model, "S1", "arm-inversion"), true);
-    assert.equal(bodies[2]?.equalitySamples?.length, 7);
-    // Dual-run-exit notes must not claim SETTINGS under exit (a).
-    const exitBody = bodies[4];
-    assert.ok(exitBody?.notes.some((n) => n.includes("SETTINGS-EVENTS handoff-deferred")));
-    assert.ok(exitBody?.notes.some((n) => n.includes("six wired")));
-    assert.throws(() => markDualRunExited(ctrl.model, "S1"), /recordOrderedProofStep/);
+    ctrl.land();
+    ctrl.liveRehearsal();
+    ctrl.recordEquiv();
+    ctrl.rollbackDrill();
+    ctrl.dualRunExit();
+    ctrl.armInversion();
+    assert.throws(() => ctrl.softFallbackRetire(), /T2CODE_SCM_FABRIC_DEPTH/);
   });
 
   it("live-rehearsal records bridge traffic for six wired; SETTINGS stub only", () => {
@@ -98,15 +133,20 @@ describe("G10 S1 controller", () => {
   });
 
   it("evidence markdown writers emit required sections", () => {
-    const ctrl = createG10S1Controller(repoRoot);
-    const bodies = ctrl.runFullOrderedProof();
-    for (const body of bodies) {
-      const md = ctrl.formatEvidenceMarkdown(body);
-      assert.ok(md.includes(`# S1 ${body.step} evidence`));
-      assert.ok(md.includes("**GREEN**"));
-      assert.ok(md.includes("INV-T2-ORCH-EVENTS"));
-      assert.ok(md.includes("INV-T2-ORCH-QUEUE"));
-    }
+    withFdEnv(() => {
+      const ctrl = createG10S1Controller(repoRoot);
+      const bodies = ctrl.runFullOrderedProof();
+      for (const body of bodies) {
+        const md = ctrl.formatEvidenceMarkdown(body);
+        assert.ok(md.includes(`# S1 ${body.step} evidence`));
+        assert.ok(md.includes("**GREEN**"));
+        assert.ok(md.includes("INV-T2-ORCH-EVENTS"));
+        assert.ok(md.includes("INV-T2-ORCH-QUEUE"));
+        assert.ok(md.includes("softFallback:"));
+      }
+      const retireMd = ctrl.formatEvidenceMarkdown(bodies[6]!);
+      assert.ok(retireMd.includes("softFallback: `retired`"));
+    });
   });
 
   it("absent controller: bridge helpers pass through live unchanged", () => {
