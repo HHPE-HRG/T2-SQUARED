@@ -81,6 +81,8 @@ export const canonicalCatalog = (records: readonly CapabilityRecord[]): string =
       allowed_destinations: [...record.allowed_destinations],
       admission_state: record.admission_state,
       nomenclature_version: record.nomenclature_version,
+      work_scope_ref: record.work_scope_ref,
+      work_scope_required: record.work_scope_required,
     })),
   );
 };
@@ -111,6 +113,10 @@ const classifyChange = (
   if (previous.node_id !== next.node_id) effectFields.push("node_id");
   if (previous.node_type !== next.node_type) effectFields.push("node_type");
   if (previous.adapter_type !== next.adapter_type) effectFields.push("adapter_type");
+  if (previous.work_scope_ref !== next.work_scope_ref) effectFields.push("work_scope_ref");
+  if (previous.work_scope_required !== next.work_scope_required) {
+    effectFields.push("work_scope_required");
+  }
   const destinationFields =
     destinationKey(previous) === destinationKey(next) ? [] : ["allowed_destinations"];
   const changedFields = [...schemaFields, ...digestFields, ...effectFields, ...destinationFields];

@@ -32,8 +32,20 @@ import {
   ADMISSION_RECONCILE_ENV_DISTINCT,
   ADMISSION_RECONCILE_REQUIRES_RESTART,
   decideDispatch,
+  isAdmissionReconcileEnabled,
+  mediationMode,
 } from "./admissionDispatch.ts";
 import { canonicalCatalog, compareCatalog } from "./admissionDrift.ts";
+import {
+  authorizeInvocation,
+  executionClassAccount,
+  issueGrant,
+  readDecisions,
+  recordOutcome,
+  resetAuthorityEvidence,
+  type CapabilityGrant,
+  type InvocationRequest,
+} from "./admissionGrant.ts";
 import { CODEC_ENV } from "./codecBootstrap.ts";
 import { EQUALITY_IR_ENV } from "./equalityIrBootstrap.ts";
 import { FABRIC_DEPTH_ENV } from "./fabricDepthBootstrap.ts";
@@ -329,6 +341,289 @@ describe("admission reconcile", () => {
     assert.equal(G10_S8_DORMANT_EXEMPT_COUNT, 1);
     assert.equal(registry.radiusSet.size, G10_S8_ACTIVATABLE_RADIUS_COUNT);
     assert.equal(registry.dormantExempt.has(G10_DORMANT_HOME_BUS_COMM_ID), true);
+    assert.equal(HOME_BUS_ACTIVATED, false);
+  });
+});
+
+const allowPolicy = {
+  policy_version: "policy-1",
+  evaluate: () => "allow" as const,
+};
+
+const issued = (
+  records: readonly CapabilityRecord[],
+  capabilityId: string,
+  patch: Partial<Parameters<typeof issueGrant>[0]> = {},
+): CapabilityGrant =>
+  issueGrant({
+    records,
+    catalogRevision: 3,
+    capabilityId,
+    principalId: "principal-a",
+    sourceNodeId: "node.source",
+    targetNodeId: "node.target",
+    adapterType: "test",
+    ...patch,
+  });
+
+const invocation = (
+  records: readonly CapabilityRecord[] | null,
+  grant: CapabilityGrant,
+  patch: Partial<InvocationRequest> = {},
+): InvocationRequest => ({
+  capabilityId: grant.capability_id,
+  operation: "run",
+  records,
+  deltas: [],
+  catalogRevision: grant.catalog_revision,
+  edges: [],
+  grants: [grant],
+  policy: allowPolicy,
+  principalId: grant.principal_id,
+  sourceNodeId: grant.source_node_id,
+  targetNodeId: grant.target_node_id,
+  adapterType: grant.adapter_type,
+  requestedEdge: null,
+  workScopeRef: grant.work_scope_ref,
+  parentCapabilityId: null,
+  grantId: grant.grant_id,
+  now: 1_000,
+  ...patch,
+});
+
+describe("authority boundary", () => {
+  it("names compatibility and protected modes without activating the home bus", () => {
+    assert.equal(mediationMode({}), "compatibility");
+    assert.equal(mediationMode({ [ADMISSION_RECONCILE_ENV]: "compatibility" }), "compatibility");
+    assert.equal(mediationMode({ [ADMISSION_RECONCILE_ENV]: "protected" }), "protected");
+    assert.equal(isAdmissionReconcileEnabled({ [ADMISSION_RECONCILE_ENV]: "protected" }), true);
+    assert.equal(isAdmissionReconcileEnabled({ [ADMISSION_RECONCILE_ENV]: "1" }), true);
+    assert.equal(HOME_BUS_ACTIVATED, false);
+    assert.equal(G10_S8_ACTIVATABLE_RADIUS_COUNT, 73);
+    assert.equal(G10_S8_DORMANT_EXEMPT_COUNT, 1);
+  });
+
+  it("allows a matching grant on an unchanged catalog and records the decision", () => {
+    resetAuthorityEvidence();
+    const records = admit(tool("tool.run"));
+    const grant = issued(records, "tool.run");
+    const decision = authorizeInvocation(invocation(records, grant));
+    assert.equal(decision.allow, true);
+    if (!decision.allow) return;
+    assert.equal(decision.decision.outcome, "admitted");
+    assert.equal(decision.decision.reason, null);
+    assert.equal(readDecisions().at(-1)?.correlation_id, decision.correlationId);
+    assert.throws(
+      () =>
+        recordOutcome({
+          correlationId: decision.correlationId,
+          capabilityId: "tool.run",
+          status: "completed",
+        }),
+      /effect ref/,
+    );
+    const completed = recordOutcome({
+      correlationId: decision.correlationId,
+      capabilityId: "tool.run",
+      status: "completed",
+      effectRef: "effect-1",
+    });
+    const failed = recordOutcome({
+      correlationId: decision.correlationId,
+      capabilityId: "tool.run",
+      status: "failed",
+    });
+    const uncertain = recordOutcome({
+      correlationId: decision.correlationId,
+      capabilityId: "tool.run",
+      status: "uncertain",
+    });
+    assert.equal(completed.status, "completed");
+    assert.equal(completed.effect_ref, "effect-1");
+    assert.equal(completed.correlation_id, decision.correlationId);
+    assert.equal(failed.status, "failed");
+    assert.equal(failed.effect_ref, null);
+    assert.equal(uncertain.status, "uncertain");
+    assert.notEqual(failed.status, uncertain.status);
+  });
+
+  it("denies schema, digest, and endpoint drift, and a revision issued earlier", () => {
+    const records = admit(tool("tool.run"));
+    const grant = issued(records, "tool.run");
+    const schema = compareCatalog(records, [
+      createCapabilityRecord({ ...records[0]!, input_schema: "schema-2" }),
+    ]);
+    const schemaDecision = authorizeInvocation(
+      invocation(schema.records, grant, { deltas: schema.deltas }),
+    );
+    assert.equal(schemaDecision.allow, false);
+    if (!schemaDecision.allow) assert.equal(schemaDecision.reason, "pending-drift");
+
+    const digest = compareCatalog(records, [
+      createCapabilityRecord({ ...records[0]!, implementation_digest: "digest-2" }),
+    ]);
+    const digestDecision = authorizeInvocation(
+      invocation(digest.records, grant, { deltas: digest.deltas }),
+    );
+    assert.equal(digestDecision.allow, false);
+    if (!digestDecision.allow) assert.equal(digestDecision.reason, "pending-drift");
+
+    const removed = compareCatalog(records, []);
+    assert.equal(removed.deltas[0]?.changedFields.includes("endpoint"), true);
+    const endpointDecision = authorizeInvocation(
+      invocation(removed.records, grant, { deltas: removed.deltas }),
+    );
+    assert.equal(endpointDecision.allow, false);
+    if (!endpointDecision.allow) assert.equal(endpointDecision.reason, "removed");
+
+    const revised = authorizeInvocation(invocation(records, grant, { catalogRevision: 4 }));
+    assert.equal(revised.allow, false);
+    if (!revised.allow) assert.equal(revised.reason, "stale-grant");
+  });
+
+  it("denies a missing snapshot and a catalog edited after issue", () => {
+    const records = admit(tool("tool.run"));
+    const grant = issued(records, "tool.run");
+    const missing = authorizeInvocation(invocation(null, grant));
+    assert.equal(missing.allow, false);
+    if (!missing.allow) assert.equal(missing.reason, "missing-snapshot");
+
+    const edited = [
+      createCapabilityRecord({
+        ...records[0]!,
+        admission_state: "admitted",
+        implementation_digest: "digest-edited",
+      }),
+    ];
+    const stale = authorizeInvocation(invocation(edited, grant));
+    assert.equal(stale.allow, false);
+    if (!stale.allow) assert.equal(stale.reason, "stale-grant");
+  });
+
+  it("denies revoked, expired, and principal-mismatched grants", () => {
+    const records = admit(tool("tool.run"));
+    const grant = issued(records, "tool.run");
+    const revoked = authorizeInvocation(invocation(revokeCapability(records, "tool.run"), grant));
+    assert.equal(revoked.allow, false);
+    if (!revoked.allow) assert.equal(revoked.reason, "revoked");
+
+    const expiring = issued(records, "tool.run", { expiresAt: 1_000 });
+    const expired = authorizeInvocation(invocation(records, expiring, { now: 1_000 }));
+    assert.equal(expired.allow, false);
+    if (!expired.allow) assert.equal(expired.reason, "expired");
+
+    const mismatch = authorizeInvocation(invocation(records, grant, { principalId: "other" }));
+    assert.equal(mismatch.allow, false);
+    if (!mismatch.allow) assert.equal(mismatch.reason, "principal-mismatch");
+  });
+
+  it("denies an edge that is not on the snapshot list", () => {
+    const records = admit(tool("tool.run"));
+    const grant = issued(records, "tool.run");
+    const decision = authorizeInvocation(
+      invocation(records, grant, {
+        requestedEdge: { from_node: "node.source", to_node: "node.elsewhere" },
+      }),
+    );
+    assert.equal(decision.allow, false);
+    if (!decision.allow) assert.equal(decision.reason, "unauthorized-edge");
+  });
+
+  it("denies the same capability id on a different adapter", () => {
+    const records = admit(tool("tool.run"));
+    const grant = issued(records, "tool.run");
+    const decision = authorizeInvocation(invocation(records, grant, { adapterType: "other" }));
+    assert.equal(decision.allow, false);
+    if (!decision.allow) assert.equal(decision.reason, "adapter-mismatch");
+  });
+
+  it("does not let a parent grant satisfy a different child capability", () => {
+    let records = [tool("parent.cap"), tool("child.cap")];
+    records = [...admitCapability(records, "parent.cap")];
+    records = [...admitCapability(records, "child.cap")];
+    const parentGrant = issued(records, "parent.cap");
+    const decision = authorizeInvocation(
+      invocation(records, parentGrant, {
+        capabilityId: "child.cap",
+        parentCapabilityId: "parent.cap",
+      }),
+    );
+    assert.equal(decision.allow, false);
+    if (!decision.allow) assert.equal(decision.reason, "nested-privilege");
+  });
+
+  it("denies when the policy hook is missing, unavailable, or deny", () => {
+    const records = admit(tool("tool.run"));
+    const grant = issued(records, "tool.run");
+    const missing = authorizeInvocation(invocation(records, grant, { policy: null }));
+    assert.equal(missing.allow, false);
+    if (!missing.allow) assert.equal(missing.reason, "policy-unavailable");
+
+    const unavailable = authorizeInvocation(
+      invocation(records, grant, {
+        policy: { policy_version: "policy-1", evaluate: () => "unavailable" },
+      }),
+    );
+    assert.equal(unavailable.allow, false);
+    if (!unavailable.allow) assert.equal(unavailable.reason, "policy-unavailable");
+
+    const denied = authorizeInvocation(
+      invocation(records, grant, {
+        policy: { policy_version: "policy-1", evaluate: () => "deny" },
+      }),
+    );
+    assert.equal(denied.allow, false);
+    if (!denied.allow) assert.equal(denied.reason, "policy-deny");
+  });
+
+  it("denies a work scope that does not match the admitted record", () => {
+    const records = admit(
+      tool("tool.scoped", { work_scope_required: true, work_scope_ref: "scope-1" }),
+    );
+    const grant = issued(records, "tool.scoped", { workScopeRef: "scope-1" });
+    const decision = authorizeInvocation(invocation(records, grant, { workScopeRef: "scope-2" }));
+    assert.equal(decision.allow, false);
+    if (!decision.allow) assert.equal(decision.reason, "work-scope-mismatch");
+  });
+
+  it("denies provider.web_search as unsupported in protected mode", () => {
+    assert.equal(mediationMode({ [ADMISSION_RECONCILE_ENV]: "protected" }), "protected");
+    const native = discoverProviderNative().find(
+      (row) => row.capability_id === "provider.web_search",
+    );
+    assert.ok(native);
+    const forged = createCapabilityRecord({ ...native, admission_state: "admitted" });
+    const decision = authorizeInvocation({
+      capabilityId: "provider.web_search",
+      operation: "web_search",
+      records: [forged],
+      deltas: [],
+      catalogRevision: 3,
+      edges: [],
+      grants: [],
+      policy: allowPolicy,
+      principalId: "principal-a",
+      sourceNodeId: "node.source",
+      targetNodeId: "node.target",
+      adapterType: "provider-native",
+      grantId: "",
+      now: 1_000,
+    });
+    assert.equal(decision.allow, false);
+    if (!decision.allow) assert.equal(decision.reason, "unsupported-prohibited");
+    const account = executionClassAccount("protected");
+    assert.equal(account.length, 10);
+    assert.deepEqual(
+      account.filter((row) => row.verdict === "mediated").map((row) => row.id),
+      ["mcp-preview"],
+    );
+    assert.equal(account.filter((row) => row.verdict === "unsupported-prohibited").length, 9);
+    assert.equal(
+      executionClassAccount("compatibility").every(
+        (row) => row.verdict === "compatibility-unmediated",
+      ),
+      true,
+    );
     assert.equal(HOME_BUS_ACTIVATED, false);
   });
 });

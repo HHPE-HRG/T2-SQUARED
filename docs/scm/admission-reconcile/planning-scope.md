@@ -14,6 +14,11 @@
 - Four coverage classes from the review's section 5.4
 - Read-only discovery of preview MCP tool names, host `.mcp.json` servers, skill files versus bundled scripts, and provider-native tool names
 - Env `T2CODE_SCM_ADMISSION_RECONCILE` on the in-repo preview invoke path only
+- Named compatibility mode and protected mode
+- A grant bound to one admitted record, one catalog revision, and the canonical digest
+- An explicit edge list, a policy hook, and a nested-child deny
+- Process-local decision and outcome records
+- A closed verdict for the ten execution classes
 
 ## Out of scope
 
@@ -26,6 +31,7 @@
 | OpenAPPA composition or a second permit algebra                                                                                     | Not this charter                                                       |
 | OS sandbox, egress ACL, SPIFFE, NATS                                                                                                | Not this charter                                                       |
 | Treat provider-native tools as admitted                                                                                             | No proven pre-tool interceptor. Classify outside guarantees            |
+| In-process wrappers around `canUseTool`, spawn, Git, or SQLite                                                                      | Those need a real interceptor or an OS boundary                        |
 | Lexicon-check search text, code, or quoted rows                                                                                     | Opaque payloads are exempt                                             |
 
 ## Unlock

@@ -1,9 +1,9 @@
 /**
  * Preview invoke admission gate.
  *
- * Intended: env unset does not consult the snapshot and still calls the
- * broker. Env set fail-closes a drifted tool before broker.invoke, and
- * fail-closes when the snapshot is missing.
+ * Intended: compatibility mode does not consult the snapshot and still calls
+ * the broker. Protected mode fail-closes drift and a missing snapshot before
+ * broker.invoke. A matching grant on an unchanged catalog lets the broker run.
  */
 import {
   EnvironmentId,
@@ -21,9 +21,18 @@ import {
   admitCapability,
   createCapabilityRecord,
 } from "../../../scm/admissionCatalog.ts";
-import { installAdmittedSnapshot } from "../../../scm/admissionDispatch.ts";
+import { mediationMode } from "../../../scm/admissionDispatch.ts";
 import { compareCatalog } from "../../../scm/admissionDrift.ts";
 import { discoverPreviewTools } from "../../../scm/admissionDiscover.ts";
+import {
+  PREVIEW_GRANT_ADAPTER,
+  PREVIEW_GRANT_NODE,
+  PREVIEW_GRANT_PRINCIPAL,
+  installAuthority,
+  issueGrant,
+  readDecisions,
+  resetAuthorityEvidence,
+} from "../../../scm/admissionGrant.ts";
 import { invokePreviewOperation } from "./handlers.ts";
 
 const invocation: McpInvocationContext.McpInvocationScope = {
@@ -58,7 +67,8 @@ it.effect(
 
     return Effect.gen(function* () {
       delete process.env[ADMISSION_RECONCILE_ENV];
-      installAdmittedSnapshot(null);
+      assert.equal(mediationMode(), "compatibility");
+      installAuthority(null);
       const ungated = yield* invokePreviewOperation("navigate", {}).pipe(
         Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
         Effect.provideService(PreviewAutomationBroker.PreviewAutomationBroker, broker),
@@ -74,7 +84,13 @@ it.effect(
         input_schema: "preview_navigate-drifted",
       });
       const compared = compareCatalog(admitted, [drifted]);
-      installAdmittedSnapshot(compared.records, compared.deltas);
+      installAuthority({
+        records: compared.records,
+        deltas: compared.deltas,
+        catalogRevision: 1,
+        grants: [],
+        policy: null,
+      });
       process.env[ADMISSION_RECONCILE_ENV] = "1";
       calls.length = 0;
       const denied = yield* invokePreviewOperation("navigate", {}).pipe(
@@ -87,7 +103,7 @@ it.effect(
       assert.equal(denied.capabilityId, "preview_navigate");
       assert.deepEqual(calls, []);
 
-      installAdmittedSnapshot(null);
+      installAuthority(null);
       const missing = yield* invokePreviewOperation("status", {}).pipe(
         Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
         Effect.provideService(PreviewAutomationBroker.PreviewAutomationBroker, broker),
@@ -96,10 +112,39 @@ it.effect(
       assert.ok(missing instanceof PreviewAutomationAdmissionDeniedError);
       assert.equal(missing.reason, "missing-snapshot");
       assert.deepEqual(calls, []);
+
+      resetAuthorityEvidence();
+      const grant = issueGrant({
+        records: admitted,
+        catalogRevision: 2,
+        capabilityId: "preview_navigate",
+        principalId: PREVIEW_GRANT_PRINCIPAL,
+        sourceNodeId: PREVIEW_GRANT_NODE,
+        targetNodeId: PREVIEW_GRANT_NODE,
+        adapterType: PREVIEW_GRANT_ADAPTER,
+      });
+      installAuthority({
+        records: admitted,
+        deltas: [],
+        catalogRevision: 2,
+        grants: [grant],
+        policy: { policy_version: "policy-preview", evaluate: () => "allow" },
+      });
+      process.env[ADMISSION_RECONCILE_ENV] = "protected";
+      calls.length = 0;
+      const allowed = yield* invokePreviewOperation("navigate", {}).pipe(
+        Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
+        Effect.provideService(PreviewAutomationBroker.PreviewAutomationBroker, broker),
+      );
+      assert.deepEqual(allowed, { available: true });
+      assert.deepEqual(calls, ["navigate"]);
+      assert.equal(readDecisions().at(-1)?.outcome, "admitted");
+      assert.equal(readDecisions().at(-1)?.capability_id, "preview_navigate");
     }).pipe(
       Effect.ensuring(
         Effect.sync(() => {
-          installAdmittedSnapshot(null);
+          installAuthority(null);
+          resetAuthorityEvidence();
           restoreEnv(previous);
         }),
       ),

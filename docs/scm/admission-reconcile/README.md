@@ -13,11 +13,16 @@ as the flag. -->
 
 ## Index
 
-| Doc                                    | Role                                                      |
-| -------------------------------------- | --------------------------------------------------------- |
-| [planning-scope.md](planning-scope.md) | In / out / false friends                                  |
-| [contracts.md](contracts.md)           | Record, drift delta, coverage classes, dispatch           |
-| [manifest.json](manifest.json)         | `admissionReconcileAuthorized: false`; `completed: false` |
+| Doc                                                    | Role                                                      |
+| ------------------------------------------------------ | --------------------------------------------------------- |
+| [planning-scope.md](planning-scope.md)                 | In / out / false friends                                  |
+| [contracts.md](contracts.md)                           | Record, drift delta, modes, grant, execution classes      |
+| [manifest.json](manifest.json)                         | `admissionReconcileAuthorized: false`; `completed: false` |
+| [evidence/current-state.md](evidence/current-state.md) | What this process mediates today                          |
+| [gap-matrix.md](gap-matrix.md)                         | Review request against this tree                          |
+| [execution-matrix.md](execution-matrix.md)             | Ten execution classes and their verdicts                  |
+| [g11-recommendation.md](g11-recommendation.md)         | Ownership recommendation; no numbered gate                |
+| [deferred.md](deferred.md)                             | Work this changeset does not pretend to finish            |
 
 ## What this charter is
 
@@ -25,6 +30,10 @@ Discovery of a tool catalog may change. A change must not become authority.
 The review's reconcile step is the behavior: pending delta on schema, digest,
 effect, or destination drift; removal and revocation block dispatch; unknown
 machine identifiers fail closed; opaque payloads are not lexicon-checked.
+
+Protected mode binds a grant to that decision for preview MCP tool invoke.
+Compatibility mode leaves preview invoke on the session credential and is not
+authority. The other nine execution classes stay unmediated.
 
 ## What this charter is not
 

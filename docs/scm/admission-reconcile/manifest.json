@@ -9,7 +9,7 @@
   "inventsG11": false,
   "homeBusActivated": false,
   "processEnv": "T2CODE_SCM_ADMISSION_RECONCILE",
-  "processEnvNote": "Default off. Distinct from T2CODE_SCM_CODEC, T2CODE_SCM_EQUALITY_IR, T2CODE_SCM_FABRIC_DEPTH, T2CODE_SCM_G10_CUTOVER, T3CODE_CLIENT_OTLP_*, and T3CODE_APPA_*. Unset does not install the gate. Set fail-closes preview invoke.",
+  "processEnvNote": "Default off. Distinct from T2CODE_SCM_CODEC, T2CODE_SCM_EQUALITY_IR, T2CODE_SCM_FABRIC_DEPTH, T2CODE_SCM_G10_CUTOVER, T3CODE_CLIENT_OTLP_*, and T3CODE_APPA_*. Unset is compatibility mode and is not authority. Values 1, true, yes, and protected are protected mode and fail-close preview invoke.",
   "doesNotOverload": [
     "g9toG10Authorized",
     "fabricDepthAuthorized",

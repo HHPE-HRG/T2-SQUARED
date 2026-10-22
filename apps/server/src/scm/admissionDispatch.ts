@@ -4,7 +4,8 @@
  * Intended: unknown ids, pending drift, suspension, revocation, removal,
  * canBus aliases, and outside-guarantee classes deny. An unchanged admitted
  * record allows. A missing snapshot denies when the caller asks for a
- * decision. Env unset means the preview handler does not call this gate.
+ * decision. Unset env is compatibility mode: the preview handler does not
+ * call this gate. `1`, `true`, `yes`, and `protected` are protected mode.
  *
  * Observed: pure decision plus one process-local snapshot slot used by the
  * preview invoke path. The slot is not an evidence ledger and does not
@@ -89,14 +90,26 @@ export const installAdmittedSnapshot = (
 export const readAdmittedSnapshot = (): InstalledSnapshot | null => installedSnapshot;
 
 /**
- * True only for `1`, `true`, or `yes`. Unset, empty, and `0` leave the gate
- * uninstalled so current preview invoke stays unchanged.
+ * Compatibility leaves preview invoke on the session credential alone.
+ * Protected is the only mode that consults a grant. Neither mode is authority
+ * equivalence, and neither mode activates the home bus.
  */
+export type MediationMode = "compatibility" | "protected";
+
+/** Unset, blank, `0`, and `compatibility` stay compatibility. */
+export const mediationMode = (env: NodeJS.ProcessEnv = process.env): MediationMode =>
+  isAdmissionReconcileEnabled(env) ? "protected" : "compatibility";
+
 export const isAdmissionReconcileEnabled = (env: NodeJS.ProcessEnv = process.env): boolean => {
   const raw = env[ADMISSION_RECONCILE_ENV];
   if (raw === undefined) return false;
   const normalized = raw.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes";
+  return (
+    normalized === "1" ||
+    normalized === "true" ||
+    normalized === "yes" ||
+    normalized === "protected"
+  );
 };
 
 const deny = (capabilityId: string, reason: DispatchDenyReason): DispatchDecision => ({

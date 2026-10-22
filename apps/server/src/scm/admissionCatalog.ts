@@ -84,6 +84,10 @@ export type CapabilityRecord = {
   readonly allowed_destinations: readonly string[];
   readonly admission_state: AdmissionState;
   readonly nomenclature_version: typeof ADMISSION_NOMENCLATURE_VERSION;
+  /** Campaign scope id. Null when the record does not name one. Not a registry query. */
+  readonly work_scope_ref: string | null;
+  /** When true, a grant and an invoke must carry the same work_scope_ref. */
+  readonly work_scope_required: boolean;
 };
 
 export type CapabilityDraft = {
@@ -102,6 +106,8 @@ export type CapabilityDraft = {
   readonly node_type?: ClassId;
   readonly home_bus_id?: string;
   readonly bus_type?: string;
+  readonly work_scope_ref?: string | null;
+  readonly work_scope_required?: boolean;
 };
 
 export type MachineIdJudgment =
@@ -195,6 +201,11 @@ export const createCapabilityRecord = (draft: CapabilityDraft): CapabilityRecord
   for (const effect of draft.effect_classes) {
     assertMember("effect_class", effect, EFFECT_SET);
   }
+  const workScopeRef = draft.work_scope_ref ?? null;
+  const workScopeRequired = draft.work_scope_required ?? false;
+  if (workScopeRequired && (workScopeRef === null || workScopeRef.length === 0)) {
+    throw new Error("admission reconcile: a required work scope needs a scope id");
+  }
   return {
     capability_id: draft.capability_id,
     node_id: draft.node_id,
@@ -212,6 +223,8 @@ export const createCapabilityRecord = (draft: CapabilityDraft): CapabilityRecord
     allowed_destinations: Object.freeze([...new Set(draft.allowed_destinations ?? [])].sort()),
     admission_state: state,
     nomenclature_version: ADMISSION_NOMENCLATURE_VERSION,
+    work_scope_ref: workScopeRef,
+    work_scope_required: workScopeRequired,
   };
 };
 

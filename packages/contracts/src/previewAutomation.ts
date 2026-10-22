@@ -651,7 +651,8 @@ export class PreviewAutomationUnavailableError extends Schema.TaggedErrorClass<P
  *
  * The session credential may still be `"preview"`. This error means the
  * capability id is unknown, drifted, suspended, revoked, or otherwise not
- * admitted. It is not a host-availability failure.
+ * admitted, or the protected grant check denied. It is not a
+ * host-availability failure. Compatibility mode does not emit this error.
  */
 export class PreviewAutomationAdmissionDeniedError extends Schema.TaggedErrorClass<PreviewAutomationAdmissionDeniedError>()(
   "PreviewAutomationAdmissionDeniedError",
@@ -669,6 +670,17 @@ export class PreviewAutomationAdmissionDeniedError extends Schema.TaggedErrorCla
       "missing-snapshot",
       "canBus-alias",
       "outside-guarantees",
+      "expired",
+      "stale-grant",
+      "principal-mismatch",
+      "adapter-mismatch",
+      "unauthorized-edge",
+      "work-scope-mismatch",
+      "nested-privilege",
+      "policy-unavailable",
+      "policy-deny",
+      "unsupported-prohibited",
+      "missing-grant",
     ]),
     environmentId: EnvironmentId,
     threadId: ThreadId,

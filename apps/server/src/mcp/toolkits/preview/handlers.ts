@@ -13,10 +13,8 @@ import {
   type PreviewTabId,
 } from "@t3tools/contracts";
 
-import {
-  decidePreviewDispatch,
-  isAdmissionReconcileEnabled,
-} from "../../../scm/admissionDispatch.ts";
+import { mediationMode } from "../../../scm/admissionDispatch.ts";
+import { authorizePreviewOperation } from "../../../scm/admissionGrant.ts";
 import * as McpInvocationContext from "../../McpInvocationContext.ts";
 import * as PreviewAutomationBroker from "../../PreviewAutomationBroker.ts";
 import { PreviewSnapshotToolkit, PreviewStandardToolkit, PreviewToolkit } from "./tools.ts";
@@ -36,13 +34,17 @@ export function normalizePreviewOpenInput(
 /**
  * Preview invoke.
  *
- * Intended: the `"preview"` credential stays a session check. When
- * `T2CODE_SCM_ADMISSION_RECONCILE` is unset, broker.invoke runs as before.
- * When it is set, admission dispatch runs before the broker and fail-closes
- * unknown, drifted, revoked, or missing-snapshot capabilities.
+ * Intended: the `"preview"` credential stays a session check. Compatibility
+ * mode (env unset) does not consult the snapshot and calls broker.invoke.
+ * Protected mode (`1`, `true`, `yes`, `protected`) calls authorizeInvocation
+ * before the broker. A missing snapshot, missing grant, stale catalog,
+ * expired grant, unauthorized edge, or unavailable policy denies. This is
+ * not authority equivalence.
  *
- * Observed: the gate reads the process-local snapshot in admissionDispatch.
- * It does not admit provider-native tools and does not replace the session check.
+ * Observed: protected mode reads the process-local snapshot and authority
+ * slot. It writes a decision and does not write a completed outcome, because
+ * the broker result is not an effect ref. It does not wrap provider-native
+ * tools, spawn, Git, or SQLite.
  */
 export const invokePreviewOperation = Effect.fn("PreviewToolkit.invoke")(function* <A>(
   operation: PreviewAutomationOperation,
@@ -55,9 +57,9 @@ export const invokePreviewOperation = Effect.fn("PreviewToolkit.invoke")(functio
   McpInvocationContext.McpInvocationContext | PreviewAutomationBroker.PreviewAutomationBroker
 > {
   const scope = yield* McpInvocationContext.requireMcpCapability("preview");
-  // Env unset: do not consult the snapshot. Current preview behavior stays.
-  if (isAdmissionReconcileEnabled()) {
-    const decision = decidePreviewDispatch(operation);
+  // Compatibility: do not consult the snapshot or the grant.
+  if (mediationMode() === "protected") {
+    const decision = authorizePreviewOperation(operation);
     if (!decision.allow) {
       return yield* new PreviewAutomationAdmissionDeniedError({
         capability: "preview",
