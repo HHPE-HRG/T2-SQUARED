@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "campaign": "admission-reconcile",
+  "councilLens": "review-2026-10-20-drift-reconcile",
+  "status": "charter-draft",
+  "admissionReconcileAuthorized": false,
+  "authorized": false,
+  "completed": false,
+  "inventsG11": false,
+  "homeBusActivated": false,
+  "processEnv": "T2CODE_SCM_ADMISSION_RECONCILE",
+  "processEnvNote": "Default off. Distinct from T2CODE_SCM_CODEC, T2CODE_SCM_EQUALITY_IR, T2CODE_SCM_FABRIC_DEPTH, T2CODE_SCM_G10_CUTOVER, T3CODE_CLIENT_OTLP_*, and T3CODE_APPA_*. Unset does not install the gate. Set fail-closes preview invoke.",
+  "doesNotOverload": [
+    "g9toG10Authorized",
+    "fabricDepthAuthorized",
+    "equalityIrAuthorized",
+    "codecAuthorized",
+    "n08Authorized",
+    "appaAuthorized"
+  ],
+  "authorization": null,
+  "authorizationDurable": null,
+  "authorizationDraft": null,
+  "contractsRef": "docs/scm/admission-reconcile/contracts.md",
+  "note": "Charter 2026-10-21. DRAFT only. admissionReconcileAuthorized false. Not G11. Home-bus dormant. Radius unchanged. Catalog drift is not codec or Equality-IR fixture drift."
+}

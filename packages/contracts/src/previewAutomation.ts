@@ -646,6 +646,41 @@ export class PreviewAutomationUnavailableError extends Schema.TaggedErrorClass<P
   }
 }
 
+/**
+ * Preview invoke was refused by admission reconcile.
+ *
+ * The session credential may still be `"preview"`. This error means the
+ * capability id is unknown, drifted, suspended, revoked, or otherwise not
+ * admitted. It is not a host-availability failure.
+ */
+export class PreviewAutomationAdmissionDeniedError extends Schema.TaggedErrorClass<PreviewAutomationAdmissionDeniedError>()(
+  "PreviewAutomationAdmissionDeniedError",
+  {
+    capability: Schema.Literal("preview"),
+    operation: PreviewAutomationOperation,
+    capabilityId: TrimmedNonEmptyString,
+    reason: Schema.Literals([
+      "unknown",
+      "pending-drift",
+      "proposed",
+      "suspended",
+      "revoked",
+      "removed",
+      "missing-snapshot",
+      "canBus-alias",
+      "outside-guarantees",
+    ]),
+    environmentId: EnvironmentId,
+    threadId: ThreadId,
+    providerSessionId: TrimmedNonEmptyString,
+    providerInstanceId: ProviderInstanceId,
+  },
+) {
+  override get message(): string {
+    return `Preview automation ${this.operation} denied: ${this.capabilityId} is ${this.reason}.`;
+  }
+}
+
 const PreviewAutomationScopeErrorFields = {
   operation: PreviewAutomationOperation,
   environmentId: EnvironmentId,
@@ -858,6 +893,7 @@ export class PreviewAutomationMalformedResponseError extends Schema.TaggedErrorC
 
 export const PreviewAutomationError = Schema.Union([
   PreviewAutomationUnavailableError,
+  PreviewAutomationAdmissionDeniedError,
   PreviewAutomationNoAvailableHostError,
   PreviewAutomationUnsupportedClientError,
   PreviewAutomationTabNotFoundError,

@@ -1,16 +1,22 @@
 import * as Effect from "effect/Effect";
-import type {
-  PreviewAutomationOperation,
-  PreviewAutomationOpenInput,
-  PreviewAutomationRecordingArtifact,
-  PreviewAutomationRecordingStatus,
-  PreviewAutomationResizeResult,
-  PreviewAutomationSetColorSchemeResult,
-  PreviewAutomationSnapshot,
-  PreviewAutomationStatus,
-  PreviewTabId,
+import {
+  PreviewAutomationAdmissionDeniedError,
+  type PreviewAutomationError,
+  type PreviewAutomationOperation,
+  type PreviewAutomationOpenInput,
+  type PreviewAutomationRecordingArtifact,
+  type PreviewAutomationRecordingStatus,
+  type PreviewAutomationResizeResult,
+  type PreviewAutomationSetColorSchemeResult,
+  type PreviewAutomationSnapshot,
+  type PreviewAutomationStatus,
+  type PreviewTabId,
 } from "@t3tools/contracts";
 
+import {
+  decidePreviewDispatch,
+  isAdmissionReconcileEnabled,
+} from "../../../scm/admissionDispatch.ts";
 import * as McpInvocationContext from "../../McpInvocationContext.ts";
 import * as PreviewAutomationBroker from "../../PreviewAutomationBroker.ts";
 import { PreviewSnapshotToolkit, PreviewStandardToolkit, PreviewToolkit } from "./tools.ts";
@@ -27,17 +33,44 @@ export function normalizePreviewOpenInput(
   };
 }
 
-const invoke = Effect.fn("PreviewToolkit.invoke")(function* <A>(
+/**
+ * Preview invoke.
+ *
+ * Intended: the `"preview"` credential stays a session check. When
+ * `T2CODE_SCM_ADMISSION_RECONCILE` is unset, broker.invoke runs as before.
+ * When it is set, admission dispatch runs before the broker and fail-closes
+ * unknown, drifted, revoked, or missing-snapshot capabilities.
+ *
+ * Observed: the gate reads the process-local snapshot in admissionDispatch.
+ * It does not admit provider-native tools and does not replace the session check.
+ */
+export const invokePreviewOperation = Effect.fn("PreviewToolkit.invoke")(function* <A>(
   operation: PreviewAutomationOperation,
   input: unknown,
   timeoutMs?: number,
   tabId?: PreviewTabId,
 ): Effect.fn.Return<
   A,
-  import("@t3tools/contracts").PreviewAutomationError,
+  PreviewAutomationError,
   McpInvocationContext.McpInvocationContext | PreviewAutomationBroker.PreviewAutomationBroker
 > {
   const scope = yield* McpInvocationContext.requireMcpCapability("preview");
+  // Env unset: do not consult the snapshot. Current preview behavior stays.
+  if (isAdmissionReconcileEnabled()) {
+    const decision = decidePreviewDispatch(operation);
+    if (!decision.allow) {
+      return yield* new PreviewAutomationAdmissionDeniedError({
+        capability: "preview",
+        operation,
+        capabilityId: decision.capabilityId,
+        reason: decision.reason,
+        environmentId: scope.environmentId,
+        threadId: scope.threadId,
+        providerSessionId: scope.providerSessionId,
+        providerInstanceId: scope.providerInstanceId,
+      });
+    }
+  }
   const broker = yield* PreviewAutomationBroker.PreviewAutomationBroker;
   return yield* broker.invoke<A>({
     scope,
@@ -57,7 +90,7 @@ const invokeTargeted = <A>(
   timeoutMs?: number,
 ) => {
   const { tabId, ...operationInput } = input;
-  return invoke<A>(operation, operationInput, timeoutMs, tabId);
+  return invokePreviewOperation<A>(operation, operationInput, timeoutMs, tabId);
 };
 
 const handlers = {
